@@ -108,3 +108,4 @@ El sistema funciona **100% de manera autónoma en el navegador** (guardando dato
 ## 📄 Licencia y Autor
 - **Desarrollado por:** CS Consultoría
 - **Propiedad:** Todos los derechos reservados.
+- 
