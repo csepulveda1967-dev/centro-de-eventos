@@ -1,0 +1,6 @@
+{
+  "name": "Centro de Eventos - Operaciones y Cotizador",
+  "description": "SOLVI Flow: Software de gestión integral de centros de eventos y productoras por CS Consultoría. «Todo fluye. Todo conecta». Cotizaciones, escandallo gastronómico, compras y calendario.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
