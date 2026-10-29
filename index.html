@@ -61,9 +61,7 @@
       @media (max-width: 400px) {
         header nav button { white-space: normal !important; line-height: 1.15 !important; font-size: 12px !important; }
       }
-      /* 1. Ocultar el banner del Spot Comercial con Voz */
-      div:has(button:contains("Ver Comercial con Voz")),
-      div:has(span:contains("SPOT COMERCIAL")),
+      /* 1. Ocultar el banner del Spot Comercial si está presente */
       .bg-gradient-to-r.from-slate-900.via-amber-950.to-slate-900,
       [title="Ver presentación publicitaria con voz en off interactiva"] {
         display: none !important;
