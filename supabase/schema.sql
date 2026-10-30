@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS public.insumos (
     id TEXT PRIMARY KEY,
     empresa_id TEXT REFERENCES public.empresas(id) ON DELETE CASCADE,
     nombre TEXT NOT NULL,
-    categoria TEXT NOT NULL, -- carnes, pescados, verduras_frutas, lacteos_huevos, abarrotes, licores_bebidas, panaderia_pasteleria
+    categoria TEXT NOT NULL, -- Permite categorías estándar (carnes, verduras_frutas, abarrotes, etc.) o cualquier categoría libre creada por el usuario
     unidad_medida TEXT NOT NULL, -- kg, g, L, ml, unidad, paquete
     precio_compra NUMERIC(12, 2) NOT NULL DEFAULT 0,
     merma_porcentaje NUMERIC(5, 2) NOT NULL DEFAULT 0,

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta } from '../types';
 import {
   calcularCostoReceta,
   calcularCostoIngrediente,
-  calcularCostoMenuDesdeRecetas
+  calcularCostoMenuDesdeRecetas,
+  calcularDesglosePorCategoria,
+  formatearNombreCategoria,
+  obtenerColorCategoria
 } from '../config/insumosYRecetas';
 import { formatMoneda, formatPorcentaje, formatPrecioUnitario } from '../utils/formatters';
 import {
@@ -20,7 +23,10 @@ import {
   Info,
   Scale,
   Coffee,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Tag,
+  Filter,
+  PieChart
 } from 'lucide-react';
 
 interface CalculadoraRecetasProps {
@@ -82,6 +88,64 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   const calculoMenuCompleto = menuVinculado
     ? calcularCostoMenuDesdeRecetas(menuVinculado.id, recetas, insumos)
     : { costoMenuCalculado: 0, recetasEncontradas: 0 };
+
+  // Filtro de categorías para añadir ingredientes desde el maestro
+  const [categoriaFiltroIngrediente, setCategoriaFiltroIngrediente] = useState<string>('todas');
+
+  // Categorías presentes en los insumos (tanto predeterminadas como creadas en forma libre)
+  const categoriasDisponibles = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; count: number }>();
+    for (const ins of insumos) {
+      const cat = ins.categoria || 'otros';
+      const catKey = cat.toLowerCase();
+      if (!map.has(catKey)) {
+        map.set(catKey, {
+          id: cat,
+          label: formatearNombreCategoria(cat),
+          count: 0
+        });
+      }
+      map.get(catKey)!.count += 1;
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [insumos]);
+
+  // Insumos filtrados por la categoría seleccionada para agregar a la receta
+  const insumosParaAgregar = useMemo(() => {
+    if (categoriaFiltroIngrediente === 'todas') {
+      return insumos;
+    }
+    return insumos.filter(i => (i.categoria || '').toLowerCase() === categoriaFiltroIngrediente.toLowerCase());
+  }, [insumos, categoriaFiltroIngrediente]);
+
+  // Si cambia el filtro y el insumo seleccionado ya no está en la lista filtrada, actualizarlo
+  const handleCambioCategoriaFiltro = (nuevaCat: string) => {
+    setCategoriaFiltroIngrediente(nuevaCat);
+    const listaFiltrada = nuevaCat === 'todas'
+      ? insumos
+      : insumos.filter(i => (i.categoria || '').toLowerCase() === nuevaCat.toLowerCase());
+
+    if (listaFiltrada.length > 0 && !listaFiltrada.some(i => i.id === insumoToAddId)) {
+      const primerItem = listaFiltrada[0];
+      setInsumoToAddId(primerItem.id);
+      if (primerItem.unidadMedida === 'kg') {
+        setUnidadToAdd('g');
+        setCantidadToAdd(200);
+      } else if (primerItem.unidadMedida === 'unidad') {
+        setUnidadToAdd('unidad');
+        setCantidadToAdd(2);
+      } else {
+        setUnidadToAdd(primerItem.unidadMedida as any || 'g');
+        setCantidadToAdd(1);
+      }
+    }
+  };
+
+  // Desglose del costo de la receta activa según las categorías de sus insumos
+  const desgloseCategorias = useMemo(() => {
+    if (!recetaActiva) return [];
+    return calcularDesglosePorCategoria(recetaActiva, insumos);
+  }, [recetaActiva, insumos]);
 
   const notificar = (msg: string) => {
     setToastSync(msg);
@@ -453,13 +517,21 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
                         return (
                           <tr key={ing.id} className="hover:bg-slate-50/50">
-                            <td className="py-2.5 px-3 font-semibold text-slate-900">
-                              {ins?.nombre || 'Insumo eliminado'}
-                              <span className="block text-[10px] text-slate-400 font-normal">
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-slate-900">{ins?.nombre || 'Insumo eliminado'}</span>
+                                {ins?.categoria && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${obtenerColorCategoria(ins.categoria).badge}`}>
+                                    {formatearNombreCategoria(ins.categoria)}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="block text-[10px] text-slate-400 font-normal mt-0.5">
                                 Base: {formatMoneda(ins?.precioCompra || 0)}/{ins?.unidadMedida}
                                 {precioPorGramo !== null && (
                                   <span className="text-amber-800 font-medium"> ({formatPrecioUnitario(precioPorGramo)}/g)</span>
                                 )}
+                                {ins?.proveedor && ` · ${ins.proveedor}`}
                               </span>
                             </td>
 
@@ -530,14 +602,74 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             </div>
 
-            {/* Agregar nuevo ingrediente */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
-                Añadir Ingrediente desde el Maestro de Insumos:
-              </span>
+            {/* Desglose de Costo por Categoría Vinculada */}
+            {desgloseCategorias.length > 0 && (
+              <div className="p-3.5 bg-gradient-to-r from-slate-50 via-amber-50/20 to-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <PieChart className="w-3.5 h-3.5 text-amber-600" />
+                    Desglose por Categoría de Insumos (Vinculación Directa)
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {desgloseCategorias.length} {desgloseCategorias.length === 1 ? 'categoría presente' : 'categorías presentes'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                  {desgloseCategorias.map(item => {
+                    const estilo = obtenerColorCategoria(item.categoria);
+                    return (
+                      <div
+                        key={item.categoria}
+                        className={`p-2 rounded-lg border ${estilo.border} ${estilo.bg} flex items-center justify-between gap-2`}
+                      >
+                        <div className="min-w-0">
+                          <span className={`font-bold block text-xs truncate ${estilo.text}`}>
+                            {item.nombreCategoria}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {item.porcentaje}% del costo ingredientes
+                          </span>
+                        </div>
+                        <span className="font-black text-slate-900 tabular-nums text-xs shrink-0">
+                          {formatMoneda(item.costo)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Agregar nuevo ingrediente con selector de categorías vinculadas */}
+            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-amber-600" />
+                  Añadir Ingrediente desde el Maestro de Insumos:
+                </span>
+
+                {/* Filtro por Categoría de Insumo */}
+                <div className="flex items-center gap-1.5">
+                  <Filter className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="text-[11px] text-slate-500 font-medium">Filtrar por categoría:</span>
+                  <select
+                    value={categoriaFiltroIngrediente}
+                    onChange={(e) => handleCambioCategoriaFiltro(e.target.value)}
+                    className="text-[11px] px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:outline-hidden focus:border-amber-500 cursor-pointer"
+                  >
+                    <option value="todas">Todas ({insumos.length})</option>
+                    {categoriasDisponibles.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} ({c.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
-                {/* Selector de insumo */}
+                {/* Selector de insumo filtrado */}
                 <div className="sm:col-span-2">
                   <select
                     value={insumoToAddId}
@@ -559,12 +691,16 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                     }}
                     className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:border-amber-500 focus:outline-hidden"
                   >
-                    {insumos.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.nombre} ({formatMoneda(i.precioCompra)}/{i.unidadMedida}
-                        {i.unidadMedida === 'kg' ? ` · ${formatPrecioUnitario(i.precioCompra / 1000)}/g` : ''})
-                      </option>
-                    ))}
+                    {insumosParaAgregar.length === 0 ? (
+                      <option value="">No hay insumos en esta categoría</option>
+                    ) : (
+                      insumosParaAgregar.map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.nombre} [{formatearNombreCategoria(i.categoria)}] ({formatMoneda(i.precioCompra)}/{i.unidadMedida}
+                          {i.unidadMedida === 'kg' ? ` · ${formatPrecioUnitario(i.precioCompra / 1000)}/g` : ''})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -595,8 +731,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                 <div>
                   <button
                     type="button"
+                    disabled={!insumoToAddId}
                     onClick={handleAddIngrediente}
-                    className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-2xs"
+                    className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Agregar</span>

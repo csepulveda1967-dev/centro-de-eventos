@@ -11,7 +11,10 @@ import {
   Mail,
   ExternalLink,
   ShieldCheck,
-  Server
+  Server,
+  Lock,
+  Unlock,
+  FolderGit2
 } from 'lucide-react';
 
 interface GestionEmpresasModalProps {
@@ -20,6 +23,9 @@ interface GestionEmpresasModalProps {
   onSelectEmpresa: (id: string) => void;
   onAddEmpresa: (nueva: EmpresaCliente) => void;
   onClose: () => void;
+  modoAdmin?: boolean;
+  onToggleModoAdmin?: () => void;
+  onAbrirRespaldo?: () => void;
 }
 
 export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
@@ -27,7 +33,10 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   empresaActivaId,
   onSelectEmpresa,
   onAddEmpresa,
-  onClose
+  onClose,
+  modoAdmin = false,
+  onToggleModoAdmin,
+  onAbrirRespaldo
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
 
@@ -129,6 +138,54 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
         {/* Contenido según Tab */}
         <div className="p-6">
           
+          {/* Control de Modo Administrador vs Modo Demo */}
+          <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className={`p-2 rounded-xl shrink-0 ${modoAdmin ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'}`}>
+                {modoAdmin ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900">
+                  Estado de la Plataforma: {modoAdmin ? 'Modo Administrador Activo' : 'Modo Demo (Para Clientes)'}
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  {modoAdmin
+                    ? 'Herramientas de GitHub, base de datos y respaldos visibles.'
+                    : 'Herramientas técnicas ocultas para mantener una presentación comercial limpia.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+              {onToggleModoAdmin && (
+                <button
+                  type="button"
+                  onClick={onToggleModoAdmin}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    modoAdmin
+                      ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs'
+                      : 'bg-slate-900 hover:bg-slate-800 text-white shadow-xs'
+                  }`}
+                >
+                  {modoAdmin ? 'Desactivar Admin' : 'Activar Modo Admin'}
+                </button>
+              )}
+              {onAbrirRespaldo && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onAbrirRespaldo();
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                >
+                  <FolderGit2 className="w-3.5 h-3.5" />
+                  <span>GitHub & Respaldo</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* TAB 1: LISTADO DE EMPRESAS */}
           {tab === 'empresas' && (
             <div className="space-y-4">

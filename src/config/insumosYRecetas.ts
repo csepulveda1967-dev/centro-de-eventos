@@ -1,5 +1,65 @@
 import { InsumoMaestro, RecetaFichaTecnica, IngredienteReceta } from '../types';
 
+export interface CategoriaInsumoInfo {
+  id: string;
+  label: string;
+  esPersonalizada?: boolean;
+}
+
+export const CATEGORIAS_INSUMOS_DEFAULT: CategoriaInsumoInfo[] = [
+  { id: 'carnes', label: 'Carnes y Aves' },
+  { id: 'pescados', label: 'Pescados y Mariscos' },
+  { id: 'verduras_frutas', label: 'Frutas y Verduras' },
+  { id: 'lacteos_huevos', label: 'Lácteos y Huevos' },
+  { id: 'abarrotes', label: 'Abarrotes y Granos' },
+  { id: 'licores_bebidas', label: 'Licores y Vinos' },
+  { id: 'panaderia_pasteleria', label: 'Panadería y Pastelería' },
+  { id: 'condimentos_especias', label: 'Condimentos y Especias' },
+  { id: 'menaje_desechables', label: 'Menaje y Desechables' }
+];
+
+export function formatearNombreCategoria(categoriaId: string): string {
+  if (!categoriaId) return 'General';
+  const match = CATEGORIAS_INSUMOS_DEFAULT.find(c => c.id.toLowerCase() === categoriaId.toLowerCase());
+  if (match) return match.label;
+  return categoriaId
+    .replace(/[_-]/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+export function obtenerColorCategoria(categoriaId: string): { bg: string; text: string; border: string; badge: string } {
+  const cat = (categoriaId || '').toLowerCase();
+  if (cat.includes('carne')) {
+    return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', badge: 'bg-rose-100 text-rose-800 border-rose-300' };
+  }
+  if (cat.includes('pesca') || cat.includes('marisc')) {
+    return { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', badge: 'bg-cyan-100 text-cyan-800 border-cyan-300' };
+  }
+  if (cat.includes('verdura') || cat.includes('fruta') || cat.includes('vegetal')) {
+    return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  }
+  if (cat.includes('lacteo') || cat.includes('huevo') || cat.includes('queso')) {
+    return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-800 border-amber-300' };
+  }
+  if (cat.includes('abarrote') || cat.includes('grano') || cat.includes('harina')) {
+    return { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-800 border-orange-300' };
+  }
+  if (cat.includes('licor') || cat.includes('bebida') || cat.includes('vino') || cat.includes('bar')) {
+    return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', badge: 'bg-purple-100 text-purple-800 border-purple-300' };
+  }
+  if (cat.includes('pan') || cat.includes('pasteler') || cat.includes('dulce') || cat.includes('postre')) {
+    return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', badge: 'bg-amber-100 text-amber-900 border-amber-300' };
+  }
+  if (cat.includes('especi') || cat.includes('condimento') || cat.includes('salsa')) {
+    return { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200', badge: 'bg-lime-100 text-lime-800 border-lime-300' };
+  }
+  if (cat.includes('menaje') || cat.includes('desechable') || cat.includes('embalaje')) {
+    return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', badge: 'bg-slate-100 text-slate-800 border-slate-300' };
+  }
+  return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800 border-blue-300' };
+}
+
 /* =========================================================================================
    MAESTRO DE INSUMOS & VALORES REALES DE MERCADO
    =========================================================================================
@@ -547,4 +607,32 @@ export function calcularCostoMenuDesdeRecetas(
     costoMenuCalculado: Math.round(costoMenuCalculado),
     recetasEncontradas: recetasDelMenu.length
   };
+}
+
+// Calcula el desglose del costo de una receta según la categoría del insumo (vinculación a Ficha de Receta)
+export function calcularDesglosePorCategoria(
+  receta: RecetaFichaTecnica,
+  insumos: InsumoMaestro[]
+): { categoria: string; nombreCategoria: string; costo: number; porcentaje: number }[] {
+  const insumosMap = new Map<string, InsumoMaestro>(insumos.map(i => [i.id, i]));
+  const mapaCostos: { [cat: string]: number } = {};
+  let totalMateriaPrima = 0;
+
+  for (const ing of receta.ingredientes) {
+    const ins = insumosMap.get(ing.insumoId);
+    const cat = ins?.categoria || 'otros';
+    const { costoReal } = calcularCostoIngrediente(ing, ins);
+    mapaCostos[cat] = (mapaCostos[cat] || 0) + costoReal;
+    totalMateriaPrima += costoReal;
+  }
+
+  const items = Object.entries(mapaCostos).map(([cat, costo]) => ({
+    categoria: cat,
+    nombreCategoria: formatearNombreCategoria(cat),
+    costo,
+    porcentaje: totalMateriaPrima > 0 ? Math.round((costo / totalMateriaPrima) * 100) : 0
+  }));
+
+  // Ordenar de mayor a menor costo
+  return items.sort((a, b) => b.costo - a.costo);
 }

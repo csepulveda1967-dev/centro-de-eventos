@@ -20,7 +20,7 @@ export interface MenuOption {
 export interface InsumoMaestro {
   id: string;
   nombre: string;
-  categoria: 'carnes' | 'pescados' | 'verduras_frutas' | 'lacteos_huevos' | 'abarrotes' | 'licores_bebidas' | 'panaderia_pasteleria';
+  categoria: string; // Permite categorías predefinidas o creadas libremente por el usuario
   unidadMedida: 'kg' | 'g' | 'L' | 'ml' | 'unidad' | 'paquete';
   precioCompra: number; // Costo de compra por unidad base (ej: $14.500 por 1 kg)
   mermaPorcentaje: number; // Factor de merma estimado (ej. 10 para 10%)

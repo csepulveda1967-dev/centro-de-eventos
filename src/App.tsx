@@ -304,9 +304,26 @@ export default function App() {
   }, [cotizacion, menus, tarifasStaff, proveedores, estilosDecoracion]);
 
   // ── Handlers de actualización de insumos con propagación automática a menús ──
-  const handleUpdateInsumo = (id: string, precioCompra: number, mermaPorcentaje: number) => {
+  const handleUpdateInsumo = (
+    id: string,
+    precioCompra: number,
+    mermaPorcentaje: number,
+    categoria?: string,
+    nombre?: string,
+    proveedor?: string
+  ) => {
     const nuevosInsumos = insumos.map(i =>
-      i.id === id ? { ...i, precioCompra, mermaPorcentaje, ultimoCambio: new Date().toISOString().slice(0, 10) } : i
+      i.id === id
+        ? {
+            ...i,
+            precioCompra,
+            mermaPorcentaje,
+            categoria: categoria !== undefined ? categoria : i.categoria,
+            nombre: nombre !== undefined ? nombre : i.nombre,
+            proveedor: proveedor !== undefined ? proveedor : i.proveedor,
+            ultimoCambio: new Date().toISOString().slice(0, 10)
+          }
+        : i
     );
     setInsumos(nuevosInsumos);
 
@@ -686,6 +703,7 @@ export default function App() {
         onAbrirRespaldo={() => setModalRespaldoOpen(true)}
         onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
         modoAdmin={modoAdmin}
+        onToggleModoAdmin={toggleModoAdmin}
       />
 
       {/* Contenido Principal */}
@@ -1136,6 +1154,9 @@ export default function App() {
             mostrarToast(`✓ Nuevo centro de eventos "${nueva.nombre}" registrado`);
           }}
           onClose={() => setModalEmpresasOpen(false)}
+          modoAdmin={modoAdmin}
+          onToggleModoAdmin={toggleModoAdmin}
+          onAbrirRespaldo={() => setModalRespaldoOpen(true)}
         />
       )}
 
@@ -1182,16 +1203,16 @@ export default function App() {
         <p className="text-[11px] text-slate-500">
           Software de gestión integral de centros de eventos y productoras · Desarrollado por <strong className="text-slate-800">CS Consultoría</strong>
         </p>
-        <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400">
-          <span>Empresa activa en sesión: {empresaActiva.nombre} ({empresaActiva.recintoPrincipal} · {empresaActiva.ciudad})</span>
+        <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
+          <span>Empresa: {empresaActiva.nombre}</span>
           <span>·</span>
           <button
             type="button"
             onClick={toggleModoAdmin}
-            className="hover:text-indigo-600 transition-colors inline-flex items-center gap-1 cursor-pointer opacity-30 hover:opacity-100"
-            title={modoAdmin ? "Modo Administrador Activo. Clic para ocultar botones técnicos para cliente (o pulsa Ctrl+Shift+A)" : "Acceso Administrador (o pulsa Ctrl+Shift+D)"}
+            className="hover:text-indigo-600 transition-colors inline-flex items-center gap-1 cursor-pointer font-semibold px-2 py-0.5 rounded-md hover:bg-slate-100 text-slate-600"
+            title={modoAdmin ? "Modo Administrador Activo. Clic para volver a Modo Demo para Clientes" : "Hacer clic para activar Modo Administrador"}
           >
-            {modoAdmin ? '🔓 Admin Activo' : '🔒'}
+            {modoAdmin ? '🔓 Admin Activo (Clic para Modo Demo)' : '🔒 Cambiar a Modo Administrador'}
           </button>
         </div>
       </footer>

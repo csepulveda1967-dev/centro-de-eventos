@@ -13,7 +13,9 @@ import {
   HardDrive,
   ShoppingCart,
   MessageCircle,
-  FolderGit2
+  FolderGit2,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 
@@ -32,6 +34,7 @@ interface HeaderProps {
   onAbrirRespaldo: () => void;
   onAbrirWhatsAppPropuesta: () => void;
   modoAdmin?: boolean;
+  onToggleModoAdmin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,7 +51,8 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirComercial,
   onAbrirRespaldo,
   onAbrirWhatsAppPropuesta,
-  modoAdmin = false
+  modoAdmin = false,
+  onToggleModoAdmin
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -222,17 +226,49 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden">WhatsApp</span>
             </button>
 
-            {/* Botón de Respaldo & GitHub (Visible solo en Modo Administrador / Oculto para demos a clientes) */}
+            {/* Selector interactivo de Modo Demo (Cliente) vs Modo Administrador */}
+            {onToggleModoAdmin && (
+              <button
+                type="button"
+                onClick={onToggleModoAdmin}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                  modoAdmin
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300 shadow-xs ring-2 ring-amber-400/40'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
+                }`}
+                title={
+                  modoAdmin
+                    ? 'Modo Administrador ACTIVO: Los botones de GitHub y Respaldo están visibles. Haz clic aquí para volver a Modo Demo (ocultar herramientas técnicas para clientes).'
+                    : 'Modo Demo para Clientes (herramientas técnicas ocultas). Haz clic aquí para activar el Modo Administrador.'
+                }
+              >
+                {modoAdmin ? (
+                  <>
+                    <Unlock className="w-3.5 h-3.5 text-amber-700" />
+                    <span className="hidden sm:inline">Admin ON</span>
+                    <span className="sm:hidden">Admin</span>
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden sm:inline">Modo Demo</span>
+                    <span className="sm:hidden">Demo</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Botón de Respaldo & GitHub (Visible de inmediato al activar Modo Administrador) */}
             {modoAdmin && (
               <button
                 type="button"
                 onClick={onAbrirRespaldo}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-indigo-800 bg-indigo-50 hover:bg-indigo-100 active:scale-95 rounded-lg border border-indigo-200 transition-all shadow-xs ring-1 ring-indigo-400/30 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-lg border border-indigo-700 transition-all shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
                 title="Herramientas de Administrador: GitHub, Base de Datos y Respaldos"
               >
-                <FolderGit2 className="w-4 h-4 text-indigo-600" />
+                <FolderGit2 className="w-4 h-4 text-white" />
                 <span className="hidden sm:inline">GitHub & Respaldo</span>
-                <span className="text-[9px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-full font-black">ADMIN</span>
+                <span className="sm:hidden">GitHub</span>
               </button>
             )}
 
