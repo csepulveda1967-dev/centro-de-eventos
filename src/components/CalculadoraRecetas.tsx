@@ -9,6 +9,7 @@ import {
   obtenerColorCategoria
 } from '../config/insumosYRecetas';
 import { formatMoneda, formatPorcentaje, formatPrecioUnitario } from '../utils/formatters';
+import { ModalCrearMenu } from './ModalCrearMenu';
 import {
   ChefHat,
   Plus,
@@ -26,7 +27,8 @@ import {
   Link as LinkIcon,
   Tag,
   Filter,
-  PieChart
+  PieChart,
+  FolderPlus
 } from 'lucide-react';
 
 interface CalculadoraRecetasProps {
@@ -39,6 +41,7 @@ interface CalculadoraRecetasProps {
   onDeleteReceta: (id: string) => void;
   onSincronizarCostosMenu: (menuId: string, nuevoCosto: number) => void;
   onVincularCoffeeBreak?: (receta: RecetaFichaTecnica, costoPorPorcion: number, precioSugerido: number) => void;
+  onAddMenu?: (nuevoMenu: MenuOption) => void;
 }
 
 export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
@@ -50,7 +53,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onAddReceta,
   onDeleteReceta,
   onSincronizarCostosMenu,
-  onVincularCoffeeBreak
+  onVincularCoffeeBreak,
+  onAddMenu
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
@@ -69,6 +73,18 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   const [nuevoNombreReceta, setNuevoNombreReceta] = useState('');
   const [nuevoTiempoReceta, setNuevoTiempoReceta] = useState<RecetaFichaTecnica['tiempoMenu']>('fondo');
   const [nuevoMenuAsociadoId, setNuevoMenuAsociadoId] = useState<string>(menus[0]?.id || '');
+
+  // Estado para creación de nuevo menú dentro de la receta
+  const [modoMenuReceta, setModoMenuReceta] = useState<'existente' | 'nuevo'>('existente');
+  const [nombreNuevoMenu, setNombreNuevoMenu] = useState('');
+  const [categoriaNuevoMenu, setCategoriaNuevoMenu] = useState<'formal' | 'campestre' | 'cocktail' | 'premium'>('formal');
+  const [descripcionNuevoMenu, setDescripcionNuevoMenu] = useState('');
+
+  // Modal independiente para crear nuevo menú
+  const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
+
+  // Filtro de recetas por menú
+  const [menuFiltroRecetas, setMenuFiltroRecetas] = useState<string>('todos');
 
   const recetaActiva = recetas.find(r => r.id === recetaSeleccionadaId) || recetas[0];
 
@@ -248,6 +264,32 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     if (!nuevoNombreReceta.trim()) return;
 
     const esCoffeeBreak = nuevoTiempoReceta === 'coffee-break';
+    let menuFinalId = nuevoMenuAsociadoId;
+
+    // Si el usuario eligió crear un nuevo menú para esta receta
+    let nuevoMenuCreado: MenuOption | null = null;
+    if (!esCoffeeBreak && modoMenuReceta === 'nuevo') {
+      const nombreLimpio = nombreNuevoMenu.trim() || `Menú ${nuevoNombreReceta.trim()}`;
+      const nuevoId = 'menu-' + Date.now();
+      nuevoMenuCreado = {
+        id: nuevoId,
+        nombre: nombreLimpio,
+        categoria: categoriaNuevoMenu,
+        costoPersona: 0,
+        precioSugeridoPersona: 0,
+        descripcion: descripcionNuevoMenu.trim() || `Propuesta gastronómica con la ficha técnica "${nuevoNombreReceta.trim()}"`,
+        tiempos: {
+          coctel: nuevoTiempoReceta === 'coctel' ? nuevoNombreReceta.trim() : 'Selección de bocados gourmet en jardín',
+          entrada: nuevoTiempoReceta === 'entrada' ? nuevoNombreReceta.trim() : 'Entrada fresca de temporada según minuta del chef',
+          fondo: nuevoTiempoReceta === 'fondo' ? nuevoNombreReceta.trim() : 'Plato de fondo noble con guarnición rústica',
+          postre: nuevoTiempoReceta === 'postre' ? nuevoNombreReceta.trim() : 'Trilogía dulce artesanal de autor',
+          trasnoche: nuevoTiempoReceta === 'trasnoche' ? nuevoNombreReceta.trim() : 'Estación de trasnoche: mini hamburguesas y consomé'
+        },
+        destacado: false,
+        costoCalculadoDesdeRecetas: true
+      };
+      menuFinalId = nuevoId;
+    }
 
     // Para Coffee Break: si existen en insumos, precargamos los insumos base para cálculo inmediato
     // de materia prima + merma en gramos
@@ -281,7 +323,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       rendimientoPorciones: 1,
       margenSugerido: 33, // 33% estándar de la industria
       costoAdicionalElaboracion: costoElaboracion,
-      menuAsociadoId: esCoffeeBreak ? undefined : nuevoMenuAsociadoId,
+      menuAsociadoId: esCoffeeBreak ? undefined : menuFinalId,
       servicioAsociadoId: esCoffeeBreak ? 'coffee-break-cocteleria' : undefined,
       ingredientes: ingredientesIniciales,
       descripcionProcedimiento: esCoffeeBreak
@@ -292,17 +334,42 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     // Calcular costo real por persona (materia prima + merma en gramos + costo adicional)
     const calculo = calcularCostoReceta(nueva, insumos);
 
+    // Si se creó un menú nuevo, registrarlo con el costo calculado
+    if (nuevoMenuCreado) {
+      nuevoMenuCreado.costoPersona = calculo.costoPorPorcion;
+      nuevoMenuCreado.precioSugeridoPersona = calculo.precioSugeridoVenta;
+      if (onAddMenu) {
+        onAddMenu(nuevoMenuCreado);
+      }
+      if (onSincronizarCostosMenu) {
+        onSincronizarCostosMenu(nuevoMenuCreado.id, calculo.costoPorPorcion);
+      }
+    }
+
     onAddReceta(nueva);
     setRecetaSeleccionadaId(nueva.id);
     setModalNuevaRecetaOpen(false);
     setNuevoNombreReceta('');
+    setNombreNuevoMenu('');
+    setDescripcionNuevoMenu('');
+    setModoMenuReceta('existente');
 
     // Si es Coffee Break, inyectar directamente en la tarjeta de Tarifas Generales
     if (esCoffeeBreak && onVincularCoffeeBreak) {
       onVincularCoffeeBreak(nueva, calculo.costoPorPorcion, calculo.precioSugeridoVenta);
       notificar(`✓ Costo de ${formatMoneda(calculo.costoPorPorcion)}/pax inyectado directamente en Tarifas Generales`);
+    } else if (nuevoMenuCreado) {
+      notificar(`✓ ¡Menú "${nuevoMenuCreado.nombre}" creado y vinculado con la ficha "${nueva.nombre}"!`);
     } else {
       notificar(`✓ Ficha técnica "${nueva.nombre}" creada con éxito`);
+    }
+  };
+
+  const handleGuardarMenuDirecto = (nuevoMenu: MenuOption) => {
+    if (onAddMenu) {
+      onAddMenu(nuevoMenu);
+      setNuevoMenuAsociadoId(nuevoMenu.id);
+      notificar(`✓ Menú "${nuevoMenu.nombre}" creado e integrado al cotizador`);
     }
   };
 
@@ -335,14 +402,28 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setModalNuevaRecetaOpen(true)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-95 rounded-xl shadow-xs transition-all shrink-0 self-start md:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Crear Nueva Ficha / Receta</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap shrink-0 self-start md:self-auto">
+          <button
+            type="button"
+            onClick={() => setModalNuevoMenuOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 active:scale-95 rounded-xl shadow-2xs transition-all cursor-pointer"
+          >
+            <FolderPlus className="w-4 h-4 text-amber-700" />
+            <span>Crear Nuevo Menú</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setModoMenuReceta('existente');
+              setModalNuevaRecetaOpen(true);
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs sm:text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 active:scale-95 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Crear Nueva Ficha / Receta</span>
+          </button>
+        </div>
       </div>
 
       {/* Explicación del Margen Gastronómico del 33% */}
@@ -361,14 +442,103 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       </div>
 
       {/* Selector de Recetas */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
-        <div className="flex items-center justify-between mb-3 text-xs font-bold text-slate-700 uppercase tracking-wider">
-          <span>Recetas Disponibles en el Sistema ({recetas.length})</span>
-          <span className="text-[11px] text-slate-400 font-normal">Haz clic para costearla</span>
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
+          <div className="flex items-center gap-2">
+            <span>Fichas Técnicas ({recetas.length})</span>
+            <span className="text-[11px] text-slate-400 font-normal">· Haz clic para costearla</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setModalNuevoMenuOpen(true)}
+            className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Añadir nuevo menú a la carta</span>
+          </button>
+        </div>
+
+        {/* Filtros por Menú */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+            <Filter className="w-3 h-3 text-slate-400" />
+            Menú:
+          </span>
+          <button
+            type="button"
+            onClick={() => setMenuFiltroRecetas('todos')}
+            className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
+              menuFiltroRecetas === 'todos'
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Todos ({recetas.length})
+          </button>
+          {menus.map(m => {
+            const count = recetas.filter(r => r.menuAsociadoId === m.id).length;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMenuFiltroRecetas(m.id)}
+                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                  menuFiltroRecetas === m.id
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{m.nombre}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${menuFiltroRecetas === m.id ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setMenuFiltroRecetas('coffee-break')}
+            className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+              menuFiltroRecetas === 'coffee-break'
+                ? 'bg-amber-800 text-white shadow-2xs'
+                : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
+            }`}
+          >
+            <Coffee className="w-3 h-3" />
+            <span>Coffee Break</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
-          {recetas.map((r) => {
+          {(() => {
+            const lista = menuFiltroRecetas === 'todos'
+              ? recetas
+              : menuFiltroRecetas === 'coffee-break'
+                ? recetas.filter(r => r.tiempoMenu === 'coffee-break')
+                : recetas.filter(r => r.menuAsociadoId === menuFiltroRecetas);
+
+            if (lista.length === 0) {
+              return (
+                <div className="col-span-full py-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">
+                  No hay recetas creadas para este menú aún.{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (menuFiltroRecetas !== 'todos' && menuFiltroRecetas !== 'coffee-break') {
+                        setNuevoMenuAsociadoId(menuFiltroRecetas);
+                      }
+                      setModoMenuReceta('existente');
+                      setModalNuevaRecetaOpen(true);
+                    }}
+                    className="text-amber-700 font-bold underline hover:text-amber-800 ml-1"
+                  >
+                    Crear primera receta para este menú →
+                  </button>
+                </div>
+              );
+            }
+
+            return lista.map((r) => {
             const isSelected = r.id === recetaSeleccionadaId;
             const calculo = calcularCostoReceta(r, insumos);
 
@@ -407,9 +577,10 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                 </div>
               </button>
             );
-          })}
-        </div>
+          });
+        })()}
       </div>
+    </div>
 
       {/* DETALLE Y COSTEO DE LA RECETA SELECCIONADA */}
       {recetaActiva && (
@@ -1026,41 +1197,144 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   </div>
                 </div>
               ) : (
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Menú al que pertenece</label>
-                  <select
-                    value={nuevoMenuAsociadoId}
-                    onChange={(e) => setNuevoMenuAsociadoId(e.target.value)}
-                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-amber-500 focus:outline-hidden font-medium"
-                  >
-                    {menus.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.nombre}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-700">Menú al que pertenece</label>
+                    
+                    {/* Botón para alternar entre menú existente o nuevo */}
+                    <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-300">
+                      <button
+                        type="button"
+                        onClick={() => setModoMenuReceta('existente')}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                          modoMenuReceta === 'existente'
+                            ? 'bg-amber-600 text-white shadow-2xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Existente
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModoMenuReceta('nuevo')}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors flex items-center gap-1 ${
+                          modoMenuReceta === 'nuevo'
+                            ? 'bg-amber-600 text-white shadow-2xs'
+                            : 'text-amber-800 hover:text-amber-900 font-extrabold'
+                        }`}
+                      >
+                        <Plus className="w-2.5 h-2.5 stroke-[3]" />
+                        + Crear Nuevo Menú
+                      </button>
+                    </div>
+                  </div>
+
+                  {modoMenuReceta === 'existente' ? (
+                    <div>
+                      <select
+                        value={nuevoMenuAsociadoId}
+                        onChange={(e) => setNuevoMenuAsociadoId(e.target.value)}
+                        className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-amber-500 focus:outline-hidden font-medium bg-white"
+                      >
+                        {menus.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nombre} ({m.categoria})
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Esta receta se sumará al costo total por persona de este menú.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1 border-t border-slate-200 animate-in fade-in">
+                      <div className="p-2 bg-amber-50/70 border border-amber-200 rounded-lg text-[11px] text-amber-900 font-medium">
+                        ✨ ¡Crearás un <strong>nuevo menú</strong> directamente con esta receta como primer plato!
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+                          Nombre del Nuevo Menú <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required={modoMenuReceta === 'nuevo'}
+                          value={nombreNuevoMenu}
+                          onChange={(e) => setNombreNuevoMenu(e.target.value)}
+                          placeholder="Ej: Menú Criollo Campestre, Menú Gala Marina..."
+                          className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:border-amber-500 focus:outline-hidden"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+                            Formato
+                          </label>
+                          <select
+                            value={categoriaNuevoMenu}
+                            onChange={(e) => setCategoriaNuevoMenu(e.target.value as any)}
+                            className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-[11px] focus:outline-hidden"
+                          >
+                            <option value="formal">Banquete Formal</option>
+                            <option value="campestre">Asado Campestre</option>
+                            <option value="cocktail">Cóctel Dinámico</option>
+                            <option value="premium">Menú Premium</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-0.5">
+                            Breve Descripción
+                          </label>
+                          <input
+                            type="text"
+                            value={descripcionNuevoMenu}
+                            onChange={(e) => setDescripcionNuevoMenu(e.target.value)}
+                            placeholder="Ej: Menú campestre a las brasas"
+                            className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-[11px] focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setModalNuevaRecetaOpen(false)}
-                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+                  onClick={() => {
+                    setModalNuevaRecetaOpen(false);
+                    setModoMenuReceta('existente');
+                  }}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                 >
-                  Crear Receta
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    {modoMenuReceta === 'nuevo' && nuevoTiempoReceta !== 'coffee-break'
+                      ? 'Crear Menú y Receta'
+                      : 'Crear Receta'}
+                  </span>
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal independiente para Crear Nuevo Menú Completo */}
+      <ModalCrearMenu
+        isOpen={modalNuevoMenuOpen}
+        onClose={() => setModalNuevoMenuOpen(false)}
+        onGuardarMenu={handleGuardarMenuDirecto}
+      />
     </div>
   );
 };

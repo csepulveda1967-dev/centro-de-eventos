@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { MenuOption } from '../types';
 import { formatMoneda } from '../utils/formatters';
-import { Utensils, Users, ChevronDown, ChevronUp, Check, Sparkles } from 'lucide-react';
+import { ModalCrearMenu } from './ModalCrearMenu';
+import { Utensils, Users, ChevronDown, ChevronUp, Check, Sparkles, Plus, FolderPlus } from 'lucide-react';
 
 interface Modulo1MenuProps {
   menus: MenuOption[];
@@ -10,6 +11,7 @@ interface Modulo1MenuProps {
   invitados: number;
   onChangeInvitados: (num: number) => void;
   onIrARecetas?: (menuId: string) => void;
+  onAddMenu?: (nuevoMenu: MenuOption) => void;
 }
 
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
@@ -18,9 +20,11 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   onSelectMenu,
   invitados,
   onChangeInvitados,
-  onIrARecetas
+  onIrARecetas,
+  onAddMenu
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
+  const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
 
   const menuActual = menus.find(m => m.id === menuSeleccionadoId) || menus[0];
   const costoTotalMenu = (menuActual?.costoPersona || 0) * invitados;
@@ -153,20 +157,32 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
 
       {/* Selector de Menús en Tarjetas */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-            Selección del Menú Gastronómico
+            Selección del Menú Gastronómico ({menus.length} opciones)
           </label>
-          {onIrARecetas && (
-            <button
-              type="button"
-              onClick={() => onIrARecetas(menuSeleccionadoId)}
-              className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1"
-            >
-              <span>Ver Fichas de Recetas vinculadas</span>
-              <span>→</span>
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {onAddMenu && (
+              <button
+                type="button"
+                onClick={() => setModalNuevoMenuOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-amber-700 stroke-[3]" />
+                <span>+ Crear Nuevo Menú</span>
+              </button>
+            )}
+            {onIrARecetas && (
+              <button
+                type="button"
+                onClick={() => onIrARecetas(menuSeleccionadoId)}
+                className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+              >
+                <span>Ver Fichas de Recetas</span>
+                <span>→</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -294,6 +310,19 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
           })}
         </div>
       </div>
+
+      {/* Modal para Crear Nuevo Menú directamente desde el Módulo 1 */}
+      {onAddMenu && (
+        <ModalCrearMenu
+          isOpen={modalNuevoMenuOpen}
+          onClose={() => setModalNuevoMenuOpen(false)}
+          onGuardarMenu={(nuevoMenu) => {
+            onAddMenu(nuevoMenu);
+            onSelectMenu(nuevoMenu.id);
+            setMenuExpandido(nuevoMenu.id);
+          }}
+        />
+      )}
     </div>
   );
 };

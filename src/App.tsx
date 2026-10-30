@@ -493,6 +493,11 @@ export default function App() {
     mostrarToast('✓ Ficha técnica eliminada');
   };
 
+  const handleAddMenu = (nuevoMenu: MenuOption) => {
+    setMenus(prev => [nuevoMenu, ...prev]);
+    mostrarToast(`✓ Menú "${nuevoMenu.nombre}" creado exitosamente e integrado a la propuesta`);
+  };
+
   const handleSincronizarCostosMenu = (menuId: string, nuevoCosto: number) => {
     setMenus(prevMenus =>
       prevMenus.map(m =>
@@ -956,6 +961,7 @@ export default function App() {
                     invitados={cotizacion.invitados}
                     onChangeInvitados={handleChangeInvitados}
                     onIrARecetas={() => setVistaActual('recetas')}
+                    onAddMenu={handleAddMenu}
                   />
                 )}
 
@@ -1032,10 +1038,13 @@ export default function App() {
             recetas={recetas}
             insumos={insumos}
             menus={menus}
+            invitados={cotizacion.invitados}
             onUpdateReceta={handleUpdateReceta}
             onAddReceta={handleAddReceta}
             onDeleteReceta={handleDeleteReceta}
             onSincronizarCostosMenu={handleSincronizarCostosMenu}
+            onVincularCoffeeBreak={handleVincularCoffeeBreak}
+            onAddMenu={handleAddMenu}
           />
         )}
 
