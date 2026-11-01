@@ -1,5 +1,5 @@
-import React from 'react';
-import { ResumenFinanciero } from '../types';
+import React, { useState } from 'react';
+import { ResumenFinanciero, ItemGastoFijo, RegistroCostoFijoMensual } from '../types';
 import { formatMoneda, formatPorcentaje } from '../utils/formatters';
 import {
   TrendingUp,
@@ -14,7 +14,21 @@ import {
   MessageCircle,
   CreditCard,
   ShieldCheck,
-  Check
+  Building2,
+  Zap,
+  Flame,
+  Plus,
+  Trash2,
+  HelpCircle,
+  Sliders,
+  CheckCircle2,
+  Sparkles,
+  Calculator,
+  UserCheck,
+  Calendar,
+  Save,
+  Clock,
+  Copy
 } from 'lucide-react';
 
 interface Modulo6DashboardCostosProps {
@@ -27,13 +41,33 @@ interface Modulo6DashboardCostosProps {
   onGuardarEnCalendario: () => void;
   onAbrirFichaCliente: () => void;
   onAbrirWhatsAppPropuesta?: () => void;
-  // Términos de anticipo configurables por Dominga Eventos
   porcentajeAnticipo?: number;
   onChangeAnticipo?: (pct: number) => void;
   esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
   onChangeEsquemaPago?: (esquema: 'dos_pagos' | 'tres_pagos' | 'corporativo') => void;
   diasSaldo?: number;
   onChangeDiasSaldo?: (dias: number) => void;
+  // Campos básicos de luz & gas y otros gastos fijos a mano
+  gastoLuzMensual?: number;
+  onChangeGastoLuz?: (luz: number) => void;
+  gastoGasMensual?: number;
+  onChangeGastoGas?: (gas: number) => void;
+  otrosGastosFijos?: ItemGastoFijo[];
+  onAddOtroGastoFijo?: (nombre: string, monto: number) => void;
+  onRemoveOtroGastoFijo?: (id: string) => void;
+  eventosAlMes?: number;
+  onChangeEventosAlMes?: (cant: number) => void;
+  // Historial y guardado mensual (variación mes a mes)
+  mesActivoCostosFijos?: string;
+  onChangeMesActivo?: (mes: string) => void;
+  historialCostosFijosMensuales?: Record<string, RegistroCostoFijoMensual>;
+  onGuardarMesCostosFijos?: (registro: RegistroCostoFijoMensual) => void;
+  onCargarMesCostosFijos?: (registro: RegistroCostoFijoMensual) => void;
+  // Criterio libre del emprendedor
+  usarPrecioManual?: boolean;
+  onToggleUsarPrecioManual?: (usar: boolean) => void;
+  precioVentaManual?: number;
+  onChangePrecioManual?: (precio: number) => void;
 }
 
 export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
@@ -51,34 +85,158 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   esquemaPago = 'dos_pagos',
   onChangeEsquemaPago,
   diasSaldo = 7,
-  onChangeDiasSaldo
+  onChangeDiasSaldo,
+  gastoLuzMensual = 0,
+  onChangeGastoLuz,
+  gastoGasMensual = 0,
+  onChangeGastoGas,
+  otrosGastosFijos = [],
+  onAddOtroGastoFijo,
+  onRemoveOtroGastoFijo,
+  eventosAlMes = 4,
+  onChangeEventosAlMes,
+  mesActivoCostosFijos = 'Noviembre 2024',
+  onChangeMesActivo,
+  historialCostosFijosMensuales = {},
+  onGuardarMesCostosFijos,
+  onCargarMesCostosFijos,
+  usarPrecioManual = false,
+  onToggleUsarPrecioManual,
+  precioVentaManual = 0,
+  onChangePrecioManual
 }) => {
   const {
     costoMenu,
     costoPersonal,
     costoProveedores,
     costoDecoracion,
+    costosFijosEvento = 0,
+    costoFijoPorPersona = 0,
+    gastosFijosMensuales = 0,
+    costoVariablesTotal = (costoMenu + costoPersonal + costoProveedores + costoDecoracion),
     costoTotalReal,
     costoPorInvitado,
     utilidadProyectada,
     precioVentaNeto,
     ivaMonto,
     precioVentaTotal,
-    precioVentaPorInvitado
+    precioVentaPorInvitado,
+    precioCobradoFinal,
+    margenRealObtenido,
+    utilidadRealObtenida
   } = resumen;
 
-  // Porcentajes para la barra de distribución
+  // Formulario local para añadir nuevos costos a mano
+  const [mostrarFormNuevo, setMostrarFormNuevo] = useState(false);
+  const [nombreNuevoGasto, setNombreNuevoGasto] = useState('');
+  const [montoNuevoGasto, setMontoNuevoGasto] = useState<number | ''>('');
+
+  // Nombres de meses para el gestor de facturas mensuales
+  const MESES_NOMBRES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  // Mes y Año seleccionado para registrar facturas
+  const [mesSeleccionado, setMesSeleccionado] = useState<number>(10); // Noviembre (0-indexed = 10)
+  const [añoSeleccionado, setAñoSeleccionado] = useState<number>(2024);
+  const [toastGuardadoMes, setToastGuardadoMes] = useState<string | null>(null);
+
+  const keyMesActual = `${añoSeleccionado}-${String(mesSeleccionado + 1).padStart(2, '0')}`;
+  const mesNombreCompleto = `${MESES_NOMBRES[mesSeleccionado]} ${añoSeleccionado}`;
+  const registroGuardadoEsteMes = historialCostosFijosMensuales[keyMesActual];
+
+  // Mes previo para opción "Copiar mes anterior"
+  const mesPrevioIndex = mesSeleccionado === 0 ? 11 : mesSeleccionado - 1;
+  const añoPrevio = mesSeleccionado === 0 ? añoSeleccionado - 1 : añoSeleccionado;
+  const keyMesPrevio = `${añoPrevio}-${String(mesPrevioIndex + 1).padStart(2, '0')}`;
+  const registroMesPrevio = historialCostosFijosMensuales[keyMesPrevio];
+
+  const handleCambiarMes = (nuevoMesIndex: number, nuevoAño: number) => {
+    setMesSeleccionado(nuevoMesIndex);
+    setAñoSeleccionado(nuevoAño);
+    const key = `${nuevoAño}-${String(nuevoMesIndex + 1).padStart(2, '0')}`;
+    const existente = historialCostosFijosMensuales[key];
+    if (existente) {
+      onCargarMesCostosFijos?.(existente);
+      setToastGuardadoMes(`✓ Facturas de ${existente.mesNombre} cargadas`);
+      setTimeout(() => setToastGuardadoMes(null), 3000);
+    }
+  };
+
+  const handleGuardarMesActual = () => {
+    const registro: RegistroCostoFijoMensual = {
+      id: keyMesActual,
+      mesNombre: mesNombreCompleto,
+      mesIndex: mesSeleccionado,
+      año: añoSeleccionado,
+      gastoLuz: gastoLuzMensual,
+      gastoGas: gastoGasMensual,
+      otrosGastos: [...otrosGastosFijos],
+      eventosAlMes: eventosAlMes,
+      fechaGuardado: new Date().toLocaleDateString('es-CL')
+    };
+
+    onGuardarMesCostosFijos?.(registro);
+    setToastGuardadoMes(`✓ Facturas de ${mesNombreCompleto} guardadas`);
+    setTimeout(() => setToastGuardadoMes(null), 3500);
+  };
+
+  const handleCargarRegistroMes = (reg: RegistroCostoFijoMensual) => {
+    setMesSeleccionado(reg.mesIndex);
+    setAñoSeleccionado(reg.año);
+    onCargarMesCostosFijos?.(reg);
+    setToastGuardadoMes(`✓ ${reg.mesNombre} activo en el simulador`);
+    setTimeout(() => setToastGuardadoMes(null), 3000);
+  };
+
+  const handleCopiarMesAnterior = () => {
+    if (!registroMesPrevio) return;
+    onChangeGastoLuz?.(registroMesPrevio.gastoLuz);
+    onChangeGastoGas?.(registroMesPrevio.gastoGas);
+    if (registroMesPrevio.eventosAlMes) {
+      onChangeEventosAlMes?.(registroMesPrevio.eventosAlMes);
+    }
+    setToastGuardadoMes(`✓ Valores base copiados de ${registroMesPrevio.mesNombre}`);
+    setTimeout(() => setToastGuardadoMes(null), 3000);
+  };
+
+  // Sugerencias rápidas para pequeños emprendedores
+  const sugerenciasComunes = [
+    { label: '+ Arriendo', nombre: 'Arriendo de Recinto / Local', montoDefault: 1200000 },
+    { label: '+ Agua', nombre: 'Agua Potable & Riego', montoDefault: 80000 },
+    { label: '+ Sueldo Base', nombre: 'Sueldo Base Operador Fijo', montoDefault: 650000 },
+    { label: '+ Internet', nombre: 'Internet & Comunicaciones', montoDefault: 45000 },
+    { label: '+ Patente', nombre: 'Patente Municipal & Seguros', montoDefault: 90000 }
+  ];
+
+  const handleAgregarNuevoGasto = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nombreNuevoGasto.trim() || Number(montoNuevoGasto) <= 0) return;
+    onAddOtroGastoFijo?.(nombreNuevoGasto.trim(), Number(montoNuevoGasto));
+    setNombreNuevoGasto('');
+    setMontoNuevoGasto('');
+    setMostrarFormNuevo(false);
+  };
+
+  const handleAplicarSugerencia = (nombre: string, monto: number) => {
+    onAddOtroGastoFijo?.(nombre, monto);
+  };
+
+  // Porcentajes para la barra de distribución compuesta
   const pctMenu = costoTotalReal > 0 ? (costoMenu / costoTotalReal) * 100 : 0;
   const pctPersonal = costoTotalReal > 0 ? (costoPersonal / costoTotalReal) * 100 : 0;
   const pctProveedores = costoTotalReal > 0 ? (costoProveedores / costoTotalReal) * 100 : 0;
   const pctDecoracion = costoTotalReal > 0 ? (costoDecoracion / costoTotalReal) * 100 : 0;
+  const pctCostosFijos = costoTotalReal > 0 ? (costosFijosEvento / costoTotalReal) * 100 : 0;
 
-  const presetsMargen = [25, 30, 35, 40, 45, 50];
+  const presetsMargen = [20, 25, 30, 35, 40, 45, 50];
+  const presetsEventos = [2, 4, 8, 12, 16, 20, 24, 30];
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm lg:sticky lg:top-20 transition-all">
+    <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm lg:sticky lg:top-20 transition-all space-y-5">
       {/* Header del Dashboard */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
         <div>
           <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-widest block">
             Módulo 06 · En Vivo
@@ -89,35 +247,433 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </h2>
         </div>
         <div className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-[11px] font-bold">
-          Cálculo Reactivo 100%
+          Cálculo Reactivo
         </div>
       </div>
 
-      {/* Tarjeta Principal: Costo Real Total de Producción */}
-      <div className="mt-4 p-4 rounded-xl bg-slate-900 text-white shadow-xs">
-        <span className="text-xs text-slate-400 font-medium block">
-          Costo Real de Operación (Tu Gasto Base)
-        </span>
+      {/* ══════════════════════════════════════════════════════════════════════════
+          1. COSTOS FIJOS OPERACIONALES: SIMPLE PARA PEQUEÑOS EMPRENDEDORES
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-4 h-4 text-teal-600" />
+              Costos Fijos Operacionales
+            </h3>
+            <span className="text-[10px] text-slate-500 block">
+              Prorrateo simple para emprendedores (Luz, Gas y otros)
+            </span>
+          </div>
+          <span className="text-[11px] font-extrabold text-teal-800 bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-full tabular-nums">
+            Total {formatMoneda(gastosFijosMensuales)}/mes
+          </span>
+        </div>
+
+        {/* Notificación temporal de guardado de mes */}
+        {toastGuardadoMes && (
+          <div className="p-2 rounded-lg bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{toastGuardadoMes}</span>
+          </div>
+        )}
+
+        {/* ── BARRA DE GESTIÓN MENSUAL: Permite variar Luz/Gas mes a mes y guardar cada mes ── */}
+        <div className="bg-white p-2.5 rounded-lg border border-teal-200/90 space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Calendar className="w-3.5 h-3.5 text-teal-700" />
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                Mes de Facturación:
+              </span>
+              <select
+                value={mesSeleccionado}
+                onChange={(e) => handleCambiarMes(Number(e.target.value), añoSeleccionado)}
+                className="px-2 py-0.5 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-md focus:outline-hidden focus:border-teal-500 cursor-pointer"
+              >
+                {MESES_NOMBRES.map((mes, idx) => (
+                  <option key={mes} value={idx}>
+                    {mes}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={añoSeleccionado}
+                onChange={(e) => handleCambiarMes(mesSeleccionado, Number(e.target.value))}
+                className="px-2 py-0.5 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded-md focus:outline-hidden focus:border-teal-500 cursor-pointer"
+              >
+                {[2024, 2025, 2026, 2027].map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGuardarMesActual}
+              className="px-2.5 py-1 text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white rounded-md flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer self-start sm:self-auto"
+              title={`Guardar facturas para ${MESES_NOMBRES[mesSeleccionado]} ${añoSeleccionado}`}
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Guardar {MESES_NOMBRES[mesSeleccionado]}</span>
+            </button>
+          </div>
+
+          {/* Subtítulo de estado del mes */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100 gap-1">
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3 text-slate-400" />
+              {registroGuardadoEsteMes ? (
+                <span className="text-emerald-700 font-semibold">
+                  ✓ Facturas guardadas para {mesNombreCompleto} (Luz: {formatMoneda(registroGuardadoEsteMes.gastoLuz)} · Gas: {formatMoneda(registroGuardadoEsteMes.gastoGas)})
+                </span>
+              ) : (
+                <span className="text-amber-800 font-medium">
+                  Modificando cuentas de {mesNombreCompleto}. Haz clic en "Guardar {MESES_NOMBRES[mesSeleccionado]}" para conservar el mes.
+                </span>
+              )}
+            </span>
+
+            {registroMesPrevio && (
+              <button
+                type="button"
+                onClick={handleCopiarMesAnterior}
+                className="text-[10px] text-teal-700 hover:underline font-semibold flex items-center gap-0.5 self-start sm:self-auto cursor-pointer"
+                title={`Copiar valores desde ${registroMesPrevio.mesNombre}`}
+              >
+                <Copy className="w-2.5 h-2.5" />
+                <span>Copiar {registroMesPrevio.mesNombre}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Historial rápido de meses guardados con 1 clic */}
+          {Object.keys(historialCostosFijosMensuales).length > 0 && (
+            <div className="pt-1.5 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+              <span className="text-[9px] text-slate-400 uppercase font-bold mr-1">Meses Guardados:</span>
+              {Object.values(historialCostosFijosMensuales).map((reg) => (
+                <button
+                  key={reg.id}
+                  type="button"
+                  onClick={() => handleCargarRegistroMes(reg)}
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all border cursor-pointer ${
+                    reg.mesIndex === mesSeleccionado && reg.año === añoSeleccionado
+                      ? 'bg-teal-700 text-white border-teal-700 shadow-2xs font-bold'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                  title={`Cargar cuentas de ${reg.mesNombre}`}
+                >
+                  {reg.mesNombre.split(' ')[0]} ({formatMoneda(reg.gastoLuz + reg.gastoGas + reg.otrosGastos.reduce((s,o)=>s+o.monto,0))})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 2 Campos Básicos Cotidianos: Luz y Gas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+          {/* Campo Básico 1: Luz */}
+          <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1 mb-1">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              Luz ($ mensual)
+            </label>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+              <input
+                type="number"
+                min={0}
+                step={10000}
+                value={gastoLuzMensual === 0 ? '' : gastoLuzMensual}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value);
+                  onChangeGastoLuz?.(isNaN(val) ? 0 : Math.max(0, val));
+                }}
+                placeholder="180.000"
+                className="w-full pl-6 pr-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums"
+              />
+            </div>
+            <span className="text-[9px] text-slate-400 block mt-0.5">Electricidad del recinto</span>
+          </div>
+
+          {/* Campo Básico 2: Gas */}
+          <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1 mb-1">
+              <Flame className="w-3.5 h-3.5 text-orange-500" />
+              Gas ($ mensual)
+            </label>
+            <div className="relative">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+              <input
+                type="number"
+                min={0}
+                step={10000}
+                value={gastoGasMensual === 0 ? '' : gastoGasMensual}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value);
+                  onChangeGastoGas?.(isNaN(val) ? 0 : Math.max(0, val));
+                }}
+                placeholder="140.000"
+                className="w-full pl-6 pr-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums"
+              />
+            </div>
+            <span className="text-[9px] text-slate-400 block mt-0.5">Balones / gas cocina</span>
+          </div>
+        </div>
+
+        {/* Otros Gastos Fijos (Llenado a mano o botón para nuevo costo) */}
+        <div className="pt-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+              Otros Costos Fijos ({otrosGastosFijos.length})
+            </span>
+            <button
+              type="button"
+              onClick={() => setMostrarFormNuevo(!mostrarFormNuevo)}
+              className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+            >
+              <Plus className="w-3 h-3" />
+              <span>{mostrarFormNuevo ? 'Cerrar' : '+ Añadir otro costo'}</span>
+            </button>
+          </div>
+
+          {/* Sugerencias Rápidas con 1 clic */}
+          <div className="flex flex-wrap gap-1 mb-2">
+            {sugerenciasComunes.map((sug) => (
+              <button
+                key={sug.label}
+                type="button"
+                onClick={() => handleAplicarSugerencia(sug.nombre, sug.montoDefault)}
+                className="text-[10px] font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                title={`Agregar ${sug.nombre} ($${sug.montoDefault.toLocaleString('es-CL')})`}
+              >
+                {sug.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Formulario desplegable para agregar nuevo costo a mano */}
+          {mostrarFormNuevo && (
+            <form onSubmit={handleAgregarNuevoGasto} className="p-2.5 rounded-lg bg-teal-50/70 border border-teal-200 space-y-2 mb-2">
+              <span className="text-[10px] font-bold text-teal-900 block">
+                Ingresar Nuevo Costo Fijo Mensual:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={nombreNuevoGasto}
+                  onChange={(e) => setNombreNuevoGasto(e.target.value)}
+                  placeholder="Concepto (ej: Arriendo taller)"
+                  className="px-2.5 py-1 text-xs font-medium text-slate-900 bg-white border border-teal-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  step={10000}
+                  value={montoNuevoGasto}
+                  onChange={(e) => setMontoNuevoGasto(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Monto $ mensual"
+                  className="px-2.5 py-1 text-xs font-bold text-slate-900 bg-white border border-teal-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums"
+                />
+              </div>
+              <div className="flex justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMostrarFormNuevo(false)}
+                  className="px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 rounded-md"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1 text-[10px] font-bold text-white bg-teal-700 hover:bg-teal-800 rounded-md shadow-xs cursor-pointer"
+                >
+                  Guardar Costo
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Lista de otros gastos fijos agregados */}
+          {otrosGastosFijos.length > 0 && (
+            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+              {otrosGastosFijos.map((gf) => (
+                <div key={gf.id} className="flex items-center justify-between py-1 px-2 rounded-md bg-white border border-slate-200 text-xs">
+                  <span className="text-slate-700 font-medium truncate max-w-[160px] text-[11px]" title={gf.nombre}>
+                    {gf.nombre}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-bold text-slate-900 tabular-nums text-[11px]">
+                      {formatMoneda(gf.monto)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveOtroGastoFijo?.(gf.id)}
+                      className="text-slate-400 hover:text-rose-600 p-0.5 rounded-sm transition-colors cursor-pointer"
+                      title="Eliminar este gasto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Divisor: Cantidad de Eventos al Mes */}
+        <div className="pt-2 border-t border-slate-200 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-teal-600" />
+              Cantidad de Eventos al Mes (Prorrateo)
+            </label>
+            <span className="text-[10px] text-teal-800 font-bold bg-teal-50 border border-teal-200 px-2 py-0.5 rounded tabular-nums">
+              {eventosAlMes} {eventosAlMes === 1 ? 'evento proyectado' : 'eventos proyectados'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {/* Botón rápido -1 */}
+            <button
+              type="button"
+              onClick={() => onChangeEventosAlMes?.(Math.max(1, (eventosAlMes || 1) - 1))}
+              className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 flex items-center justify-center active:scale-95 transition-transform text-xs cursor-pointer shadow-xs"
+              title="Restar 1 evento"
+            >
+              -1
+            </button>
+
+            {/* Input libre sin tope restrictivo */}
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={eventosAlMes === 0 ? '' : eventosAlMes}
+              onChange={(e) => {
+                const val = e.target.value === '' ? 0 : Number(e.target.value);
+                onChangeEventosAlMes?.(isNaN(val) ? 0 : Math.max(0, val));
+              }}
+              placeholder="4"
+              className="w-20 h-8 px-2 text-center text-sm font-extrabold text-slate-900 bg-white border-2 border-teal-500 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-teal-400 tabular-nums shadow-xs"
+            />
+
+            {/* Botón rápido +1 */}
+            <button
+              type="button"
+              onClick={() => onChangeEventosAlMes?.((eventosAlMes || 0) + 1)}
+              className="w-8 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 flex items-center justify-center active:scale-95 transition-transform text-xs cursor-pointer shadow-xs"
+              title="Sumar 1 evento"
+            >
+              +1
+            </button>
+
+            {/* Botón rápido +5 para meses activos */}
+            <button
+              type="button"
+              onClick={() => onChangeEventosAlMes?.((eventosAlMes || 0) + 5)}
+              className="px-2 h-8 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 font-bold text-slate-700 flex items-center justify-center active:scale-95 transition-transform text-[11px] cursor-pointer shadow-xs"
+              title="Sumar 5 eventos al mes"
+            >
+              +5
+            </button>
+          </div>
+
+          {/* Presets ampliados para emprendedores de baja y alta frecuencia */}
+          <div className="flex items-center gap-1 flex-wrap pt-0.5">
+            <span className="text-[10px] text-slate-400 font-medium mr-1">Rápidos:</span>
+            {presetsEventos.map((ev) => (
+              <button
+                key={ev}
+                type="button"
+                onClick={() => onChangeEventosAlMes?.(ev)}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition-all cursor-pointer ${
+                  eventosAlMes === ev
+                    ? 'bg-teal-700 text-white border-teal-700 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {ev} ev.
+              </button>
+            ))}
+          </div>
+
+          {/* Explicación clara para responder a: ¿si tiene más de 8 eventos qué opción hay? */}
+          <div className="text-[10px] text-slate-600 bg-teal-50/60 p-2 rounded-lg leading-relaxed border border-teal-200/70">
+            💡 <strong>¿Tienes más de 8 eventos al mes?</strong> Puedes escribir cualquier número libremente en el campo (ej: <strong>10, 15, 20 o 30 eventos</strong>). Si atiendes coffee breaks o servicios corporativos semanales, mayor cantidad de eventos significa que tus cuentas de arriendo, luz y gas se dividen entre más servicios, reduciendo el costo fijo que absorbe cada comensal.
+          </div>
+        </div>
+
+        {/* Resultados Clave de Prorrateo: Costo Fijo por Evento y Costo Fijo por Persona (p.p.) */}
+        <div className="pt-2.5 border-t border-slate-200/90 space-y-1.5 text-xs bg-teal-50/50 p-2.5 rounded-lg border border-teal-100">
+          <div className="flex items-center justify-between">
+            <span className="text-teal-950 font-semibold">Costo Fijo asignado a este evento:</span>
+            <span className="font-extrabold text-teal-900 text-sm tabular-nums">
+              {formatMoneda(costosFijosEvento)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pt-1 border-t border-teal-200/50 text-[11px]">
+            <span className="text-slate-600 font-medium">Costo Fijo por comensal (p.p.):</span>
+            <span className="font-bold text-teal-800 tabular-nums">
+              +{formatMoneda(costoFijoPorPersona)} /pax
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 block leading-tight pt-0.5">
+            💡 Considera estos +{formatMoneda(costoFijoPorPersona)}/pax al costear tus productos y menús para absorber tus cuentas fijas.
+          </span>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════════
+          2. COSTO REAL DE OPERACIÓN (TU GASTO BASE)
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div className="p-4 rounded-xl bg-slate-900 text-white shadow-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400 font-medium block">
+            Costo Real de Operación (Tu Gasto Base)
+          </span>
+          <span className="text-[10px] text-teal-300 bg-teal-950/80 border border-teal-800/80 px-2 py-0.5 rounded-full font-semibold">
+            Variables + Costo Fijo
+          </span>
+        </div>
         <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight tabular-nums mt-0.5">
           {formatMoneda(costoTotalReal)}
         </div>
-        <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-300">
-          <span>Costo real por comensal:</span>
+
+        {/* Subtotales en el Gasto Base */}
+        <div className="mt-2 pt-2 border-t border-slate-800 grid grid-cols-2 gap-2 text-[11px]">
+          <div>
+            <span className="text-slate-400 block text-[10px]">Variables de Producción:</span>
+            <span className="font-semibold text-slate-200 tabular-nums">{formatMoneda(costoVariablesTotal)}</span>
+          </div>
+          <div className="text-right">
+            <span className="text-teal-400 block text-[10px]">Fijo Prorrateado:</span>
+            <span className="font-bold text-teal-300 tabular-nums">+{formatMoneda(costosFijosEvento)}</span>
+          </div>
+        </div>
+
+        <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300">
+          <span>Costo real base por comensal:</span>
           <span className="font-bold text-amber-400 tabular-nums">
             {formatMoneda(costoPorInvitado)} <span className="text-[10px] text-slate-400 font-normal">/pax</span>
           </span>
         </div>
       </div>
 
-      {/* Gráfico de Barras Segmentadas por Área */}
-      <div className="mt-5">
+      {/* ══════════════════════════════════════════════════════════════════════════
+          3. DISTRIBUCIÓN POR ÁREAS (GRÁFICO Y DESGLOSE)
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div>
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
           <span>Distribución por Áreas</span>
           <span className="text-slate-400 font-normal">100%</span>
         </div>
 
-        {/* Barra visual horizontal compuesta */}
-        <div className="h-3.5 w-full bg-slate-100 rounded-full overflow-hidden flex">
+        {/* Barra visual horizontal compuesta con 5 segmentos */}
+        <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
           <div
             style={{ width: `${pctMenu}%` }}
             className="bg-amber-600 transition-all duration-300"
@@ -138,10 +694,15 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             className="bg-rose-500 transition-all duration-300"
             title={`Decoración: ${formatPorcentaje(pctDecoracion)}`}
           />
+          <div
+            style={{ width: `${pctCostosFijos}%` }}
+            className="bg-teal-600 transition-all duration-300"
+            title={`Costos Fijos: ${formatPorcentaje(pctCostosFijos)}`}
+          />
         </div>
 
         {/* Lista de Desglose Detallada */}
-        <div className="mt-3 space-y-2 text-xs">
+        <div className="mt-3 space-y-1.5 text-xs">
           <div className="flex items-center justify-between py-1 border-b border-slate-100">
             <span className="flex items-center gap-2 text-slate-600 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0" />
@@ -178,7 +739,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-between py-1">
+          <div className="flex items-center justify-between py-1 border-b border-slate-100">
             <span className="flex items-center gap-2 text-slate-600 font-medium">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
               <Palette className="w-3.5 h-3.5 text-slate-400" />
@@ -189,104 +750,215 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
               <span className="text-[10px] text-slate-400 ml-1.5">({formatPorcentaje(pctDecoracion)})</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Margen de Ganancia Comercial */}
-      <div className="mt-5 pt-4 border-t border-slate-100">
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
-            <Percent className="w-3.5 h-3.5 text-slate-500" />
-            Margen Comercial Deseado
-          </label>
-          <span className="text-xs font-extrabold text-amber-700 tabular-nums">
-            {margenGanancia}%
-          </span>
-        </div>
-
-        {/* Botones de presets */}
-        <div className="grid grid-cols-6 gap-1 mb-2">
-          {presetsMargen.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => onChangeMargen(m)}
-              className={`py-1 text-[11px] font-bold rounded-md transition-colors ${
-                margenGanancia === m
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {m}%
-            </button>
-          ))}
-        </div>
-
-        {/* Slider libre */}
-        <input
-          type="range"
-          min={10}
-          max={65}
-          step={1}
-          value={margenGanancia}
-          onChange={(e) => onChangeMargen(Number(e.target.value))}
-          className="w-full accent-amber-600 cursor-pointer"
-        />
-
-        <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 font-medium">
-          <span>Utilidad bruta proyectada:</span>
-          <span className="font-bold text-emerald-800 tabular-nums">
-            +{formatMoneda(utilidadProyectada)}
-          </span>
-        </div>
-      </div>
-
-      {/* Precio Sugerido de Venta al Cliente */}
-      <div className="mt-5 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50/60 border border-amber-200/80">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] font-extrabold text-amber-900 uppercase tracking-wider flex items-center gap-1">
-            <DollarSign className="w-3.5 h-3.5 text-amber-700" />
-            Precio Sugerido Venta Cliente
-          </span>
-
-          {/* Toggle IVA */}
-          <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-700 select-none">
-            <input
-              type="checkbox"
-              checked={aplicaIva}
-              onChange={(e) => onToggleIva(e.target.checked)}
-              className="rounded-xs text-amber-600 focus:ring-amber-500 w-3.5 h-3.5"
-            />
-            <span>IVA (19%)</span>
-          </label>
-        </div>
-
-        <div className="text-2xl sm:text-3xl font-black text-amber-950 tabular-nums mt-1">
-          {formatMoneda(aplicaIva ? precioVentaTotal : precioVentaNeto)}
-        </div>
-
-        <div className="mt-2 pt-2 border-t border-amber-200/60 space-y-1 text-xs text-amber-900">
-          <div className="flex justify-between">
-            <span className="text-slate-600">Valor Neto:</span>
-            <span className="font-semibold tabular-nums">{formatMoneda(precioVentaNeto)}</span>
-          </div>
-          {aplicaIva && (
-            <div className="flex justify-between">
-              <span className="text-slate-600">IVA (19%):</span>
-              <span className="font-semibold tabular-nums">+{formatMoneda(ivaMonto)}</span>
+          <div className="flex items-center justify-between py-1">
+            <span className="flex items-center gap-2 text-slate-700 font-semibold">
+              <span className="w-2.5 h-2.5 rounded-full bg-teal-600 shrink-0" />
+              <Building2 className="w-3.5 h-3.5 text-teal-600" />
+              Costos Fijos (Prorrateo)
+            </span>
+            <div className="text-right">
+              <span className="font-extrabold text-teal-900 tabular-nums">{formatMoneda(costosFijosEvento)}</span>
+              <span className="text-[10px] text-teal-700 ml-1.5 font-bold">({formatPorcentaje(pctCostosFijos)})</span>
             </div>
-          )}
-          <div className="flex justify-between pt-1 border-t border-amber-200/40 font-bold text-amber-950">
-            <span>Sugerido por invitado:</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════════
+          4. MARGEN & PRECIO DE VENTA: CRITERIO LIBRE DEL EMPRENDEDOR
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50/80 via-white to-orange-50/50 border border-amber-200/90 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+            <DollarSign className="w-4 h-4 text-amber-700" />
+            Precio de Venta & Margen
+          </label>
+          <span className="text-[10px] font-bold text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+            {usarPrecioManual ? 'A Criterio Libre' : 'Sugerencia Sistema'}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-600 leading-snug">
+          La plataforma te entrega una <strong>sugerencia referencial</strong> para proteger tu rentabilidad, pero tú tienes siempre la libertad de definir tu precio final.
+        </p>
+
+        {/* Selector de Modo: Sugerencia del Sistema vs Criterio Libre */}
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-lg text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => onToggleUsarPrecioManual?.(false)}
+            className={`py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              !usarPrecioManual
+                ? 'bg-white text-slate-900 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Sugerencia ({margenGanancia}%)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onToggleUsarPrecioManual?.(true);
+              if (!precioVentaManual || precioVentaManual <= 0) {
+                onChangePrecioManual?.(aplicaIva ? precioVentaTotal : precioVentaNeto);
+              }
+            }}
+            className={`py-1.5 px-2 rounded-md transition-all flex items-center justify-center gap-1 cursor-pointer ${
+              usarPrecioManual
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Mi Precio Libre</span>
+          </button>
+        </div>
+
+        {/* CASO A: SUGERENCIA REFERENCIAL CON MARGEN */}
+        {!usarPrecioManual && (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-slate-700 font-semibold flex items-center gap-1">
+                <Percent className="w-3.5 h-3.5 text-slate-500" />
+                Margen Sugerido Deseado:
+              </span>
+              <span className="font-extrabold text-amber-800 text-sm tabular-nums">
+                {margenGanancia}%
+              </span>
+            </div>
+
+            {/* Presets de Margen */}
+            <div className="grid grid-cols-7 gap-1">
+              {presetsMargen.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onChangeMargen(m)}
+                  className={`py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                    margenGanancia === m
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {m}%
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="range"
+              min={10}
+              max={65}
+              step={1}
+              value={margenGanancia}
+              onChange={(e) => onChangeMargen(Number(e.target.value))}
+              className="w-full accent-amber-600 cursor-pointer mt-1"
+            />
+
+            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+              <span>Utilidad sugerida proyectada:</span>
+              <span className="font-bold text-emerald-800 tabular-nums">
+                +{formatMoneda(utilidadProyectada)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* CASO B: PRECIO LIBRE DEFINIDO POR EL EMPRENDEDOR */}
+        {usarPrecioManual && (
+          <div className="space-y-2 pt-1">
+            <label className="text-[11px] font-bold text-amber-950 block">
+              Ingresa el Precio Total que deseas cobrar ($):
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">$</span>
+              <input
+                type="number"
+                min={0}
+                step={50000}
+                value={precioVentaManual === 0 ? '' : precioVentaManual}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value);
+                  onChangePrecioManual?.(isNaN(val) ? 0 : Math.max(0, val));
+                }}
+                placeholder="Ej: 4500000"
+                className="w-full pl-7 pr-3 py-2 text-base font-black text-slate-900 bg-white border-2 border-amber-500 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 tabular-nums shadow-xs"
+              />
+            </div>
+
+            {/* Análisis en vivo del Margen Real que le queda al cliente */}
+            <div className="p-2.5 rounded-lg bg-white border border-amber-200/80 space-y-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-600 font-medium">Margen real según tu precio:</span>
+                <span className={`font-extrabold text-sm tabular-nums px-2 py-0.5 rounded-md ${
+                  margenRealObtenido >= margenGanancia
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : margenRealObtenido >= 20
+                    ? 'bg-amber-100 text-amber-900'
+                    : 'bg-rose-100 text-rose-900'
+                }`}>
+                  {margenRealObtenido}%
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-slate-600 font-medium">Tu ganancia líquida real:</span>
+                <span className="font-bold text-emerald-800 tabular-nums">
+                  +{formatMoneda(utilidadRealObtenida)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
+                <span>Sugerencia del sistema:</span>
+                <span className="tabular-nums">
+                  {formatMoneda(aplicaIva ? precioVentaTotal : precioVentaNeto)}
+                  {' '}({precioCobradoFinal >= (aplicaIva ? precioVentaTotal : precioVentaNeto) ? '+' : ''}
+                  {formatMoneda(precioCobradoFinal - (aplicaIva ? precioVentaTotal : precioVentaNeto))})
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tarjeta de Precio Final Cobrado Activo */}
+        <div className="pt-2 border-t border-amber-200/70">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-extrabold text-amber-950 uppercase tracking-wider">
+              {usarPrecioManual ? 'Precio Final Cobrado (Tu Elección)' : 'Precio Sugerido Venta Cliente'}
+            </span>
+
+            {/* Toggle IVA */}
+            <label className="flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-700 select-none">
+              <input
+                type="checkbox"
+                checked={aplicaIva}
+                onChange={(e) => onToggleIva(e.target.checked)}
+                className="rounded-xs text-amber-600 focus:ring-amber-500 w-3.5 h-3.5 cursor-pointer"
+              />
+              <span>IVA (19%)</span>
+            </label>
+          </div>
+
+          <div className="text-2xl sm:text-3xl font-black text-amber-950 tabular-nums">
+            {formatMoneda(precioCobradoFinal)}
+          </div>
+
+          <div className="mt-1 flex items-center justify-between text-xs text-amber-900 font-semibold pt-1 border-t border-amber-200/40">
+            <span>Por invitado ({invitados} pax):</span>
             <span className="tabular-nums">
-              {formatMoneda(aplicaIva ? precioVentaPorInvitado : precioVentaNeto / (invitados || 1))} /pax
+              {formatMoneda(Math.round(precioCobradoFinal / Math.max(1, invitados)))} /pax
             </span>
           </div>
         </div>
       </div>
 
-      {/* Términos de Anticipo & Condiciones de Pago (Configurable por Dominga) */}
-      <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+      {/* ══════════════════════════════════════════════════════════════════════════
+          5. TÉRMINOS DE ANTICIPO & CONDICIONES DE PAGO
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
             <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
@@ -301,7 +973,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         <div className="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-200 leading-snug flex items-start gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
           <span>
-            <strong className="text-slate-800">Política Dominga Eventos:</strong> El anticipo asegura la exclusividad de la fecha y fondea compras mayoristas; lo define la productora, <em>no se deja a criterio libre del cliente</em>.
+            <strong className="text-slate-800">Criterio Comercial:</strong> El anticipo asegura la fecha y fondea compras mayoristas; tú decides el porcentaje según tu cliente.
           </span>
         </div>
 
@@ -342,10 +1014,10 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 name="esquemaPago"
                 checked={esquemaPago === 'dos_pagos'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('dos_pagos')}
-                className="accent-emerald-600"
+                className="accent-emerald-600 cursor-pointer"
               />
               <div className="leading-tight">
-                <span className="font-bold text-slate-800 block text-[11px]">2 Pagos (Estándar Matrimonios)</span>
+                <span className="font-bold text-slate-800 block text-[11px]">2 Pagos (Estándar Banquetería)</span>
                 <span className="text-[10px] text-slate-500">Anticipo {porcentajeAnticipo}% + Saldo hasta {diasSaldo} días antes</span>
               </div>
             </label>
@@ -358,7 +1030,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 name="esquemaPago"
                 checked={esquemaPago === 'tres_pagos'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('tres_pagos')}
-                className="accent-emerald-600"
+                className="accent-emerald-600 cursor-pointer"
               />
               <div className="leading-tight">
                 <span className="font-bold text-slate-800 block text-[11px]">3 Cuotas / Hitos</span>
@@ -374,7 +1046,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 name="esquemaPago"
                 checked={esquemaPago === 'corporativo'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('corporativo')}
-                className="accent-emerald-600"
+                className="accent-emerald-600 cursor-pointer"
               />
               <div className="leading-tight">
                 <span className="font-bold text-slate-800 block text-[11px]">Corporativo / Facturación</span>
@@ -384,10 +1056,10 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </div>
         </div>
 
-        {/* Desglose Matemático de Cuotas en CLP */}
+        {/* Desglose Matemático de Cuotas en CLP calculado sobre el precio cobrado real */}
         <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">
           {(() => {
-            const total = aplicaIva ? precioVentaTotal : precioVentaNeto;
+            const total = precioCobradoFinal;
             const pieMonto = Math.round(total * (porcentajeAnticipo / 100));
             const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(total * 0.30) : 0;
             const saldoMonto = total - pieMonto - hito2Monto;
@@ -414,13 +1086,15 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         </div>
       </div>
 
-      {/* Botones de Acción */}
-      <div className="mt-5 space-y-2">
+      {/* ══════════════════════════════════════════════════════════════════════════
+          6. BOTONES DE ACCIÓN
+      ══════════════════════════════════════════════════════════════════════════ */}
+      <div className="space-y-2 pt-1">
         {onAbrirWhatsAppPropuesta && (
           <button
             type="button"
             onClick={onAbrirWhatsAppPropuesta}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-600/20 transition-all"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#25D366] hover:bg-[#20ba59] active:scale-98 text-white text-xs font-black rounded-xl shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
             title="Enviar propuesta formal formateada por WhatsApp"
           >
             <MessageCircle className="w-4 h-4 fill-white" />
@@ -431,7 +1105,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         <button
           type="button"
           onClick={onGuardarEnCalendario}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
         >
           <CalendarPlus className="w-4 h-4" />
           <span>Agendar esta Cotización en Calendario</span>
@@ -440,7 +1114,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         <button
           type="button"
           onClick={onAbrirFichaCliente}
-          className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
         >
           <Printer className="w-4 h-4 text-slate-600" />
           <span>Generar Ficha Formal para el Cliente (PDF)</span>

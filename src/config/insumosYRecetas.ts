@@ -379,7 +379,7 @@ export const RECETAS_INICIALES: RecetaFichaTecnica[] = [
     categoria: 'Plato de Fondo Gourmet',
     rendimientoPorciones: 1, // Costo por 1 comensal
     margenSugerido: 33, // 33% Food Cost estándar de la gastronomía
-    costoAdicionalElaboracion: 950, // Gas, fondos de cocción, sal marina, microgreens
+    costoAdicionalElaboracion: 450, // Fondos aromáticos, sal marina y microgreens (Gas y energía se prorratean en Costos Fijos Módulo 06 para no duplicar)
     menuAsociadoId: 'menu-gala-3-tiempos',
     descripcionProcedimiento: 'Medallón de filete de 220g sellado al término deseado con reducción de oporto y champiñones sobre risotto cremoso al azafrán con parmesano grana.',
     ingredientes: [

@@ -16,7 +16,9 @@ import {
   InsumoMaestro,
   RecetaFichaTecnica,
   EmpresaCliente,
-  PerfilClienteId
+  PerfilClienteId,
+  ItemGastoFijo,
+  RegistroCostoFijoMensual
 } from './types';
 import {
   MENUS_INICIALES,
@@ -105,10 +107,18 @@ export default function App() {
   const [recetas, setRecetas] = useState<RecetaFichaTecnica[]>(() => datosIniciales.recetas);
   const [menus, setMenus] = useState<MenuOption[]>(() => datosIniciales.menus);
   const [tarifasStaff, setTarifasStaff] = useState<StaffTarifas>(() => datosIniciales.tarifasStaff);
-  const [proveedores, setProveedores] = useState<ProveedorServicio[]>(() => datosIniciales.proveedores);
+  const [proveedores, setProveedores] = useState<ProveedorServicio[]>(() => 
+    datosIniciales.proveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'))
+  );
   const [estilosDecoracion, setEstilosDecoracion] = useState<EstiloDecoracion[]>(() => datosIniciales.estilosDecoracion);
   const [reservas, setReservas] = useState<ReservaCalendario[]>(() => datosIniciales.reservas);
-  const [cotizacion, setCotizacion] = useState<CotizacionState>(() => datosIniciales.cotizacion);
+  const [cotizacion, setCotizacion] = useState<CotizacionState>(() => {
+    const cot = { ...datosIniciales.cotizacion };
+    if (cot.proveedoresSeleccionados) {
+      delete cot.proveedoresSeleccionados['arriendo-locacion-damaris'];
+    }
+    return cot;
+  });
 
   // ── Modales y UI ──
   const [modalEmpresasOpen, setModalEmpresasOpen] = useState(false);
@@ -226,7 +236,7 @@ export default function App() {
     setRecetas(nuevosDatos.recetas);
     setMenus(nuevosDatos.menus);
     setTarifasStaff(nuevosDatos.tarifasStaff);
-    setProveedores(nuevosDatos.proveedores);
+    setProveedores(nuevosDatos.proveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo')));
     setEstilosDecoracion(nuevosDatos.estilosDecoracion);
     setReservas(nuevosDatos.reservas);
     setEmpresaActiva(nuevosDatos.empresa);
@@ -241,7 +251,9 @@ export default function App() {
     if (datos.recetas && datos.recetas.length > 0) setRecetas(datos.recetas);
     if (datos.menus && datos.menus.length > 0) setMenus(datos.menus);
     if (datos.tarifasStaff) setTarifasStaff(datos.tarifasStaff);
-    if (datos.proveedores && datos.proveedores.length > 0) setProveedores(datos.proveedores);
+    if (datos.proveedores && datos.proveedores.length > 0) {
+      setProveedores(datos.proveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo')));
+    }
     if (datos.estilosDecoracion && datos.estilosDecoracion.length > 0) setEstilosDecoracion(datos.estilosDecoracion);
     if (datos.reservas && datos.reservas.length > 0) setReservas(datos.reservas);
     if (datos.cotizacionActual) setCotizacion(datos.cotizacionActual);
@@ -274,24 +286,68 @@ export default function App() {
     const estiloActual = estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0];
     const costoDecoracion = estiloActual?.costoFijo || 0;
 
-    // Costo Total Real de Operación
-    const costoTotalReal = costoMenu + costoPersonal + costoProveedores + costoDecoracion;
+    // 5. Costos Fijos Operacionales Prorrateados para Emprendedores
+    const gastoLuzMensual = Math.max(0, Number(cotizacion.gastoLuzMensual) || 0);
+    const gastoGasMensual = Math.max(0, Number(cotizacion.gastoGasMensual) || 0);
+    const otrosGastosFijos = Array.isArray(cotizacion.otrosGastosFijos) ? cotizacion.otrosGastosFijos : [];
+    const sumaOtros = otrosGastosFijos.reduce((s, it) => s + (Math.max(0, Number(it.monto)) || 0), 0);
+
+    const gastosFijosMensuales = (gastoLuzMensual > 0 || gastoGasMensual > 0 || sumaOtros > 0)
+      ? (gastoLuzMensual + gastoGasMensual + sumaOtros)
+      : Math.max(0, Number(cotizacion.gastosFijosMensuales) || 0);
+
+    const eventosAlMes = Math.max(0, Number(cotizacion.eventosAlMes) || 0);
+    const costosFijosEvento = eventosAlMes > 0 && gastosFijosMensuales > 0 
+      ? Math.round(gastosFijosMensuales / eventosAlMes) 
+      : 0;
+
+    // Costo fijo por persona / comensal (p.p.) para costear productos
+    const costoFijoPorPersona = cotizacion.invitados > 0
+      ? Math.round(costosFijosEvento / cotizacion.invitados)
+      : 0;
+
+    // Costo Variables Total y Costo Total Real de Operación (Tu Gasto Base)
+    const costoVariablesTotal = costoMenu + costoPersonal + costoProveedores + costoDecoracion;
+    const costoTotalReal = costoVariablesTotal + costosFijosEvento;
     const costoPorInvitado = cotizacion.invitados > 0 ? costoTotalReal / cotizacion.invitados : 0;
 
-    // Margen y Precio Sugerido de Venta
+    // Sugerencia referencial de la plataforma
     const margenPorcentaje = cotizacion.margenGanancia;
-    const precioVentaNeto = costoTotalReal * (1 + margenPorcentaje / 100);
+    const precioVentaNeto = Math.round(costoTotalReal * (1 + margenPorcentaje / 100));
     const utilidadProyectada = precioVentaNeto - costoTotalReal;
 
-    const ivaMonto = cotizacion.aplicaIva ? precioVentaNeto * 0.19 : 0;
+    const ivaMonto = cotizacion.aplicaIva ? Math.round(precioVentaNeto * 0.19) : 0;
     const precioVentaTotal = precioVentaNeto + ivaMonto;
-    const precioVentaPorInvitado = cotizacion.invitados > 0 ? precioVentaTotal / cotizacion.invitados : 0;
+    const precioVentaPorInvitado = cotizacion.invitados > 0 ? Math.round(precioVentaTotal / cotizacion.invitados) : 0;
+
+    // Criterio libre del emprendedor (sugerido vs precio libre)
+    const usarPrecioManual = !!cotizacion.usarPrecioManual;
+    const precioVentaManual = Math.max(0, Number(cotizacion.precioVentaManual) || 0);
+
+    const precioCobradoFinal = (usarPrecioManual && precioVentaManual > 0)
+      ? precioVentaManual
+      : (cotizacion.aplicaIva ? precioVentaTotal : precioVentaNeto);
+
+    // Margen y utilidad real obtenida según lo que el emprendedor decida cobrar
+    const precioNetoCobrado = cotizacion.aplicaIva ? Math.round(precioCobradoFinal / 1.19) : precioCobradoFinal;
+    const utilidadRealObtenida = precioNetoCobrado - costoTotalReal;
+    const margenRealObtenido = costoTotalReal > 0
+      ? Math.round(((precioNetoCobrado - costoTotalReal) / costoTotalReal) * 100 * 10) / 10
+      : 0;
 
     return {
       costoMenu,
       costoPersonal,
       costoProveedores,
       costoDecoracion,
+      costosFijosEvento,
+      costoFijoPorPersona,
+      gastosFijosMensuales,
+      gastoLuzMensual,
+      gastoGasMensual,
+      otrosGastosFijos,
+      eventosAlMes,
+      costoVariablesTotal,
       costoTotalReal,
       costoPorInvitado,
       margenPorcentaje,
@@ -299,7 +355,12 @@ export default function App() {
       precioVentaNeto,
       ivaMonto,
       precioVentaTotal,
-      precioVentaPorInvitado
+      precioVentaPorInvitado,
+      usarPrecioManual,
+      precioVentaManual,
+      precioCobradoFinal,
+      margenRealObtenido,
+      utilidadRealObtenida
     };
   }, [cotizacion, menus, tarifasStaff, proveedores, estilosDecoracion]);
 
@@ -563,6 +624,88 @@ export default function App() {
     setCotizacion(prev => ({ ...prev, diasSaldo: dias }));
   };
 
+  const handleChangeGastoLuz = (luz: number) => {
+    setCotizacion(prev => {
+      const otros = prev.otrosGastosFijos || [];
+      const sumaOtros = otros.reduce((s, o) => s + (o.monto || 0), 0);
+      const total = Math.max(0, luz) + (prev.gastoGasMensual || 0) + sumaOtros;
+      return { ...prev, gastoLuzMensual: Math.max(0, luz), gastosFijosMensuales: total };
+    });
+  };
+
+  const handleChangeGastoGas = (gas: number) => {
+    setCotizacion(prev => {
+      const otros = prev.otrosGastosFijos || [];
+      const sumaOtros = otros.reduce((s, o) => s + (o.monto || 0), 0);
+      const total = (prev.gastoLuzMensual || 0) + Math.max(0, gas) + sumaOtros;
+      return { ...prev, gastoGasMensual: Math.max(0, gas), gastosFijosMensuales: total };
+    });
+  };
+
+  const handleAddOtroGastoFijo = (nombre: string, monto: number) => {
+    setCotizacion(prev => {
+      const nuevo: ItemGastoFijo = {
+        id: 'gf-' + Date.now(),
+        nombre: nombre || 'Nuevo Costo Fijo',
+        monto: Math.max(0, monto)
+      };
+      const list = [...(prev.otrosGastosFijos || []), nuevo];
+      const sumaOtros = list.reduce((s, o) => s + (o.monto || 0), 0);
+      const total = (prev.gastoLuzMensual || 0) + (prev.gastoGasMensual || 0) + sumaOtros;
+      return { ...prev, otrosGastosFijos: list, gastosFijosMensuales: total };
+    });
+  };
+
+  const handleRemoveOtroGastoFijo = (id: string) => {
+    setCotizacion(prev => {
+      const list = (prev.otrosGastosFijos || []).filter(it => it.id !== id);
+      const sumaOtros = list.reduce((s, o) => s + (o.monto || 0), 0);
+      const total = (prev.gastoLuzMensual || 0) + (prev.gastoGasMensual || 0) + sumaOtros;
+      return { ...prev, otrosGastosFijos: list, gastosFijosMensuales: total };
+    });
+  };
+
+  const handleChangeEventosAlMes = (eventos: number) => {
+    setCotizacion(prev => ({ ...prev, eventosAlMes: Math.max(0, eventos) }));
+  };
+
+  const handleToggleUsarPrecioManual = (usar: boolean) => {
+    setCotizacion(prev => ({ ...prev, usarPrecioManual: usar }));
+  };
+
+  const handleChangePrecioManual = (precio: number) => {
+    setCotizacion(prev => ({ ...prev, precioVentaManual: Math.max(0, precio), usarPrecioManual: true }));
+  };
+
+  const handleGuardarMesCostosFijos = (registro: RegistroCostoFijoMensual) => {
+    setCotizacion(prev => {
+      const historial = { ...(prev.historialCostosFijosMensuales || {}), [registro.id]: registro };
+      return {
+        ...prev,
+        mesActivoCostosFijos: registro.mesNombre,
+        historialCostosFijosMensuales: historial
+      };
+    });
+    mostrarToast(`✓ Facturas de ${registro.mesNombre} guardadas con éxito`);
+  };
+
+  const handleCargarMesCostosFijos = (registro: RegistroCostoFijoMensual) => {
+    setCotizacion(prev => {
+      const sumaOtros = (registro.otrosGastos || []).reduce((s, o) => s + (o.monto || 0), 0);
+      const total = (registro.gastoLuz || 0) + (registro.gastoGas || 0) + sumaOtros;
+      return {
+        ...prev,
+        mesActivoCostosFijos: registro.mesNombre,
+        gastoLuzMensual: registro.gastoLuz,
+        gastoGasMensual: registro.gastoGas,
+        otrosGastosFijos: registro.otrosGastos,
+        eventosAlMes: registro.eventosAlMes,
+        gastosFijosMensuales: total
+      };
+    });
+    mostrarToast(`✓ Cuentas de ${registro.mesNombre} cargadas`);
+  };
+
   // ── Guardar en Calendario ──
   const handleGuardarEnCalendario = () => {
     const fecha = cotizacion.fechaEvento || '2026-11-28';
@@ -697,7 +840,7 @@ export default function App() {
         vistaActual={vistaActual}
         setVistaActual={setVistaActual}
         invitados={cotizacion.invitados}
-        precioSugeridoVenta={resumenFinanciero.precioVentaTotal}
+        precioSugeridoVenta={resumenFinanciero.precioCobradoFinal}
         empresaActiva={empresaActiva}
         clienteActivoId={clienteActivoId}
         onCambiarCliente={handleCambiarCliente}
@@ -755,10 +898,10 @@ export default function App() {
                   {clienteActivoId === 'damaris-eventos' && (
                     <div className="text-left border-r border-white/10 pr-3">
                       <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider block">
-                        Tarifa Base Arriendo Locación
+                        Centro Campestre Damaris
                       </span>
                       <span className="text-lg font-black text-white tabular-nums">
-                        $1.500.000
+                        Calera de Tango
                       </span>
                       <span className="text-[10px] text-emerald-400 block font-medium">
                         ✓ Salón & 10.000 m² parque
@@ -962,6 +1105,7 @@ export default function App() {
                     onChangeInvitados={handleChangeInvitados}
                     onIrARecetas={() => setVistaActual('recetas')}
                     onAddMenu={handleAddMenu}
+                    costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
                   />
                 )}
 
@@ -1023,6 +1167,27 @@ export default function App() {
                   onChangeEsquemaPago={handleChangeEsquemaPago}
                   diasSaldo={cotizacion.diasSaldo ?? 7}
                   onChangeDiasSaldo={handleChangeDiasSaldo}
+                  // Gastos fijos específicos para emprendedores: Luz, Gas y Otros a mano
+                  gastoLuzMensual={cotizacion.gastoLuzMensual ?? 0}
+                  onChangeGastoLuz={handleChangeGastoLuz}
+                  gastoGasMensual={cotizacion.gastoGasMensual ?? 0}
+                  onChangeGastoGas={handleChangeGastoGas}
+                  otrosGastosFijos={cotizacion.otrosGastosFijos ?? []}
+                  onAddOtroGastoFijo={handleAddOtroGastoFijo}
+                  onRemoveOtroGastoFijo={handleRemoveOtroGastoFijo}
+                  eventosAlMes={cotizacion.eventosAlMes ?? 0}
+                  onChangeEventosAlMes={handleChangeEventosAlMes}
+                  // Historial y guardado mensual (variación mes a mes)
+                  mesActivoCostosFijos={cotizacion.mesActivoCostosFijos ?? 'Noviembre 2024'}
+                  onChangeMesActivo={(mes) => setCotizacion(prev => ({ ...prev, mesActivoCostosFijos: mes }))}
+                  historialCostosFijosMensuales={cotizacion.historialCostosFijosMensuales ?? {}}
+                  onGuardarMesCostosFijos={handleGuardarMesCostosFijos}
+                  onCargarMesCostosFijos={handleCargarMesCostosFijos}
+                  // Criterio libre del emprendedor (sugerido vs propio)
+                  usarPrecioManual={!!cotizacion.usarPrecioManual}
+                  onToggleUsarPrecioManual={handleToggleUsarPrecioManual}
+                  precioVentaManual={cotizacion.precioVentaManual ?? 0}
+                  onChangePrecioManual={handleChangePrecioManual}
                 />
               </div>
 
@@ -1115,9 +1280,9 @@ export default function App() {
           proveedores={proveedores}
           estiloDecoracion={estiloActual}
           tarifasStaff={tarifasStaff}
-          precioVentaNeto={resumenFinanciero.precioVentaNeto}
-          ivaMonto={resumenFinanciero.ivaMonto}
-          precioVentaTotal={resumenFinanciero.precioVentaTotal}
+          precioVentaNeto={resumenFinanciero.usarPrecioManual ? (cotizacion.aplicaIva ? Math.round(resumenFinanciero.precioCobradoFinal / 1.19) : resumenFinanciero.precioCobradoFinal) : resumenFinanciero.precioVentaNeto}
+          ivaMonto={resumenFinanciero.usarPrecioManual ? (cotizacion.aplicaIva ? Math.round(resumenFinanciero.precioCobradoFinal - Math.round(resumenFinanciero.precioCobradoFinal / 1.19)) : 0) : resumenFinanciero.ivaMonto}
+          precioVentaTotal={resumenFinanciero.precioCobradoFinal}
           empresaActiva={empresaActiva}
           onClose={() => setModalFichaOpen(false)}
           onAbrirWhatsAppPropuesta={() => {
@@ -1135,9 +1300,9 @@ export default function App() {
           menu={menuActual}
           proveedores={proveedores}
           estiloDecoracion={estiloActual}
-          precioVentaNeto={resumenFinanciero.precioVentaNeto}
-          ivaMonto={resumenFinanciero.ivaMonto}
-          precioVentaTotal={resumenFinanciero.precioVentaTotal}
+          precioVentaNeto={resumenFinanciero.usarPrecioManual ? (cotizacion.aplicaIva ? Math.round(resumenFinanciero.precioCobradoFinal / 1.19) : resumenFinanciero.precioCobradoFinal) : resumenFinanciero.precioVentaNeto}
+          ivaMonto={resumenFinanciero.usarPrecioManual ? (cotizacion.aplicaIva ? Math.round(resumenFinanciero.precioCobradoFinal - Math.round(resumenFinanciero.precioCobradoFinal / 1.19)) : 0) : resumenFinanciero.ivaMonto}
+          precioVentaTotal={resumenFinanciero.precioCobradoFinal}
           empresaActiva={empresaActiva}
           onClose={() => setModalWhatsAppOpen(false)}
         />

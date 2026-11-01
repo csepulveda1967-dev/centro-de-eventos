@@ -12,6 +12,7 @@ interface Modulo1MenuProps {
   onChangeInvitados: (num: number) => void;
   onIrARecetas?: (menuId: string) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
+  costoFijoPorPersona?: number;
 }
 
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
@@ -21,7 +22,8 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   invitados,
   onChangeInvitados,
   onIrARecetas,
-  onAddMenu
+  onAddMenu,
+  costoFijoPorPersona = 0
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
   const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
@@ -226,13 +228,18 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                   </div>
                 </div>
 
-                {/* Precios */}
+                {/* Precios con absorción de costo fijo p.p. */}
                 <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-slate-400 block text-[10px]">Costo Real Insumo</span>
+                    <span className="text-slate-400 block text-[10px]">Costo Insumos Menú</span>
                     <span className="font-bold text-slate-800 tabular-nums">
                       {formatMoneda(menu.costoPersona)} <span className="font-normal text-slate-500">/pax</span>
                     </span>
+                    {costoFijoPorPersona > 0 && (
+                      <span className="text-[10px] text-teal-700 block font-medium">
+                        +{formatMoneda(costoFijoPorPersona)} fijo p.p.
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-right">
@@ -240,6 +247,11 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                     <span className="font-bold text-amber-900 tabular-nums">
                       {formatMoneda(menu.precioSugeridoPersona)} <span className="font-normal text-slate-500">/pax</span>
                     </span>
+                    {costoFijoPorPersona > 0 && (
+                      <span className="text-[10px] text-slate-500 block font-normal">
+                        Base real: {formatMoneda(menu.costoPersona + costoFijoPorPersona)}/pax
+                      </span>
+                    )}
                   </div>
                 </div>
 

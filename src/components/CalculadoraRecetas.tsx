@@ -913,32 +913,43 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             </div>
 
-            {/* Costos Indirectos de Elaboración */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-              <div>
-                <span className="font-bold text-slate-700 block">
-                  Gastos Adicionales de Cocción / Condimentos
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  Gas, especias menores, fondos aromáticos y cocción por comensal
-                </span>
+            {/* Costos Indirectos de Elaboración / Condimentos nivel plato */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-slate-800 block text-xs">
+                    Condimentos Menores y Especias (Nivel Plato)
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Sal marina, pimienta, hierbas frescas, fondos de cocción y microgreens por porción.
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 ml-3">
+                  <span className="text-slate-400 font-bold">$</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={50}
+                    value={recetaActiva.costoAdicionalElaboracion || 0}
+                    onChange={(e) => {
+                      onUpdateReceta({
+                        ...recetaActiva,
+                        costoAdicionalElaboracion: Math.max(0, Number(e.target.value) || 0)
+                      });
+                    }}
+                    className="w-24 text-right font-bold text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 tabular-nums focus:outline-hidden focus:border-amber-500"
+                  />
+                  <span className="text-[10px] text-slate-500 font-medium">/pax</span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <span className="text-slate-400 font-bold">$</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={50}
-                  value={recetaActiva.costoAdicionalElaboracion || 0}
-                  onChange={(e) => {
-                    onUpdateReceta({
-                      ...recetaActiva,
-                      costoAdicionalElaboracion: Math.max(0, Number(e.target.value) || 0)
-                    });
-                  }}
-                  className="w-24 text-right font-bold text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 tabular-nums focus:outline-hidden"
-                />
+              {/* Aviso claro anti-duplicidad */}
+              <div className="pt-2 border-t border-slate-200/70 flex items-start gap-1.5 text-[11px] text-teal-800 bg-teal-50/70 p-2 rounded-lg border border-teal-200/80">
+                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Control Anti-Duplicidad:</strong> El <strong>Gas y la Electricidad</strong> ya están integrados en tus <strong>Costos Fijos Operacionales (Módulo 06)</strong>. No los sumes aquí para no cobrarlos dos veces en la cotización.
+                </span>
               </div>
             </div>
           </div>

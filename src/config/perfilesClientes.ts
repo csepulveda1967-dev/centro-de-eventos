@@ -104,7 +104,48 @@ const crearDatosDominga = (): DatosPerfilCliente => {
     porcentajeAnticipo: 40,
     esquemaPago: 'dos_pagos',
     diasSaldo: 7,
-    validezDias: 15
+    validezDias: 15,
+    gastoLuzMensual: 180000,
+    gastoGasMensual: 140000,
+    otrosGastosFijos: [
+      { id: 'gf-d1', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
+      { id: 'gf-d2', nombre: 'Agua de riego y mantención jardines', monto: 280000 }
+    ],
+    gastosFijosMensuales: 2400000,
+    eventosAlMes: 4,
+    mesActivoCostosFijos: 'Noviembre 2024',
+    historialCostosFijosMensuales: {
+      '2024-10': {
+        id: '2024-10',
+        mesNombre: 'Octubre 2024',
+        mesIndex: 9,
+        año: 2024,
+        gastoLuz: 165000,
+        gastoGas: 130000,
+        otrosGastos: [
+          { id: 'gf-d1-oct', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
+          { id: 'gf-d2-oct', nombre: 'Agua de riego y mantención jardines', monto: 260000 }
+        ],
+        eventosAlMes: 4,
+        fechaGuardado: '31/10/2024'
+      },
+      '2024-11': {
+        id: '2024-11',
+        mesNombre: 'Noviembre 2024',
+        mesIndex: 10,
+        año: 2024,
+        gastoLuz: 180000,
+        gastoGas: 140000,
+        otrosGastos: [
+          { id: 'gf-d1', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
+          { id: 'gf-d2', nombre: 'Agua de riego y mantención jardines', monto: 280000 }
+        ],
+        eventosAlMes: 4,
+        fechaGuardado: '01/11/2024'
+      }
+    },
+    usarPrecioManual: false,
+    precioVentaManual: 0
   };
 
   const reservas: ReservaCalendario[] = [
@@ -161,22 +202,6 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
   };
 
   const proveedoresDamaris: ProveedorServicio[] = [
-    {
-      id: 'arriendo-locacion-damaris',
-      nombre: 'Arriendo Locación Salón Principal & Parque Campestre Damaris',
-      categoria: 'ambientacion',
-      tipoCobro: 'fijo',
-      costo: 1500000, // Tarifa base arriendo locación por defecto: $1.500.000
-      precioVentaSugerido: 1950000,
-      descripcion: 'Uso exclusivo del Salón Principal (hasta 300 personas), 10.000 m² de parque campestre con jardines, piscina y zona de juegos inflables.',
-      iconName: 'Building',
-      obligatorio: true,
-      contactoNombre: 'Recepción & Eventos Damaris',
-      telefonoPedidos: '+56 9 7123 4567',
-      emailPedidos: 'administracion@eventosdamaris.cl',
-      rut: '76.840.119-3',
-      plazoAnticipacion: 'Reserva sujeta a disponibilidad de fecha'
-    },
     {
       id: 'vajilla-cristaleria-damaris',
       nombre: 'Vajilla & Cristalería Campestre Calera de Tango',
@@ -349,7 +374,6 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
       maitre: 1
     },
     proveedoresSeleccionados: {
-      'arriendo-locacion-damaris': true,     // Tarifa base arriendo: $1.500.000
       'vajilla-cristaleria-damaris': true,   // Vajilla campestre
       'dj-sonido-damaris': true,             // DJ & Sonido
       'ambientacion-parque-damaris': true,   // Ambientación
@@ -375,7 +399,17 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
     porcentajeAnticipo: 40,
     esquemaPago: 'dos_pagos',
     diasSaldo: 7,
-    validezDias: 15
+    validezDias: 15,
+    gastoLuzMensual: 220000,
+    gastoGasMensual: 160000,
+    otrosGastosFijos: [
+      { id: 'gf-dm1', nombre: 'Mantención integral 10.000 m² parque y piscina', monto: 1300000 },
+      { id: 'gf-dm2', nombre: 'Sueldos base fijos administración y guardia', monto: 1520000 }
+    ],
+    gastosFijosMensuales: 3200000,
+    eventosAlMes: 4,
+    usarPrecioManual: false,
+    precioVentaManual: 0
   };
 
   const reservas: ReservaCalendario[] = [
@@ -476,7 +510,17 @@ const crearDatosModeloBase = (): DatosPerfilCliente => {
     porcentajeAnticipo: 40,
     esquemaPago: 'dos_pagos',
     diasSaldo: 7,
-    validezDias: 15
+    validezDias: 15,
+    gastoLuzMensual: 150000,
+    gastoGasMensual: 120000,
+    otrosGastosFijos: [
+      { id: 'gf-b1', nombre: 'Arriendo base salón', monto: 1400000 },
+      { id: 'gf-b2', nombre: 'Agua, internet y patentes', monto: 330000 }
+    ],
+    gastosFijosMensuales: 2000000,
+    eventosAlMes: 4,
+    usarPrecioManual: false,
+    precioVentaManual: 0
   };
 
   const reservas: ReservaCalendario[] = [
@@ -559,11 +603,20 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
       const config = PERFILES_CLIENTES_CATALOGO[clienteId] || PERFILES_CLIENTES_CATALOGO['dominga-eventos'];
       const def = config.crearDatosIniciales();
       
+      const rawProveedores = parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores;
+      // Eliminar estrictamente cualquier rastro de arriendo o costos fijos del array de proveedores
+      const proveedoresLimpios = rawProveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'));
+      
+      const cotizacionLimpia = parsed.cotizacion || def.cotizacion;
+      if (cotizacionLimpia.proveedoresSeleccionados) {
+        delete cotizacionLimpia.proveedoresSeleccionados['arriendo-locacion-damaris'];
+      }
+
       return {
-        cotizacion: parsed.cotizacion || def.cotizacion,
+        cotizacion: cotizacionLimpia,
         menus: parsed.menus && parsed.menus.length > 0 ? parsed.menus : def.menus,
         tarifasStaff: parsed.tarifasStaff || def.tarifasStaff,
-        proveedores: parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores,
+        proveedores: proveedoresLimpios,
         estilosDecoracion: parsed.estilosDecoracion && parsed.estilosDecoracion.length > 0 ? parsed.estilosDecoracion : def.estilosDecoracion,
         insumos: parsed.insumos && parsed.insumos.length > 0 ? parsed.insumos : def.insumos,
         recetas: parsed.recetas && parsed.recetas.length > 0 ? migrarRecetasAGramos(parsed.recetas) : def.recetas,

@@ -149,6 +149,35 @@ export interface CotizacionState {
   esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
   diasSaldo?: number; // días previos al evento para cancelar el saldo (ej: 7)
   validezDias?: number; // validez de la cotización en días (ej: 15)
+  // Gastos fijos operacionales detallados para emprendedores
+  gastoLuzMensual?: number; // Cuenta de luz mensual
+  gastoGasMensual?: number; // Cuenta de gas mensual (balones, granel, cocina)
+  otrosGastosFijos?: ItemGastoFijo[]; // Gastos fijos adicionales agregados a mano
+  gastosFijosMensuales?: number; // Total mensual sumado (luz + gas + otros)
+  eventosAlMes?: number; // Estimación o promedio de eventos al mes para el prorrateo
+  mesActivoCostosFijos?: string; // Mes y año activo seleccionado (ej: "Noviembre 2024")
+  historialCostosFijosMensuales?: Record<string, RegistroCostoFijoMensual>; // Registro histórico de facturas por mes
+  // Criterio libre del emprendedor (sugerido vs libre elección)
+  usarPrecioManual?: boolean; // True si el emprendedor decide ingresar su propio precio final
+  precioVentaManual?: number; // Valor final fijado a criterio libre del cliente
+}
+
+export interface ItemGastoFijo {
+  id: string;
+  nombre: string;
+  monto: number;
+}
+
+export interface RegistroCostoFijoMensual {
+  id: string; // Clave única ej: '2025-01' o '2024-11'
+  mesNombre: string; // ej: 'Noviembre 2024'
+  mesIndex: number; // 0..11
+  año: number; // ej: 2024
+  gastoLuz: number;
+  gastoGas: number;
+  otrosGastos: ItemGastoFijo[];
+  eventosAlMes: number;
+  fechaGuardado: string;
 }
 
 export interface ResumenFinanciero {
@@ -156,14 +185,30 @@ export interface ResumenFinanciero {
   costoPersonal: number;
   costoProveedores: number;
   costoDecoracion: number;
-  costoTotalReal: number;
+  costosFijosEvento: number; // Costo fijo prorrateado para este evento
+  costoFijoPorPersona: number; // Costo fijo asignado por comensal (p.p.)
+  gastosFijosMensuales: number;
+  gastoLuzMensual: number;
+  gastoGasMensual: number;
+  otrosGastosFijos: ItemGastoFijo[];
+  eventosAlMes: number;
+  mesActivoCostosFijos?: string;
+  historialCostosFijosMensuales?: Record<string, RegistroCostoFijoMensual>;
+  costoVariablesTotal: number; // Suma de Menú + Personal + Proveedores + Decoración
+  costoTotalReal: number; // Costos Variables + Costo Fijo Prorrateado
   costoPorInvitado: number;
-  margenPorcentaje: number;
-  utilidadProyectada: number;
-  precioVentaNeto: number;
+  margenPorcentaje: number; // Margen referencial sugerido por la plataforma
+  utilidadProyectada: number; // Utilidad proyectada con margen sugerido
+  precioVentaNeto: number; // Precio sugerido neto
   ivaMonto: number;
-  precioVentaTotal: number;
-  precioVentaPorInvitado: number;
+  precioVentaTotal: number; // Precio sugerido con/sin IVA
+  precioVentaPorInvitado: number; // Precio sugerido por invitado
+  // Criterio libre del emprendedor
+  usarPrecioManual: boolean;
+  precioVentaManual: number;
+  precioCobradoFinal: number; // Precio final activo (sugerido o personalizado)
+  margenRealObtenido: number; // % margen real obtenido según el precio cobrado
+  utilidadRealObtenida: number; // Ganancia líquida real en CLP según el precio cobrado
 }
 
 export type PerfilClienteId = 'modelo-base' | 'dominga-eventos' | 'damaris-eventos';
