@@ -61,6 +61,75 @@ interface CalculadoraRecetasProps {
   }) => void;
 }
 
+interface InputNumeroCeldaRecetasProps {
+  valorInicial: number;
+  onCambioConfirmado: (nuevoValor: number) => void;
+  className?: string;
+  min?: number;
+  max?: number;
+  step?: string;
+  placeholder?: string;
+}
+
+const InputNumeroCeldaRecetas: React.FC<InputNumeroCeldaRecetasProps> = ({
+  valorInicial,
+  onCambioConfirmado,
+  className,
+  min = 0,
+  max,
+  step = 'any',
+  placeholder = '0'
+}) => {
+  const [texto, setTexto] = useState<string>(String(valorInicial));
+  const [estaEnfocado, setEstaEnfocado] = useState(false);
+
+  useEffect(() => {
+    if (!estaEnfocado) {
+      setTexto(String(valorInicial));
+    }
+  }, [valorInicial, estaEnfocado]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setTexto(val);
+    if (val !== '' && !isNaN(Number(val))) {
+      onCambioConfirmado(Number(val));
+    }
+  };
+
+  const handleBlur = () => {
+    setEstaEnfocado(false);
+    if (texto.trim() === '' || isNaN(Number(texto))) {
+      setTexto('0');
+      onCambioConfirmado(0);
+    } else {
+      let num = Number(texto);
+      if (min !== undefined && num < min) num = min;
+      if (max !== undefined && num > max) num = max;
+      setTexto(String(num));
+      onCambioConfirmado(num);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={texto}
+      onFocus={(e) => {
+        setEstaEnfocado(true);
+        e.target.select();
+      }}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   recetas,
   insumos,
@@ -84,7 +153,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   const insumosMap = new Map<string, InsumoMaestro>(insumos.map(i => [i.id, i]));
   const primerInsumo = insumos[0];
   const [insumoToAddId, setInsumoToAddId] = useState<string>(primerInsumo?.id || '');
-  const [cantidadToAdd, setCantidadToAdd] = useState<number>(primerInsumo?.unidadMedida === 'kg' ? 200 : 1);
+  const [cantidadToAdd, setCantidadToAdd] = useState<number | string>(primerInsumo?.unidadMedida === 'kg' ? 200 : 1);
   const [unidadToAdd, setUnidadToAdd] = useState<'kg' | 'g' | 'L' | 'ml' | 'unidad'>(
     primerInsumo?.unidadMedida === 'kg' ? 'g' : (primerInsumo?.unidadMedida as any || 'g')
   );
@@ -195,12 +264,12 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     const insumoElegido = insumosMap.get(insumoToAddId);
     if (!insumoElegido) return;
 
-    // Criterio de cocina real: si el insumo se mide en peso, se almacena en gramos (g)
+    const cantidadNumerica = typeof cantidadToAdd === 'number' ? cantidadToAdd : parseFloat(String(cantidadToAdd)) || 0;
     const esPeso = insumoElegido.unidadMedida === 'kg' || unidadToAdd === 'g' || unidadToAdd === 'kg';
     const unidadFinal = esPeso ? 'g' : unidadToAdd;
     const cantidadFinal = esPeso
-      ? (unidadToAdd === 'kg' ? Math.round(cantidadToAdd * 1000) : Math.max(1, Math.round(cantidadToAdd)))
-      : (unidadToAdd === 'unidad' ? Math.max(1, Math.round(cantidadToAdd)) : Math.max(0.001, cantidadToAdd));
+      ? (unidadToAdd === 'kg' ? cantidadNumerica * 1000 : Math.max(0.001, cantidadNumerica))
+      : Math.max(0.001, cantidadNumerica);
 
     const nuevoIngrediente: IngredienteReceta = {
       id: 'ing-' + Date.now(),
@@ -847,13 +916,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                             </td>
 
                             <td className="py-2 px-3 text-right">
-                              <input
-                                type="number"
-                                min={esPeso || esUnidadNatural ? 1 : 0.001}
-                                step={esPeso || esUnidadNatural ? 1 : 0.01}
-                                value={cantidadVisual}
-                                onChange={(e) => {
-                                  const val = Number(e.target.value) || 0;
+                              <InputNumeroCeldaRecetas
+                                valorInicial={cantidadVisual}
+                                onCambioConfirmado={(val) => {
                                   if (ing.unidad === 'kg') {
                                     // Guardar directamente migrado a gramos
                                     const recetaActualizada: RecetaFichaTecnica = {
@@ -867,6 +932,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                                     handleCantidadIngredienteChange(ing.id, val);
                                   }
                                 }}
+                                min={0.001}
                                 className="w-20 text-right font-bold text-slate-900 bg-white border border-slate-300 rounded px-1.5 py-0.5 tabular-nums focus:outline-hidden"
                               />
                             </td>
@@ -1019,10 +1085,14 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                 <div className="flex items-center gap-1.5">
                   <input
                     type="number"
-                    min={unidadToAdd === 'g' || unidadToAdd === 'unidad' ? 1 : 0.001}
-                    step={unidadToAdd === 'g' || unidadToAdd === 'unidad' ? 1 : 0.01}
+                    min={0.001}
+                    step="any"
                     value={cantidadToAdd}
-                    onChange={(e) => setCantidadToAdd(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setCantidadToAdd(e.target.value)}
+                    onBlur={() => {
+                      if (cantidadToAdd === '') setCantidadToAdd(1);
+                    }}
                     placeholder="Cantidad"
                     className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold tabular-nums focus:outline-hidden"
                   />
@@ -1067,17 +1137,15 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
                 <div className="flex items-center gap-1 shrink-0 ml-3">
                   <span className="text-slate-400 font-bold">$</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={50}
-                    value={recetaActiva.costoAdicionalElaboracion || 0}
-                    onChange={(e) => {
+                  <InputNumeroCeldaRecetas
+                    valorInicial={recetaActiva.costoAdicionalElaboracion || 0}
+                    onCambioConfirmado={(val) => {
                       onUpdateReceta({
                         ...recetaActiva,
-                        costoAdicionalElaboracion: Math.max(0, Number(e.target.value) || 0)
+                        costoAdicionalElaboracion: Math.max(0, val)
                       });
                     }}
+                    min={0}
                     className="w-24 text-right font-bold text-slate-900 bg-white border border-slate-300 rounded-lg px-2 py-1 tabular-nums focus:outline-hidden focus:border-amber-500"
                   />
                   <span className="text-[10px] text-slate-500 font-medium">/pax</span>

@@ -41,6 +41,75 @@ interface MaestroInsumosProps {
 
 const STORAGE_CATEGORIAS_KEY = 'hlr_categorias_personalizadas_insumos';
 
+interface InputNumeroCeldaProps {
+  valorInicial: number;
+  onCambioConfirmado: (nuevoValor: number) => void;
+  className?: string;
+  min?: number;
+  max?: number;
+  step?: string;
+  placeholder?: string;
+}
+
+const InputNumeroCelda: React.FC<InputNumeroCeldaProps> = ({
+  valorInicial,
+  onCambioConfirmado,
+  className,
+  min = 0,
+  max,
+  step = 'any',
+  placeholder = '0'
+}) => {
+  const [texto, setTexto] = useState<string>(String(valorInicial));
+  const [estaEnfocado, setEstaEnfocado] = useState(false);
+
+  useEffect(() => {
+    if (!estaEnfocado) {
+      setTexto(String(valorInicial));
+    }
+  }, [valorInicial, estaEnfocado]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setTexto(val);
+    if (val !== '' && !isNaN(Number(val))) {
+      onCambioConfirmado(Number(val));
+    }
+  };
+
+  const handleBlur = () => {
+    setEstaEnfocado(false);
+    if (texto.trim() === '' || isNaN(Number(texto))) {
+      setTexto('0');
+      onCambioConfirmado(0);
+    } else {
+      let num = Number(texto);
+      if (min !== undefined && num < min) num = min;
+      if (max !== undefined && num > max) num = max;
+      setTexto(String(num));
+      onCambioConfirmado(num);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      step={step}
+      value={texto}
+      onFocus={(e) => {
+        setEstaEnfocado(true);
+        e.target.select();
+      }}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
+
 export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
   insumos,
   onUpdateInsumo,
@@ -73,8 +142,8 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
   const [esCategoriaNuevaLibre, setEsCategoriaNuevaLibre] = useState(false);
   const [categoriaLibreInput, setCategoriaLibreInput] = useState('');
   const [nuevaUnidad, setNuevaUnidad] = useState<InsumoMaestro['unidadMedida']>('kg');
-  const [nuevoPrecio, setNuevoPrecio] = useState<number>(10000);
-  const [nuevaMerma, setNuevaMerma] = useState<number>(5);
+  const [nuevoPrecio, setNuevoPrecio] = useState<number | string>(10000);
+  const [nuevaMerma, setNuevaMerma] = useState<number | string>(5);
   const [nuevoProveedor, setNuevoProveedor] = useState('');
 
   // Edición rápida de categoría por fila
@@ -219,13 +288,16 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
       }
     }
 
+    const precioNumerico = typeof nuevoPrecio === 'number' ? nuevoPrecio : parseFloat(String(nuevoPrecio)) || 0;
+    const mermaNumerica = typeof nuevaMerma === 'number' ? nuevaMerma : parseFloat(String(nuevaMerma)) || 0;
+
     const nuevo: InsumoMaestro = {
       id: 'ins-' + Date.now(),
       nombre: nuevoNombre.trim(),
       categoria: categoriaFinal,
       unidadMedida: nuevaUnidad,
-      precioCompra: Math.max(0, nuevoPrecio),
-      mermaPorcentaje: Math.max(0, Math.min(90, nuevaMerma)),
+      precioCompra: Math.max(0, precioNumerico),
+      mermaPorcentaje: Math.max(0, Math.min(99, mermaNumerica)),
       proveedor: nuevoProveedor.trim() || 'Proveedor Local',
       ultimoCambio: new Date().toISOString().slice(0, 10)
     };
@@ -239,17 +311,17 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
     setEsCategoriaNuevaLibre(false);
     setCategoriaLibreInput('');
 
-    mostrarToast(`✓ Insumo "${nuevo.nombre}" guardado en categoría "${formatearNombreCategoria(categoriaFinal)}"`);
+    mostrarToast(`✓ Insumo "${nuevo.nombre}" guardado con cifra exacta ($ ${precioNumerico})`);
   };
 
   const handlePrecioChange = (id: string, nuevoValor: number, mermaActual: number) => {
     onUpdateInsumo(id, Math.max(0, nuevoValor), mermaActual);
-    mostrarToast('✓ Valor actualizado en maestro y recetas vinculadas');
+    mostrarToast('✓ Valor exacto actualizado en maestro y recetas vinculadas');
   };
 
   const handleMermaChange = (id: string, nuevoPrecio: number, nuevaMerma: number) => {
-    onUpdateInsumo(id, nuevoPrecio, Math.max(0, Math.min(90, nuevaMerma)));
-    mostrarToast('✓ Merma actualizada en maestro y recetas');
+    onUpdateInsumo(id, nuevoPrecio, Math.max(0, Math.min(99, nuevaMerma)));
+    mostrarToast('✓ Merma exacta actualizada en maestro y recetas');
   };
 
   const handleCambiarCategoriaInsumo = (insumoId: string, nuevaCat: string) => {
@@ -536,13 +608,11 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
                       <td className="py-2.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-slate-400 font-bold">$</span>
-                          <input
-                            type="number"
+                          <InputNumeroCelda
+                            valorInicial={ins.precioCompra}
+                            onCambioConfirmado={(val) => handlePrecioChange(ins.id, val, ins.mermaPorcentaje)}
                             min={0}
-                            step={100}
-                            value={ins.precioCompra}
-                            onChange={(e) => handlePrecioChange(ins.id, Number(e.target.value) || 0, ins.mermaPorcentaje)}
-                            className="w-24 text-right font-extrabold text-slate-900 bg-white border border-slate-300 hover:border-blue-400 focus:border-blue-600 rounded-lg px-2 py-1 tabular-nums focus:outline-hidden"
+                            className="w-28 text-right font-extrabold text-slate-900 bg-white border border-slate-300 hover:border-blue-400 focus:border-blue-600 rounded-lg px-2 py-1 tabular-nums focus:outline-hidden"
                           />
                         </div>
                       </td>
@@ -550,13 +620,12 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
                       {/* Merma Editable */}
                       <td className="py-2.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <input
-                            type="number"
+                          <InputNumeroCelda
+                            valorInicial={ins.mermaPorcentaje}
+                            onCambioConfirmado={(val) => handleMermaChange(ins.id, ins.precioCompra, val)}
                             min={0}
-                            max={90}
-                            value={ins.mermaPorcentaje}
-                            onChange={(e) => handleMermaChange(ins.id, ins.precioCompra, Number(e.target.value) || 0)}
-                            className="w-14 text-center font-bold text-slate-700 bg-white border border-slate-300 hover:border-blue-400 focus:border-blue-600 rounded-lg px-1.5 py-1 tabular-nums focus:outline-hidden text-xs"
+                            max={99}
+                            className="w-16 text-center font-bold text-slate-700 bg-white border border-slate-300 hover:border-blue-400 focus:border-blue-600 rounded-lg px-1.5 py-1 tabular-nums focus:outline-hidden text-xs"
                           />
                           <span className="text-slate-400">%</span>
                         </div>
@@ -777,10 +846,15 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
                   <input
                     type="number"
                     min={0}
-                    step={100}
+                    step="any"
                     required
                     value={nuevoPrecio}
-                    onChange={(e) => setNuevoPrecio(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNuevoPrecio(e.target.value)}
+                    onBlur={() => {
+                      if (nuevoPrecio === '') setNuevoPrecio(0);
+                    }}
+                    placeholder="Ej: 14850 o 14.8"
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:border-blue-500 focus:outline-hidden font-bold tabular-nums"
                   />
                 </div>
@@ -792,12 +866,18 @@ export const MaestroInsumos: React.FC<MaestroInsumosProps> = ({
                   <input
                     type="number"
                     min={0}
-                    max={90}
+                    max={99}
+                    step="any"
                     value={nuevaMerma}
-                    onChange={(e) => setNuevaMerma(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setNuevaMerma(e.target.value)}
+                    onBlur={() => {
+                      if (nuevaMerma === '') setNuevaMerma(0);
+                    }}
+                    placeholder="Ej: 8.5"
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:border-blue-500 focus:outline-hidden font-bold tabular-nums"
                   />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">0% a 90%</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">0% a 99% (admite decimales exactos, ej: 12.5)</span>
                 </div>
 
                 <div>

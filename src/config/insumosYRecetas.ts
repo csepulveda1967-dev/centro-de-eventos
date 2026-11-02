@@ -535,9 +535,9 @@ export function calcularCostoIngrediente(
   const costoReal = costoNeto * factorMermaMultiplicador;
 
   return {
-    costoNeto: Math.round(costoNeto),
+    costoNeto: Number(costoNeto.toFixed(2)),
     mermaFactor: factorMermaMultiplicador,
-    costoReal: Math.round(costoReal)
+    costoReal: Number(costoReal.toFixed(2))
   };
 }
 
@@ -564,22 +564,17 @@ export function calcularCostoReceta(
   const costoAdicional = receta.costoAdicionalElaboracion || 0;
   const costoTotalReceta = costoMateriaPrima + costoAdicional;
   const porciones = receta.rendimientoPorciones > 0 ? receta.rendimientoPorciones : 1;
-  const costoPorPorcion = Math.round(costoTotalReceta / porciones);
+  const costoPorPorcion = Number((costoTotalReceta / porciones).toFixed(2));
 
-  // Fórmula gastronómica: Si margen gastronómico es 33%, precio venta = Costo / (Margen/100)
-  // O con Markup sobre costo: Si margen es 33%, Markup = Costo * (1 + 0.33) o Precio = Costo / 0.33
-  // En gastronomía profesional:
-  // "Food Cost del 33%" significa que el costo representa el 33% del precio de venta -> Precio = Costo / 0.33 (~3x costo)
-  // O margen bruto del 33%: Precio = Costo * 1.33.
-  // Brindamos el cálculo estándar de Food Cost 33%:
+  // Fórmula gastronómica: Food Cost del 33% o margen libre
   const margen = receta.margenSugerido > 0 ? receta.margenSugerido : 33;
   const precioSugeridoVenta = Math.round(costoPorPorcion / (margen / 100));
-  const utilidadPorPorcion = precioSugeridoVenta - costoPorPorcion;
+  const utilidadPorPorcion = Number((precioSugeridoVenta - costoPorPorcion).toFixed(2));
 
   return {
-    costoMateriaPrima: Math.round(costoMateriaPrima),
+    costoMateriaPrima: Number(costoMateriaPrima.toFixed(2)),
     costoAdicional,
-    costoTotalReceta: Math.round(costoTotalReceta),
+    costoTotalReceta: Number(costoTotalReceta.toFixed(2)),
     costoPorPorcion,
     precioSugeridoVenta,
     utilidadPorPorcion

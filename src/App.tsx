@@ -89,7 +89,7 @@ export default function App() {
     if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos')) {
       return saved;
     }
-    return 'dominga-eventos';
+    return 'modelo-base'; // Doña Isidora Eventos como predeterminado de operación
   });
 
   // Carga inicial de datos según el perfil activo

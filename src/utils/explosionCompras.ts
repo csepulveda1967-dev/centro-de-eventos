@@ -134,7 +134,7 @@ export function calcularExplosionInsumos(
       ? Math.ceil(cantidadBruta)
       : Number(cantidadBruta.toFixed(2));
 
-    const costoTotalCompra = Math.round(cantidadBrutaRedondeada * insumo.precioCompra);
+    const costoTotalCompra = Number((cantidadBrutaRedondeada * insumo.precioCompra).toFixed(2));
 
     costoTotalInsumos += costoTotalCompra;
 
@@ -155,7 +155,7 @@ export function calcularExplosionInsumos(
       proveedor: insumo.proveedor || 'Proveedor General',
       unidadMedida: insumo.unidadMedida,
       cantidadNetaTotal: Number(cantidadNeta.toFixed(2)),
-      mermaPromedio: Math.round(mermaPromedio),
+      mermaPromedio: Number(mermaPromedio.toFixed(1)),
       cantidadBrutaAComprar: cantidadBrutaRedondeada,
       precioUnitarioCompra: insumo.precioCompra,
       costoTotalCompra,

@@ -1,15 +1,25 @@
 export function formatMoneda(monto: number): string {
   if (isNaN(monto)) return '$ 0';
-  return '$ ' + Math.round(monto).toLocaleString('es-CL');
+  if (Number.isInteger(monto)) {
+    return '$ ' + monto.toLocaleString('es-CL');
+  }
+  return '$ ' + monto.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 export function formatNumero(num: number): string {
   if (isNaN(num)) return '0';
-  return Math.round(num).toLocaleString('es-CL');
+  if (Number.isInteger(num)) {
+    return num.toLocaleString('es-CL');
+  }
+  return num.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 export function formatPorcentaje(valor: number): string {
-  return `${Math.round(valor)}%`;
+  if (isNaN(valor)) return '0%';
+  if (Number.isInteger(valor)) {
+    return `${valor}%`;
+  }
+  return `${valor.toLocaleString('es-CL', { maximumFractionDigits: 2 })}%`;
 }
 
 export function formatPrecioUnitario(monto: number): string {

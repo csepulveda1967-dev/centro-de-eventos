@@ -22,7 +22,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   const [nombre, setNombre] = useState('');
   const [categoria, setCategoria] = useState<'formal' | 'campestre' | 'cocktail' | 'premium'>('formal');
   const [descripcion, setDescripcion] = useState('');
-  const [costoPersona, setCostoPersona] = useState<number>(22000);
+  const [costoPersona, setCostoPersona] = useState<number | string>(22000);
   const [margenSugerido, setMargenSugerido] = useState<number>(33); // 33% estándar gastronómico
   const [destacado, setDestacado] = useState(false);
 
@@ -48,7 +48,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   if (!isOpen) return null;
 
   // Cálculo de precio sugerido con Food Cost estándar del 33%
-  const precioSugerido = Math.round(costoPersona / (margenSugerido / 100 || 0.33));
+  const costoPersonaNum = typeof costoPersona === 'number' ? costoPersona : parseFloat(String(costoPersona)) || 0;
+  const precioSugerido = Math.round(costoPersonaNum / (margenSugerido / 100 || 0.33));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +60,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       id,
       nombre: nombre.trim(),
       categoria,
-      costoPersona: Math.max(0, Number(costoPersona) || 0),
+      costoPersona: Math.max(0, costoPersonaNum),
       precioSugeridoPersona: precioSugerido,
       descripcion: descripcion.trim() || `Propuesta gastronómica personalizada formato ${categoria}.`,
       tiempos: {
@@ -201,9 +202,14 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                   <input
                     type="number"
                     min={0}
-                    step={500}
+                    step="any"
                     value={costoPersona}
-                    onChange={(e) => setCostoPersona(Number(e.target.value))}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setCostoPersona(e.target.value === '' ? '' : Number(e.target.value))}
+                    onBlur={() => {
+                      if (costoPersona === '') setCostoPersona(0);
+                    }}
+                    placeholder="0"
                     className="w-full pl-7 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 tabular-nums focus:outline-hidden"
                   />
                 </div>
