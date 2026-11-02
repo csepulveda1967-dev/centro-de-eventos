@@ -20,8 +20,8 @@ import {
 import { formatMoneda } from '../utils/formatters';
 
 interface HeaderProps {
-  vistaActual: 'cotizador' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas';
-  setVistaActual: (vista: 'cotizador' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas') => void;
+  vistaActual: 'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas';
+  setVistaActual: (vista: 'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas') => void;
   invitados: number;
   precioSugeridoVenta: number;
   empresaActiva: EmpresaCliente;
@@ -106,9 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
                   className="bg-transparent text-white text-xs font-bold focus:outline-hidden cursor-pointer pr-5 py-0.5 appearance-none [&>option]:text-slate-900 [&>option]:bg-white"
                   title="Cambiar perfil y propuesta aislada en localStorage"
                 >
-                  <option value="modelo-base">Modelo Base (Configuración por defecto)</option>
-                  <option value="dominga-eventos">Dominga Eventos (Propuesta Linderos / Finca La Toscana)</option>
-                  <option value="damaris-eventos">Centro de Eventos Damaris (Propuesta Campestre Calera de Tango)</option>
+                  <option value="modelo-base">Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
+                  <option value="dominga-eventos">Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
+                  <option value="damaris-eventos">Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-indigo-300 pointer-events-none absolute right-0" />
               </div>
@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => setVistaActual('cotizador')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all duration-150 ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all duration-150 cursor-pointer ${
                 vistaActual === 'cotizador'
                   ? 'bg-white text-slate-900 shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
@@ -128,6 +128,25 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Calculator className="w-3.5 h-3.5 text-amber-700" />
               <span>Cotizador</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setVistaActual('adm-costos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all duration-150 cursor-pointer ${
+                vistaActual === 'adm-costos'
+                  ? 'bg-white text-slate-900 shadow-xs font-bold ring-1 ring-indigo-500/30'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+              title="Administración de Costos Fijos, Prorrateo y Márgenes"
+            >
+              <Building2 className="w-3.5 h-3.5 text-indigo-700" />
+              <span className="flex items-center gap-1">
+                <span>Adm. Costos</span>
+                <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-800">
+                  Fijos & %
+                </span>
+              </span>
             </button>
 
             <button

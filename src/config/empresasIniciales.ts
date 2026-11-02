@@ -2,18 +2,20 @@ import { EmpresaCliente } from '../types';
 
 export const EMPRESAS_INICIALES: EmpresaCliente[] = [
   {
-    id: 'emp-solvi',
-    nombre: 'SOLVI Flow Producciones',
-    subtitulo: 'Gestión Integral de Centros de Eventos & Productoras',
-    recintoPrincipal: 'Casona & Parque SOLVI Flow',
-    direccion: 'Avenida del Parque #1420',
+    id: 'emp-isidora',
+    nombre: 'Doña Isidora Eventos',
+    subtitulo: 'Banquetería & Producción de Matrimonios',
+    recintoPrincipal: 'Servicio Itinerante / A Domicilio / Parcelas Privadas',
+    direccion: 'Avenida Las Condes #12450, Lo Barnechea',
     ciudad: 'Santiago, Región Metropolitana',
-    telefono: '+56 9 6236 0766',
-    email: 'contacto@csconsultoria.cl',
-    sitioWeb: 'www.csconsultoria.cl',
-    letraLogo: 'S',
-    colorTema: 'blue',
-    fechaRegistro: '2026-10-01'
+    telefono: '+56 9 9432 1890',
+    email: 'contacto@dionaisidoraeventos.cl',
+    sitioWeb: 'www.dionaisidoraeventos.cl',
+    letraLogo: 'I',
+    colorTema: 'rose',
+    fechaRegistro: '2026-10-01',
+    tituloCabecera: 'Doña Isidora Eventos · Banquetería & Producción de Matrimonios',
+    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).'
   },
   {
     id: 'emp-dominga',

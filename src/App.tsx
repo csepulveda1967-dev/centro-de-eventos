@@ -44,11 +44,11 @@ import {
 } from './config/perfilesClientes';
 import { Header } from './components/Header';
 import { Modulo1Menu } from './components/Modulo1Menu';
-import { Modulo2Personal } from './components/Modulo2Personal';
 import { Modulo3Proveedores } from './components/Modulo3Proveedores';
 import { Modulo4Mesas } from './components/Modulo4Mesas';
 import { Modulo5Decoracion } from './components/Modulo5Decoracion';
 import { Modulo6DashboardCostos } from './components/Modulo6DashboardCostos';
+import { ResumenPropuestaComercial } from './components/ResumenPropuestaComercial';
 import { Modulo7Calendario } from './components/Modulo7Calendario';
 import { CatalogoTarifasModal } from './components/CatalogoTarifasModal';
 import { FichaCotizacionModal } from './components/FichaCotizacionModal';
@@ -78,7 +78,7 @@ import {
 
 export default function App() {
   // ── Vista activa ──
-  const [vistaActual, setVistaActual] = useState<'cotizador' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas'>('cotizador');
+  const [vistaActual, setVistaActual] = useState<'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas'>('cotizador');
 
   // ── Pestaña activa dentro del formulario de cotización ──
   const [seccionActiva, setSeccionActiva] = useState<'todos' | '1' | '2' | '3' | '4' | '5'>('todos');
@@ -240,6 +240,13 @@ export default function App() {
     setEstilosDecoracion(nuevosDatos.estilosDecoracion);
     setReservas(nuevosDatos.reservas);
     setEmpresaActiva(nuevosDatos.empresa);
+    setEmpresas(prev => {
+      const exists = prev.some(e => e.id === nuevosDatos.empresa.id);
+      if (exists) {
+        return prev.map(e => e.id === nuevosDatos.empresa.id ? nuevosDatos.empresa : e);
+      }
+      return [nuevosDatos.empresa, ...prev];
+    });
 
     const config = PERFILES_CLIENTES_CATALOGO[nuevoClienteId];
     mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} (${nuevosDatos.cotizacion.invitados} Pax)`);
@@ -559,6 +566,23 @@ export default function App() {
     mostrarToast(`✓ Menú "${nuevoMenu.nombre}" creado exitosamente e integrado a la propuesta`);
   };
 
+  const handleDeleteMenu = (menuId: string) => {
+    if (menus.length <= 1) {
+      mostrarToast('⚠️ Debe existir al menos un menú en la carta gastronómica');
+      return;
+    }
+    const menuAEliminar = menus.find(m => m.id === menuId);
+    if (!menuAEliminar) return;
+    setMenus(prev => prev.filter(m => m.id !== menuId));
+    if (cotizacion.menuId === menuId) {
+      const restante = menus.find(m => m.id !== menuId);
+      if (restante) {
+        setCotizacion(prev => ({ ...prev, menuId: restante.id }));
+      }
+    }
+    mostrarToast(`✓ Menú "${menuAEliminar.nombre}" eliminado de la carta`);
+  };
+
   const handleSincronizarCostosMenu = (menuId: string, nuevoCosto: number) => {
     setMenus(prevMenus =>
       prevMenus.map(m =>
@@ -659,6 +683,17 @@ export default function App() {
   const handleRemoveOtroGastoFijo = (id: string) => {
     setCotizacion(prev => {
       const list = (prev.otrosGastosFijos || []).filter(it => it.id !== id);
+      const sumaOtros = list.reduce((s, o) => s + (o.monto || 0), 0);
+      const total = (prev.gastoLuzMensual || 0) + (prev.gastoGasMensual || 0) + sumaOtros;
+      return { ...prev, otrosGastosFijos: list, gastosFijosMensuales: total };
+    });
+  };
+
+  const handleUpdateOtroGastoFijo = (id: string, nombre: string, monto: number) => {
+    setCotizacion(prev => {
+      const list = (prev.otrosGastosFijos || []).map(it =>
+        it.id === id ? { ...it, nombre, monto: Math.max(0, monto) } : it
+      );
       const sumaOtros = list.reduce((s, o) => s + (o.monto || 0), 0);
       const total = (prev.gastoLuzMensual || 0) + (prev.gastoGasMensual || 0) + sumaOtros;
       return { ...prev, otrosGastosFijos: list, gastosFijosMensuales: total };
@@ -926,13 +961,13 @@ export default function App() {
                   {clienteActivoId === 'modelo-base' && (
                     <div className="text-left border-r border-white/10 pr-3">
                       <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider block">
-                        Modelo Estándar
+                        Doña Isidora Eventos
                       </span>
                       <span className="text-lg font-black text-white tabular-nums">
-                        Config Base
+                        Matrimonios & Bodas
                       </span>
-                      <span className="text-[10px] text-indigo-300 block font-medium">
-                        Predeterminado SOLVI Flow
+                      <span className="text-[10px] text-emerald-400 block font-medium">
+                        ✓ Sin recinto fijo · A Domicilio & Parcelas
                       </span>
                     </div>
                   )}
@@ -1018,7 +1053,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Selector de Secciones Rápidas / Filtro de Módulos */}
+            {/* Selector de Secciones Rápidas / Filtro de Módulos (Solo Vendibles) */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold">
               <span className="text-slate-400 mr-1 hidden sm:inline">Ir al Módulo:</span>
               <button
@@ -1030,7 +1065,7 @@ export default function App() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                Ver Todo el Formulario
+                Ver Todo el Cotizador
               </button>
               <button
                 type="button"
@@ -1045,17 +1080,6 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setSeccionActiva('2')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-                  seccionActiva === '2'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                02. Personal & Brigada
-              </button>
-              <button
-                type="button"
                 onClick={() => setSeccionActiva('3')}
                 className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
                   seccionActiva === '3'
@@ -1063,7 +1087,7 @@ export default function App() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                03. Proveedores
+                02. Proveedores & Servicios
               </button>
               <button
                 type="button"
@@ -1074,7 +1098,7 @@ export default function App() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                04. Mesas & Distribución
+                03. Mesas & Salón
               </button>
               <button
                 type="button"
@@ -1085,14 +1109,14 @@ export default function App() {
                     : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                05. Decoración
+                04. Decoración
               </button>
             </div>
 
             {/* Split Principal: Formularios a la izquierda (col-span-2) + Dashboard a la derecha (col-span-1) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               
-              {/* COLUMNA IZQUIERDA: Módulos 1 al 5 */}
+              {/* COLUMNA IZQUIERDA: Módulos de Ítems Vendibles para Clientes */}
               <div className="lg:col-span-2 space-y-6">
                 
                 {/* Módulo 1: Menú & Invitados */}
@@ -1104,18 +1128,7 @@ export default function App() {
                     invitados={cotizacion.invitados}
                     onChangeInvitados={handleChangeInvitados}
                     onIrARecetas={() => setVistaActual('recetas')}
-                    onAddMenu={handleAddMenu}
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
-                  />
-                )}
-
-                {/* Módulo 2: Personal */}
-                {(seccionActiva === 'todos' || seccionActiva === '2') && (
-                  <Modulo2Personal
-                    tarifas={tarifasStaff}
-                    personal={cotizacion.personal}
-                    onChangePersonal={handleChangePersonal}
-                    invitados={cotizacion.invitados}
                   />
                 )}
 
@@ -1149,48 +1162,105 @@ export default function App() {
 
               </div>
 
-              {/* COLUMNA DERECHA: Módulo 6 (Dashboard de Costos Reales en Vivo) */}
+              {/* COLUMNA DERECHA: Resumen de Propuesta Comercial (Ítems Vendibles para Clientes) */}
               <div className="lg:col-span-1">
-                <Modulo6DashboardCostos
+                <ResumenPropuestaComercial
+                  cotizacion={cotizacion}
                   resumen={resumenFinanciero}
-                  invitados={cotizacion.invitados}
-                  margenGanancia={cotizacion.margenGanancia}
-                  onChangeMargen={handleChangeMargen}
-                  aplicaIva={cotizacion.aplicaIva}
-                  onToggleIva={handleToggleIva}
-                  onGuardarEnCalendario={handleGuardarEnCalendario}
+                  menuActual={menuActual}
+                  estiloActual={estiloActual}
+                  proveedores={proveedores}
+                  onIrAAdmCostos={() => setVistaActual('adm-costos')}
                   onAbrirFichaCliente={() => setModalFichaOpen(true)}
                   onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
-                  porcentajeAnticipo={cotizacion.porcentajeAnticipo ?? 40}
-                  onChangeAnticipo={handleChangeAnticipo}
-                  esquemaPago={cotizacion.esquemaPago ?? 'dos_pagos'}
-                  onChangeEsquemaPago={handleChangeEsquemaPago}
-                  diasSaldo={cotizacion.diasSaldo ?? 7}
-                  onChangeDiasSaldo={handleChangeDiasSaldo}
-                  // Gastos fijos específicos para emprendedores: Luz, Gas y Otros a mano
-                  gastoLuzMensual={cotizacion.gastoLuzMensual ?? 0}
-                  onChangeGastoLuz={handleChangeGastoLuz}
-                  gastoGasMensual={cotizacion.gastoGasMensual ?? 0}
-                  onChangeGastoGas={handleChangeGastoGas}
-                  otrosGastosFijos={cotizacion.otrosGastosFijos ?? []}
-                  onAddOtroGastoFijo={handleAddOtroGastoFijo}
-                  onRemoveOtroGastoFijo={handleRemoveOtroGastoFijo}
-                  eventosAlMes={cotizacion.eventosAlMes ?? 0}
-                  onChangeEventosAlMes={handleChangeEventosAlMes}
-                  // Historial y guardado mensual (variación mes a mes)
-                  mesActivoCostosFijos={cotizacion.mesActivoCostosFijos ?? 'Noviembre 2024'}
-                  onChangeMesActivo={(mes) => setCotizacion(prev => ({ ...prev, mesActivoCostosFijos: mes }))}
-                  historialCostosFijosMensuales={cotizacion.historialCostosFijosMensuales ?? {}}
-                  onGuardarMesCostosFijos={handleGuardarMesCostosFijos}
-                  onCargarMesCostosFijos={handleCargarMesCostosFijos}
-                  // Criterio libre del emprendedor (sugerido vs propio)
-                  usarPrecioManual={!!cotizacion.usarPrecioManual}
+                  onGuardarEnCalendario={handleGuardarEnCalendario}
+                  onToggleIva={handleToggleIva}
                   onToggleUsarPrecioManual={handleToggleUsarPrecioManual}
-                  precioVentaManual={cotizacion.precioVentaManual ?? 0}
                   onChangePrecioManual={handleChangePrecioManual}
+                  onChangeAnticipo={handleChangeAnticipo}
+                  onChangeDiasSaldo={handleChangeDiasSaldo}
                 />
               </div>
 
+            </div>
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════════
+            VISTA: ADM. COSTOS (DASHBOARD DE COSTOS REALES, GASTOS FIJOS & PRORRATEO)
+        ════════════════════════════════════════════════════════════════════════ */}
+        {vistaActual === 'adm-costos' && (
+          <div className="space-y-6">
+            {/* Banner de Cabecera de Adm. Costos */}
+            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 text-white shadow-md border border-indigo-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-indigo-500 text-white">
+                    Gestión Financiera & Administración
+                  </span>
+                  <span className="text-xs text-indigo-200">
+                    Control de Costos Fijos, Prorrateo y Margen Real
+                  </span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1 flex items-center gap-2">
+                  <Building2 className="w-6 h-6 text-indigo-400" />
+                  <span>Adm. Costos & Prorrateo Operacional</span>
+                </h1>
+                <p className="text-xs text-slate-300 mt-1 max-w-2xl">
+                  Administra los gastos fijos mensuales (Luz, Gas, Arriendo y otros), calcula el prorrateo automático por evento y por comensal ({cotizacion.invitados} Pax), y ajusta libremente tus márgenes de utilidad.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setVistaActual('cotizador')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-950 bg-amber-400 hover:bg-amber-300 active:scale-95 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+              >
+                <span>← Volver al Cotizador de Clientes</span>
+              </button>
+            </div>
+
+            {/* Módulo 6 Completo */}
+            <div className="max-w-4xl mx-auto">
+              <Modulo6DashboardCostos
+                resumen={resumenFinanciero}
+                invitados={cotizacion.invitados}
+                margenGanancia={cotizacion.margenGanancia}
+                onChangeMargen={handleChangeMargen}
+                aplicaIva={cotizacion.aplicaIva}
+                onToggleIva={handleToggleIva}
+                onGuardarEnCalendario={handleGuardarEnCalendario}
+                onAbrirFichaCliente={() => setModalFichaOpen(true)}
+                onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
+                porcentajeAnticipo={cotizacion.porcentajeAnticipo ?? 40}
+                onChangeAnticipo={handleChangeAnticipo}
+                esquemaPago={cotizacion.esquemaPago ?? 'dos_pagos'}
+                onChangeEsquemaPago={handleChangeEsquemaPago}
+                diasSaldo={cotizacion.diasSaldo ?? 7}
+                onChangeDiasSaldo={handleChangeDiasSaldo}
+                // Gastos fijos específicos para emprendedores: Luz, Gas y Otros a mano
+                gastoLuzMensual={cotizacion.gastoLuzMensual ?? 0}
+                onChangeGastoLuz={handleChangeGastoLuz}
+                gastoGasMensual={cotizacion.gastoGasMensual ?? 0}
+                onChangeGastoGas={handleChangeGastoGas}
+                otrosGastosFijos={cotizacion.otrosGastosFijos ?? []}
+                onAddOtroGastoFijo={handleAddOtroGastoFijo}
+                onRemoveOtroGastoFijo={handleRemoveOtroGastoFijo}
+                onUpdateOtroGastoFijo={handleUpdateOtroGastoFijo}
+                eventosAlMes={cotizacion.eventosAlMes ?? 0}
+                onChangeEventosAlMes={handleChangeEventosAlMes}
+                // Historial y guardado mensual (variación mes a mes)
+                mesActivoCostosFijos={cotizacion.mesActivoCostosFijos ?? 'Noviembre 2024'}
+                onChangeMesActivo={(mes) => setCotizacion(prev => ({ ...prev, mesActivoCostosFijos: mes }))}
+                historialCostosFijosMensuales={cotizacion.historialCostosFijosMensuales ?? {}}
+                onGuardarMesCostosFijos={handleGuardarMesCostosFijos}
+                onCargarMesCostosFijos={handleCargarMesCostosFijos}
+                // Criterio libre del emprendedor (sugerido vs propio)
+                usarPrecioManual={!!cotizacion.usarPrecioManual}
+                onToggleUsarPrecioManual={handleToggleUsarPrecioManual}
+                precioVentaManual={cotizacion.precioVentaManual ?? 0}
+                onChangePrecioManual={handleChangePrecioManual}
+              />
             </div>
           </div>
         )}
@@ -1210,6 +1280,10 @@ export default function App() {
             onSincronizarCostosMenu={handleSincronizarCostosMenu}
             onVincularCoffeeBreak={handleVincularCoffeeBreak}
             onAddMenu={handleAddMenu}
+            onDeleteMenu={handleDeleteMenu}
+            tarifasStaff={tarifasStaff}
+            personal={cotizacion.personal}
+            onChangePersonal={handleChangePersonal}
           />
         )}
 

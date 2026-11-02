@@ -30,6 +30,8 @@ import {
   PieChart,
   FolderPlus
 } from 'lucide-react';
+import { Modulo2Personal } from './Modulo2Personal';
+import { StaffTarifas } from '../types';
 
 interface CalculadoraRecetasProps {
   recetas: RecetaFichaTecnica[];
@@ -42,6 +44,21 @@ interface CalculadoraRecetasProps {
   onSincronizarCostosMenu: (menuId: string, nuevoCosto: number) => void;
   onVincularCoffeeBreak?: (receta: RecetaFichaTecnica, costoPorPorcion: number, precioSugerido: number) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
+  onDeleteMenu?: (menuId: string) => void;
+  // Brigada de Servicio & Personal de Operaciones
+  tarifasStaff?: StaffTarifas;
+  personal?: {
+    garzones: number;
+    cocineros: number;
+    aseo: number;
+    maitre: number;
+  };
+  onChangePersonal?: (nuevoPersonal: {
+    garzones: number;
+    cocineros: number;
+    aseo: number;
+    maitre: number;
+  }) => void;
 }
 
 export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
@@ -54,7 +71,11 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onDeleteReceta,
   onSincronizarCostosMenu,
   onVincularCoffeeBreak,
-  onAddMenu
+  onAddMenu,
+  onDeleteMenu,
+  tarifasStaff,
+  personal,
+  onChangePersonal
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
@@ -373,6 +394,21 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     }
   };
 
+  const handleEliminarMenu = (menuId: string, menuNombre: string) => {
+    if (!onDeleteMenu) return;
+    if (menus.length <= 1) {
+      notificar('⚠️ Debe existir al menos un menú en el catálogo');
+      return;
+    }
+    if (window.confirm(`¿Estás seguro de eliminar el menú "${menuNombre}"? Esta acción no se puede deshacer.`)) {
+      onDeleteMenu(menuId);
+      notificar(`✓ Menú "${menuNombre}" eliminado`);
+      if (menuFiltroRecetas === menuId) {
+        setMenuFiltroRecetas('todos');
+      }
+    }
+  };
+
   const presetsMargen = [25, 30, 33, 35, 40, 45, 50];
 
   return (
@@ -409,7 +445,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-300 active:scale-95 rounded-xl shadow-2xs transition-all cursor-pointer"
           >
             <FolderPlus className="w-4 h-4 text-amber-700" />
-            <span>Crear Nuevo Menú</span>
+            <span>+ Crear Nuevo Menú</span>
           </button>
 
           <button
@@ -423,6 +459,110 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             <Plus className="w-4 h-4" />
             <span>Crear Nueva Ficha / Receta</span>
           </button>
+        </div>
+      </div>
+
+      {/* ── SECCIÓN DE MENÚS EN CARTA CON OPCIÓN DE CREACIÓN & ELIMINACIÓN ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Utensils className="w-4 h-4 text-amber-600" />
+              <span>Menús Gastronómicos en Carta ({menus.length} opciones disponibles)</span>
+            </h2>
+            <p className="text-xs text-slate-500">
+              Menús disponibles para cotizar. Puedes crear nuevos menús o eliminar los que no necesites.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setModalNuevoMenuOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+          >
+            <FolderPlus className="w-3.5 h-3.5 text-amber-800" />
+            <span>+ Nuevo Menú</span>
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {menus.map((m) => {
+            const numRecetas = recetas.filter(r => r.menuAsociadoId === m.id).length;
+            const esActivoFiltro = menuFiltroRecetas === m.id;
+
+            return (
+              <div
+                key={m.id}
+                className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                  esActivoFiltro
+                    ? 'border-amber-500 bg-amber-50/40 ring-1 ring-amber-400'
+                    : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-amber-100 text-amber-900">
+                        {m.categoria}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-semibold">
+                        {numRecetas} recetas asociadas
+                      </span>
+                    </div>
+
+                    {/* Botón Eliminar Menú */}
+                    {onDeleteMenu && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEliminarMenu(m.id, m.nombre);
+                        }}
+                        className="text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-colors cursor-pointer"
+                        title={`Eliminar menú "${m.nombre}"`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1">
+                    {m.nombre}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 line-clamp-2 mt-1">
+                    {m.descripcion}
+                  </p>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block">Costo Insumos</span>
+                    <strong className="text-slate-800 font-bold tabular-nums">
+                      {formatMoneda(m.costoPersona)}/pax
+                    </strong>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block">Precio Sugerido</span>
+                    <strong className="text-amber-900 font-bold tabular-nums">
+                      {formatMoneda(m.precioSugeridoPersona)}/pax
+                    </strong>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMenuFiltroRecetas(menuFiltroRecetas === m.id ? 'todos' : m.id)}
+                  className={`mt-2.5 w-full py-1 text-[11px] font-bold rounded-lg transition-colors cursor-pointer text-center ${
+                    esActivoFiltro
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {esActivoFiltro ? '✓ Viendo Recetas de este Menú' : 'Ver Recetas de este Menú'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1337,6 +1477,26 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ── BRIGADA DE SERVICIO & PERSONAL DE OPERACIONES EN RECETA Y COSTEO ── */}
+      {tarifasStaff && personal && onChangePersonal && (
+        <div className="pt-4 border-t border-slate-200">
+          <div className="mb-3">
+            <span className="text-[10px] font-extrabold text-blue-800 uppercase tracking-widest block">
+              Costeo Operativo del Evento
+            </span>
+            <p className="text-xs text-slate-500">
+              Planifica la dotación de garzones, cocineros, aseo y maître para la ejecución de los menús ({invitados} Pax).
+            </p>
+          </div>
+          <Modulo2Personal
+            tarifas={tarifasStaff}
+            personal={personal}
+            onChangePersonal={onChangePersonal}
+            invitados={invitados}
+          />
         </div>
       )}
 

@@ -107,11 +107,8 @@ const crearDatosDominga = (): DatosPerfilCliente => {
     validezDias: 15,
     gastoLuzMensual: 180000,
     gastoGasMensual: 140000,
-    otrosGastosFijos: [
-      { id: 'gf-d1', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
-      { id: 'gf-d2', nombre: 'Agua de riego y mantención jardines', monto: 280000 }
-    ],
-    gastosFijosMensuales: 2400000,
+    otrosGastosFijos: [],
+    gastosFijosMensuales: 320000,
     eventosAlMes: 4,
     mesActivoCostosFijos: 'Noviembre 2024',
     historialCostosFijosMensuales: {
@@ -122,10 +119,7 @@ const crearDatosDominga = (): DatosPerfilCliente => {
         año: 2024,
         gastoLuz: 165000,
         gastoGas: 130000,
-        otrosGastos: [
-          { id: 'gf-d1-oct', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
-          { id: 'gf-d2-oct', nombre: 'Agua de riego y mantención jardines', monto: 260000 }
-        ],
+        otrosGastos: [],
         eventosAlMes: 4,
         fechaGuardado: '31/10/2024'
       },
@@ -136,10 +130,7 @@ const crearDatosDominga = (): DatosPerfilCliente => {
         año: 2024,
         gastoLuz: 180000,
         gastoGas: 140000,
-        otrosGastos: [
-          { id: 'gf-d1', nombre: 'Arriendo Recinto Finca La Toscana', monto: 1800000 },
-          { id: 'gf-d2', nombre: 'Agua de riego y mantención jardines', monto: 280000 }
-        ],
+        otrosGastos: [],
         eventosAlMes: 4,
         fechaGuardado: '01/11/2024'
       }
@@ -402,11 +393,8 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
     validezDias: 15,
     gastoLuzMensual: 220000,
     gastoGasMensual: 160000,
-    otrosGastosFijos: [
-      { id: 'gf-dm1', nombre: 'Mantención integral 10.000 m² parque y piscina', monto: 1300000 },
-      { id: 'gf-dm2', nombre: 'Sueldos base fijos administración y guardia', monto: 1520000 }
-    ],
-    gastosFijosMensuales: 3200000,
+    otrosGastosFijos: [],
+    gastosFijosMensuales: 380000,
     eventosAlMes: 4,
     usarPrecioManual: false,
     precioVentaManual: 0
@@ -449,41 +437,75 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
 };
 
 /* =========================================================================================
-   3. PERFIL: MODELO BASE
-   Título: "SOLVI Flow · Modelo Base de Operación Gastronómica"
-   Infraestructura: "Centro de Eventos Estándar, salón polivalente, áreas verdes y cocina industrial equipada."
-   Configuración por defecto del sistema.
+   3. PERFIL: DOÑA ISIDORA EVENTOS (BANQUETERÍA ITINERANTE / MATRIMONIOS)
+   Título: "Doña Isidora Eventos · Banquetería & Producción de Matrimonios"
+   Infraestructura: "Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto)."
+   Configuración sin centro de eventos fijo con 2 menús de matrimonio chilenos realistas.
    ========================================================================================= */
-const crearDatosModeloBase = (): DatosPerfilCliente => {
+const crearDatosIsidoraEventos = (): DatosPerfilCliente => {
   const empresa: EmpresaCliente = {
-    id: 'emp-solvi',
-    nombre: 'SOLVI Flow Producciones',
-    subtitulo: 'Gestión Integral de Centros de Eventos & Productoras',
-    recintoPrincipal: 'Casona & Parque SOLVI Flow',
-    direccion: 'Avenida del Parque #1420',
+    id: 'emp-isidora',
+    nombre: 'Doña Isidora Eventos',
+    subtitulo: 'Banquetería & Producción de Matrimonios',
+    recintoPrincipal: 'Servicio Itinerante / A Domicilio / Parcelas Privadas',
+    direccion: 'Avenida Las Condes #12450, Lo Barnechea',
     ciudad: 'Santiago, Región Metropolitana',
-    telefono: '+56 9 6236 0766',
-    email: 'contacto@csconsultoria.cl',
-    sitioWeb: 'www.csconsultoria.cl',
-    letraLogo: 'S',
-    colorTema: 'blue',
+    telefono: '+56 9 9432 1890',
+    email: 'contacto@dionaisidoraeventos.cl',
+    sitioWeb: 'www.dionaisidoraeventos.cl',
+    letraLogo: 'I',
+    colorTema: 'rose',
     fechaRegistro: '2026-10-01',
-    tituloCabecera: 'SOLVI Flow · Modelo Base de Operación Gastronómica',
-    infraestructura: 'Centro de Eventos Estándar, salón polivalente, áreas verdes y cocina industrial equipada.'
+    tituloCabecera: 'Doña Isidora Eventos · Banquetería & Producción de Matrimonios',
+    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).'
   };
 
+  const menusIsidora: MenuOption[] = [
+    {
+      id: 'menu-isidora-campestre-fuegos',
+      nombre: 'Matrimonio Campestre & Fuegos Doña Isidora',
+      categoria: 'campestre',
+      costoPersona: 17500,
+      precioSugeridoPersona: 39500,
+      descripcion: 'Banquetería rústica chilena para matrimonios al aire libre: 18 bocados criollos, carpaccio angus, plateada braseada 6 horas con pastelera rústica y trilogía dulce chilena.',
+      tiempos: {
+        coctel: '18 bocados criollos por persona: empanaditas de pino al horno, empanaditas camarón-queso, ceviche de reineta en cucharitas comestibles, brochetitas de lomo liso a las brasas con chimichurri, vasitos de pastelera de choclo con albahaca y bruschettas de jamón serrano con rúcula.',
+        entrada: 'Carpaccio de res angus con alcaparras crocantes, láminas de queso parmesano reggiano, rúcula fresca y emulsión de mostaza dijon al limón de pica con tostadas finas.',
+        fondo: 'Plateada al horno de barro en cocción lenta de 6 horas con reducción de Carmenère, servida con pastelera rústica de choclo y verduras de la huerta salteadas en mantequilla de romero.',
+        postre: 'Trilogía dulce chilena: mini vasito de mote con huesillo artesanal, suspiro limeño con merengue al oporto y milhojas crocante rellena de manjar de campo.',
+        trasnoche: 'Estación de tapaditos en pan amasado caliente (lomo con palta y ave pimentón) junto a consomé de campo en pocillos de greda.'
+      },
+      destacado: true
+    },
+    {
+      id: 'menu-isidora-gala-vinedos',
+      nombre: 'Matrimonio Gala & Viñedos Doña Isidora',
+      categoria: 'premium',
+      costoPersona: 23800,
+      precioSugeridoPersona: 49900,
+      descripcion: 'Banquetería fina de alta gama para bodas: 20 bocados finos con ostiones y centolla, tártaro de salmón, filete mignon con setas y buffet dulce con volcán belga.',
+      tiempos: {
+        coctel: '20 bocados finos de autor: ostiones a la parmesana gratinados, tártaro de atún rojo con sésamo negro, canapés de centolla austral con mayonesa casera, mini chupes de jaiba en masitas doradas y mini quiches de higos con queso azul.',
+        entrada: 'Tártaro de salmón atlántico y palta hass con vinagreta de maracuyá, caviar de trucha y brotes orgánicos con tostadas finas.',
+        fondo: 'Filete de vacuno mignon envuelto en tocino crocante con salsa de setas silvestres y vino tinto del Valle de Colchagua, acompañado de risotto de quinoa real y espárragos verdes grillados.',
+        postre: 'Buffet de postres de boda: volcán tibio de chocolate belga con helado artesanal de vainilla bourbon, pavlova de frutos rojos patagónicos y creme brulée de lavanda.',
+        trasnoche: 'Estación smash burgers gourmet en pan brioche con queso cheddar fundido + churros españoles crujientes con manjar casero y chocolate fundido.'
+      }
+    }
+  ];
+
   const cotizacion: CotizacionState = {
-    nombreEvento: 'Evento Corporativo Anual / Gala Estándar',
-    cliente: 'Empresa Modelo & Asociados',
-    emailCliente: 'contacto@modelobase.cl',
-    telefonoCliente: '+56 9 6236 0766',
-    tipoEvento: 'Corporativo',
-    fechaEvento: '2026-12-05',
-    invitados: 80,
-    menuId: MENUS_INICIALES[0].id,
+    nombreEvento: 'Matrimonio Isidora & Tomás en Parcela El Arrayán',
+    cliente: 'Isidora Undurraga & Tomás Larraín',
+    emailCliente: 'isidora.undurraga@gmail.com',
+    telefonoCliente: '+56 9 9432 1890',
+    tipoEvento: 'Boda',
+    fechaEvento: '2026-11-21',
+    invitados: 100,
+    menuId: 'menu-isidora-campestre-fuegos',
     personal: {
-      garzones: 6,
-      cocineros: 2,
+      garzones: 8,
+      cocineros: 3,
       aseo: 2,
       maitre: 1
     },
@@ -492,56 +514,54 @@ const crearDatosModeloBase = (): DatosPerfilCliente => {
       'dj-musica-iluminacion': true,
       'flores-centros-mesa': true,
       'barra-libre-premium': true,
-      'coffee-break-cocteleria': true,
-      'pista-baile-led': false,
-      'fotografia-cinematografia': false,
       'generador-respaldo': true
     },
-    mesas: [
-      { id: 'mb1', numero: 1, nombre: 'Mesa Presidencial', capacidad: 8, tipo: 'presidencial' },
-      { id: 'mb2', numero: 2, nombre: 'Mesa Directiva', capacidad: 10, tipo: 'redonda' },
-      { id: 'mb3', numero: 3, nombre: 'Mesa Invitados 1', capacidad: 10, tipo: 'redonda' },
-      { id: 'mb4', numero: 4, nombre: 'Mesa Invitados 2', capacidad: 10, tipo: 'redonda' }
-    ],
+    mesas: MESAS_EJEMPLO_INICIALES,
     decoracionId: ESTILOS_DECORACION_INICIALES[0].id,
     margenGanancia: 35,
     aplicaIva: true,
-    observaciones: 'Configuración base predeterminada con menú formal y servicios esenciales.',
+    observaciones: 'Banquetería integral en parcela privada. Ceremonia al aire libre y banquete en carpa con cocina de fuegos en vivo.',
     porcentajeAnticipo: 40,
     esquemaPago: 'dos_pagos',
     diasSaldo: 7,
     validezDias: 15,
-    gastoLuzMensual: 150000,
-    gastoGasMensual: 120000,
-    otrosGastosFijos: [
-      { id: 'gf-b1', nombre: 'Arriendo base salón', monto: 1400000 },
-      { id: 'gf-b2', nombre: 'Agua, internet y patentes', monto: 330000 }
-    ],
-    gastosFijosMensuales: 2000000,
+    gastoLuzMensual: 120000,
+    gastoGasMensual: 95000,
+    otrosGastosFijos: [],
+    gastosFijosMensuales: 215000,
     eventosAlMes: 4,
+    mesActivoCostosFijos: 'Noviembre 2024',
     usarPrecioManual: false,
     precioVentaManual: 0
   };
 
   const reservas: ReservaCalendario[] = [
     {
-      id: 'res-base-01',
-      empresaId: 'emp-solvi',
-      titulo: 'Evento Corporativo Anual / Gala Estándar',
-      cliente: 'Empresa Modelo & Asociados',
-      tipoEvento: 'Corporativo',
-      fecha: '2026-12-05',
-      invitados: 80,
-      estado: 'cotizado',
-      montoTotal: 6500000,
+      id: 'res-isidora-01',
+      empresaId: 'emp-isidora',
+      titulo: 'Matrimonio Isidora & Tomás en Parcela El Arrayán',
+      cliente: 'Isidora Undurraga & Tomás Larraín',
+      tipoEvento: 'Boda',
+      fecha: '2026-11-21',
+      invitados: 100,
+      estado: 'confirmado',
+      montoTotal: 10850000,
       cotizacionSnapshot: cotizacion
     }
   ];
 
   return {
     cotizacion,
-    menus: MENUS_INICIALES,
-    tarifasStaff: PERSONAL_TARIFAS_INICIALES,
+    menus: menusIsidora,
+    tarifasStaff: {
+      garzonJornada: 45000,
+      cocineroJornada: 55000,
+      aseoJornada: 38000,
+      maitreJornada: 75000,
+      ratioGarzon: 12,
+      ratioCocinero: 35,
+      ratioAseo: 50
+    },
     proveedores: PROVEEDORES_INICIALES,
     estilosDecoracion: ESTILOS_DECORACION_INICIALES,
     insumos: INSUMOS_MAESTRO_INICIALES,
@@ -557,11 +577,11 @@ const crearDatosModeloBase = (): DatosPerfilCliente => {
 export const PERFILES_CLIENTES_CATALOGO: Record<PerfilClienteId, PerfilClienteConfig> = {
   'modelo-base': {
     id: 'modelo-base',
-    nombreOpcion: 'Modelo Base',
-    detalleOpcion: 'Configuración por defecto',
-    tituloCabecera: 'SOLVI Flow · Modelo Base de Operación Gastronómica',
-    infraestructura: 'Centro de Eventos Estándar, salón polivalente, áreas verdes y cocina industrial equipada.',
-    crearDatosIniciales: crearDatosModeloBase
+    nombreOpcion: 'Doña Isidora Eventos',
+    detalleOpcion: 'Banquetería Itinerante / Bodas (Sin recinto fijo)',
+    tituloCabecera: 'Doña Isidora Eventos · Banquetería & Producción de Matrimonios',
+    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).',
+    crearDatosIniciales: crearDatosIsidoraEventos
   },
   'dominga-eventos': {
     id: 'dominga-eventos',
@@ -590,48 +610,56 @@ export const LISTA_PERFILES_CLIENTES = [
 
 /* Helper para guardar con aislamiento seguro en localStorage */
 export const obtenerClaveStorageCliente = (clienteId: PerfilClienteId): string => {
-  return `propuesta_datos_${clienteId}`;
+  return `propuesta_datos_v3_${clienteId}`;
 };
 
 export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilCliente => {
   const clave = obtenerClaveStorageCliente(clienteId);
   const guardado = localStorage.getItem(clave);
+  const config = PERFILES_CLIENTES_CATALOGO[clienteId] || PERFILES_CLIENTES_CATALOGO['modelo-base'];
+  const def = config.crearDatosIniciales();
   
   if (guardado) {
     try {
       const parsed = JSON.parse(guardado) as Partial<DatosPerfilCliente>;
-      const config = PERFILES_CLIENTES_CATALOGO[clienteId] || PERFILES_CLIENTES_CATALOGO['dominga-eventos'];
-      const def = config.crearDatosIniciales();
       
+      // La empresa SIEMPRE adopta la estructura oficial del perfil seleccionado
+      const empresaFinal = def.empresa;
+
       const rawProveedores = parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores;
-      // Eliminar estrictamente cualquier rastro de arriendo o costos fijos del array de proveedores
       const proveedoresLimpios = rawProveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'));
+
+      // Verificar que los menús correspondan a este perfil o contengan los menús por defecto
+      const menusFinales = parsed.menus && parsed.menus.length > 0 && parsed.menus.some(m => def.menus.some(dm => dm.id === m.id))
+        ? parsed.menus
+        : def.menus;
       
       const cotizacionLimpia = parsed.cotizacion || def.cotizacion;
       if (cotizacionLimpia.proveedoresSeleccionados) {
         delete cotizacionLimpia.proveedoresSeleccionados['arriendo-locacion-damaris'];
       }
+      if (!menusFinales.some(m => m.id === cotizacionLimpia.menuId)) {
+        cotizacionLimpia.menuId = menusFinales[0].id;
+      }
 
       return {
         cotizacion: cotizacionLimpia,
-        menus: parsed.menus && parsed.menus.length > 0 ? parsed.menus : def.menus,
+        menus: menusFinales,
         tarifasStaff: parsed.tarifasStaff || def.tarifasStaff,
         proveedores: proveedoresLimpios,
         estilosDecoracion: parsed.estilosDecoracion && parsed.estilosDecoracion.length > 0 ? parsed.estilosDecoracion : def.estilosDecoracion,
         insumos: parsed.insumos && parsed.insumos.length > 0 ? parsed.insumos : def.insumos,
         recetas: parsed.recetas && parsed.recetas.length > 0 ? migrarRecetasAGramos(parsed.recetas) : def.recetas,
         reservas: parsed.reservas || def.reservas,
-        empresa: parsed.empresa || def.empresa
+        empresa: empresaFinal
       };
     } catch (e) {
       console.error(`Error al cargar datos aislados para ${clienteId}:`, e);
     }
   }
 
-  // Si es primera vez para este cliente, inicializamos desde su configuración precargada
-  const config = PERFILES_CLIENTES_CATALOGO[clienteId] || PERFILES_CLIENTES_CATALOGO['dominga-eventos'];
+  // Inicialización limpia
   const datosIniciales = config.crearDatosIniciales();
-  // Guardamos inmediatamente en localStorage para asegurar persistencia
   try {
     localStorage.setItem(clave, JSON.stringify(datosIniciales));
   } catch (err) {

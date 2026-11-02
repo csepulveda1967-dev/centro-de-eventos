@@ -54,6 +54,7 @@ interface Modulo6DashboardCostosProps {
   onChangeGastoGas?: (gas: number) => void;
   otrosGastosFijos?: ItemGastoFijo[];
   onAddOtroGastoFijo?: (nombre: string, monto: number) => void;
+  onUpdateOtroGastoFijo?: (id: string, nombre: string, monto: number) => void;
   onRemoveOtroGastoFijo?: (id: string) => void;
   eventosAlMes?: number;
   onChangeEventosAlMes?: (cant: number) => void;
@@ -92,6 +93,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   onChangeGastoGas,
   otrosGastosFijos = [],
   onAddOtroGastoFijo,
+  onUpdateOtroGastoFijo,
   onRemoveOtroGastoFijo,
   eventosAlMes = 4,
   onChangeEventosAlMes,
@@ -201,26 +203,13 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
     setTimeout(() => setToastGuardadoMes(null), 3000);
   };
 
-  // Sugerencias rápidas para pequeños emprendedores
-  const sugerenciasComunes = [
-    { label: '+ Arriendo', nombre: 'Arriendo de Recinto / Local', montoDefault: 1200000 },
-    { label: '+ Agua', nombre: 'Agua Potable & Riego', montoDefault: 80000 },
-    { label: '+ Sueldo Base', nombre: 'Sueldo Base Operador Fijo', montoDefault: 650000 },
-    { label: '+ Internet', nombre: 'Internet & Comunicaciones', montoDefault: 45000 },
-    { label: '+ Patente', nombre: 'Patente Municipal & Seguros', montoDefault: 90000 }
-  ];
-
   const handleAgregarNuevoGasto = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombreNuevoGasto.trim() || Number(montoNuevoGasto) <= 0) return;
-    onAddOtroGastoFijo?.(nombreNuevoGasto.trim(), Number(montoNuevoGasto));
+    if (!nombreNuevoGasto.trim()) return;
+    onAddOtroGastoFijo?.(nombreNuevoGasto.trim(), Number(montoNuevoGasto) || 0);
     setNombreNuevoGasto('');
     setMontoNuevoGasto('');
     setMostrarFormNuevo(false);
-  };
-
-  const handleAplicarSugerencia = (nombre: string, monto: number) => {
-    onAddOtroGastoFijo?.(nombre, monto);
   };
 
   // Porcentajes para la barra de distribución compuesta
@@ -423,55 +412,45 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </div>
         </div>
 
-        {/* Otros Gastos Fijos (Llenado a mano o botón para nuevo costo) */}
+        {/* Costos Adicionales del Mes (Añadir a mano y anotar datos directamente) */}
         <div className="pt-1">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-              Otros Costos Fijos ({otrosGastosFijos.length})
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block">
+                Otros Costos del Mes {otrosGastosFijos.length > 0 ? `(${otrosGastosFijos.length})` : ''}
+              </span>
+              <span className="text-[9px] text-slate-500">
+                Anota gastos adicionales del mes (arriendos, fletes, patentes, etc.)
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => setMostrarFormNuevo(!mostrarFormNuevo)}
-              className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+              onClick={() => onAddOtroGastoFijo?.(`Costo #${otrosGastosFijos.length + 1}`, 0)}
+              className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
             >
-              <Plus className="w-3 h-3" />
-              <span>{mostrarFormNuevo ? 'Cerrar' : '+ Añadir otro costo'}</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Añadir Costo del Mes</span>
             </button>
           </div>
 
-          {/* Sugerencias Rápidas con 1 clic */}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {sugerenciasComunes.map((sug) => (
-              <button
-                key={sug.label}
-                type="button"
-                onClick={() => handleAplicarSugerencia(sug.nombre, sug.montoDefault)}
-                className="text-[10px] font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
-                title={`Agregar ${sug.nombre} ($${sug.montoDefault.toLocaleString('es-CL')})`}
-              >
-                {sug.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Formulario desplegable para agregar nuevo costo a mano */}
+          {/* Formulario rápido para nuevo costo */}
           {mostrarFormNuevo && (
             <form onSubmit={handleAgregarNuevoGasto} className="p-2.5 rounded-lg bg-teal-50/70 border border-teal-200 space-y-2 mb-2">
               <span className="text-[10px] font-bold text-teal-900 block">
-                Ingresar Nuevo Costo Fijo Mensual:
+                Ingresar Nuevo Costo del Mes:
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <input
                   type="text"
                   value={nombreNuevoGasto}
                   onChange={(e) => setNombreNuevoGasto(e.target.value)}
-                  placeholder="Concepto (ej: Arriendo taller)"
+                  placeholder="Concepto (ej: Fletes, Arriendo taller...)"
                   className="px-2.5 py-1 text-xs font-medium text-slate-900 bg-white border border-teal-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-teal-500"
                 />
                 <input
                   type="number"
                   min={0}
-                  step={10000}
+                  step={5000}
                   value={montoNuevoGasto}
                   onChange={(e) => setMontoNuevoGasto(e.target.value === '' ? '' : Number(e.target.value))}
                   placeholder="Monto $ mensual"
@@ -482,7 +461,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 <button
                   type="button"
                   onClick={() => setMostrarFormNuevo(false)}
-                  className="px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 rounded-md"
+                  className="px-2.5 py-1 text-[10px] font-semibold text-slate-600 hover:bg-slate-200 rounded-md cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -496,27 +475,47 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             </form>
           )}
 
-          {/* Lista de otros gastos fijos agregados */}
-          {otrosGastosFijos.length > 0 && (
-            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+          {/* Lista de gastos del mes con inputs interactivos para anotar datos */}
+          {otrosGastosFijos.length === 0 ? (
+            <div className="py-3 px-3 rounded-lg bg-slate-50 border border-dashed border-slate-200 text-center">
+              <span className="text-[11px] text-slate-400 block">
+                Sin costos fijos adicionales este mes.
+              </span>
+              <span className="text-[10px] text-slate-400">
+                Haz clic en <strong>+ Añadir Costo del Mes</strong> para anotar gastos si los tienes.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
               {otrosGastosFijos.map((gf) => (
-                <div key={gf.id} className="flex items-center justify-between py-1 px-2 rounded-md bg-white border border-slate-200 text-xs">
-                  <span className="text-slate-700 font-medium truncate max-w-[160px] text-[11px]" title={gf.nombre}>
-                    {gf.nombre}
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold text-slate-900 tabular-nums text-[11px]">
-                      {formatMoneda(gf.monto)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveOtroGastoFijo?.(gf.id)}
-                      className="text-slate-400 hover:text-rose-600 p-0.5 rounded-sm transition-colors cursor-pointer"
-                      title="Eliminar este gasto"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                <div key={gf.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-white border border-slate-200 shadow-2xs">
+                  <input
+                    type="text"
+                    value={gf.nombre}
+                    onChange={(e) => onUpdateOtroGastoFijo?.(gf.id, e.target.value, gf.monto)}
+                    placeholder="Concepto (ej: Fletes, Bodega...)"
+                    className="flex-1 min-w-0 px-2 py-1 text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                  />
+                  <div className="relative w-28 shrink-0">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step={5000}
+                      value={gf.monto === 0 ? '' : gf.monto}
+                      onChange={(e) => onUpdateOtroGastoFijo?.(gf.id, gf.nombre, e.target.value === '' ? 0 : Number(e.target.value))}
+                      placeholder="0"
+                      className="w-full pl-5 pr-2 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums text-right"
+                    />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveOtroGastoFijo?.(gf.id)}
+                    className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer shrink-0"
+                    title="Eliminar este costo"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </div>

@@ -145,7 +145,7 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
               key={preset}
               type="button"
               onClick={() => onChangeInvitados(preset)}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
                 invitados === preset
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
@@ -154,6 +154,26 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
               {preset} pax
             </button>
           ))}
+        </div>
+
+        {/* Indicadores de Vinculación Automática */}
+        <div className="mt-3 pt-3 border-t border-slate-200/60 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+          <div className="bg-white p-2 rounded-lg border border-slate-200/80">
+            <span className="text-slate-400 block text-[10px]">🍽️ Porciones Recetas:</span>
+            <strong className="text-slate-900 font-bold">{invitados} porciones</strong>
+          </div>
+          <div className="bg-white p-2 rounded-lg border border-slate-200/80">
+            <span className="text-slate-400 block text-[10px]">🍷 Vajilla & Cristalería:</span>
+            <strong className="text-slate-900 font-bold">{invitados} sets completos</strong>
+          </div>
+          <div className="bg-white p-2 rounded-lg border border-slate-200/80">
+            <span className="text-slate-400 block text-[10px]">🪑 Mesas Recomendadas:</span>
+            <strong className="text-slate-900 font-bold">{Math.ceil(invitados / 10)} mesas (10 pax)</strong>
+          </div>
+          <div className="bg-white p-2 rounded-lg border border-slate-200/80">
+            <span className="text-slate-400 block text-[10px]">💡 Costo Fijo Prorrateado:</span>
+            <strong className="text-indigo-900 font-bold">{costoFijoPorPersona > 0 ? formatMoneda(costoFijoPorPersona) : '$0'} /pax</strong>
+          </div>
         </div>
       </div>
 
@@ -164,23 +184,13 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
             Selección del Menú Gastronómico ({menus.length} opciones)
           </label>
           <div className="flex items-center gap-3">
-            {onAddMenu && (
-              <button
-                type="button"
-                onClick={() => setModalNuevoMenuOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 text-amber-700 stroke-[3]" />
-                <span>+ Crear Nuevo Menú</span>
-              </button>
-            )}
             {onIrARecetas && (
               <button
                 type="button"
                 onClick={() => onIrARecetas(menuSeleccionadoId)}
-                className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+                className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
               >
-                <span>Ver Fichas de Recetas</span>
+                <span>Gestionar & Crear Menús en Recetas</span>
                 <span>→</span>
               </button>
             )}
