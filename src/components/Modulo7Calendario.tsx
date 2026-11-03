@@ -15,7 +15,8 @@ import {
   Phone,
   Mail,
   DollarSign,
-  Utensils
+  Utensils,
+  Printer
 } from 'lucide-react';
 
 interface Modulo7CalendarioProps {
@@ -23,13 +24,15 @@ interface Modulo7CalendarioProps {
   onCargarCotizacion: (snapshot: CotizacionState) => void;
   onCrearReservaDesdeActual: (fecha: string, estado: 'confirmado' | 'cotizado' | 'bloqueado') => void;
   cotizacionActual: CotizacionState;
+  onVerFicha?: () => void;
 }
 
 export const Modulo7Calendario: React.FC<Modulo7CalendarioProps> = ({
   reservas,
   onCargarCotizacion,
   onCrearReservaDesdeActual,
-  cotizacionActual
+  cotizacionActual,
+  onVerFicha
 }) => {
   // Mes y año actual visualizado (ej. Octubre / Noviembre 2026)
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 9, 1)); // Octubre 2026
@@ -423,19 +426,35 @@ export const Modulo7Calendario: React.FC<Modulo7CalendarioProps> = ({
                 )}
               </div>
 
-              {/* CRITICAL USER REQUIREMENT: Cargar cotización específica en el cotizador */}
-              <div className="mt-6 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => onCargarCotizacion(reservaSeleccionada.cotizacionSnapshot)}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all"
-                >
-                  <Utensils className="w-4 h-4 text-amber-400" />
-                  <span>Cargar Esta Cotización en el Cotizador</span>
-                  <ArrowRight className="w-4 h-4 text-white" />
-                </button>
-                <p className="text-[11px] text-slate-400 text-center mt-2">
-                  Al pulsar aquí, todos los valores (menú, garzones, mesas y servicios) se volcarán al cotizador en vivo para editar o recalcular.
+              {/* CRITICAL USER REQUIREMENT: Cargar cotización específica en el cotizador o ver ficha */}
+              <div className="mt-6 pt-4 border-t border-slate-100 space-y-2">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onCargarCotizacion(reservaSeleccionada.cotizacionSnapshot)}
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-3 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs transition-all cursor-pointer"
+                  >
+                    <Utensils className="w-4 h-4 text-amber-400" />
+                    <span>Cargar en Cotizador</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </button>
+                  {onVerFicha && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onCargarCotizacion(reservaSeleccionada.cotizacionSnapshot);
+                        onVerFicha();
+                      }}
+                      className="inline-flex items-center justify-center gap-1.5 py-3 px-4 bg-amber-500 hover:bg-amber-400 active:scale-98 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer shrink-0"
+                      title="Ver e imprimir la ficha formal de este evento"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Ver Ficha</span>
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 text-center">
+                  Al pulsar aquí, todos los valores vinculados a este evento se cargan al cotizador en vivo para editar o imprimir su ficha.
                 </p>
               </div>
             </div>

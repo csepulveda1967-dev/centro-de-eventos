@@ -183,11 +183,11 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       precioSugeridoPersona: precioSugerido,
       descripcion: descripcion.trim() || `Propuesta gastronómica formato ${categoriaFinal}.`,
       tiempos: {
-        coctel: coctel.trim() || 'Selección de bocados fríos y calientes gourmet en jardín.',
-        entrada: entrada.trim() || 'Entrada fresca de temporada según minuta del chef.',
-        fondo: fondo.trim() || 'Plato de fondo noble con guarnición rústica y salsa de autor.',
-        postre: postre.trim() || 'Trilogía dulce de autor o buffet de postres artesanales.',
-        trasnoche: trasnoche.trim() || 'Estación de trasnoche: mini hamburguesas brioche y consomé reconfortante.'
+        coctel: coctel.trim(),
+        entrada: entrada.trim(),
+        fondo: fondo.trim(),
+        postre: postre.trim(),
+        trasnoche: trasnoche.trim()
       },
       destacado,
       costoCalculadoDesdeRecetas: false,

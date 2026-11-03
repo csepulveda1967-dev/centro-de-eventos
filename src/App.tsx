@@ -664,7 +664,50 @@ export default function App() {
   };
 
   const handleChangeInvitados = (inv: number) => {
-    setCotizacion(prev => ({ ...prev, invitados: inv }));
+    const validInv = Math.max(1, inv);
+    setCotizacion(prev => {
+      // Re-escalar dotación de personal proporcional y realista a los comensales
+      const garzonesAuto = Math.max(1, Math.ceil(validInv / 15));
+      const cocinerosAuto = Math.max(1, Math.ceil(validInv / 35));
+      const aseoAuto = Math.max(1, Math.ceil(validInv / 60));
+      const maitreAuto = validInv > 60 ? 1 : 0;
+
+      // Adaptar mesas si la capacidad actual está desvinculada del número de comensales
+      let mesasAdaptadas = prev.mesas;
+      const capacidadActual = (prev.mesas || []).reduce((s, m) => s + m.capacidad, 0);
+      if (capacidadActual > validInv * 1.8 || capacidadActual < validInv * 0.7) {
+        if (validInv <= 20) {
+          const cap1 = Math.ceil(validInv / 2);
+          const cap2 = Math.floor(validInv / 2);
+          mesasAdaptadas = [
+            { id: 'm-1', numero: 1, nombre: 'Mesa Principal', capacidad: cap1, tipo: 'redonda' as const, zona: 'Salón' },
+            ...(cap2 > 0 ? [{ id: 'm-2', numero: 2, nombre: 'Mesa Secundaria', capacidad: cap2, tipo: 'redonda' as const, zona: 'Salón' }] : [])
+          ];
+        } else {
+          const totalMesas = Math.ceil(validInv / 10);
+          mesasAdaptadas = Array.from({ length: totalMesas }, (_, i) => ({
+            id: `m-${i + 1}`,
+            numero: i + 1,
+            nombre: i === 0 ? 'Mesa Principal / Honor' : `Mesa ${i + 1}`,
+            capacidad: Math.min(10, Math.ceil(validInv / totalMesas)),
+            tipo: (i === 0 ? 'presidencial' : 'redonda') as Mesa['tipo'],
+            zona: 'Salón Principal'
+          }));
+        }
+      }
+
+      return {
+        ...prev,
+        invitados: validInv,
+        personal: {
+          garzones: garzonesAuto,
+          cocineros: cocinerosAuto,
+          aseo: aseoAuto,
+          maitre: maitreAuto
+        },
+        mesas: mesasAdaptadas
+      };
+    });
   };
 
   const handleChangePersonal = (nuevoPersonal: CotizacionState['personal']) => {
@@ -1386,6 +1429,7 @@ export default function App() {
             onCargarCotizacion={handleCargarCotizacion}
             onCrearReservaDesdeActual={handleCrearReservaDesdeActual}
             cotizacionActual={cotizacion}
+            onVerFicha={() => setModalFichaOpen(true)}
           />
         )}
 

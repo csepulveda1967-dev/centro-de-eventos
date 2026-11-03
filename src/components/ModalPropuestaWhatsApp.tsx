@@ -83,12 +83,25 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     msg += `• *Comensales:* ${cotizacion.invitados} invitados confirmados\n\n`;
 
     msg += `🍽️ *MENÚ GASTRONÓMICO: ${menu.nombre.toUpperCase()}*\n`;
-    if (incluirTiemposMenu) {
-      msg += `• *Cóctel de Entrada:* ${menu.tiempos.coctel}\n`;
-      msg += `• *Entrada Gourmet:* ${menu.tiempos.entrada}\n`;
-      msg += `• *Plato Principal:* ${menu.tiempos.fondo}\n`;
-      msg += `• *Mesa de Postres:* ${menu.tiempos.postre}\n`;
-      msg += `• *Trasnoche:* ${menu.tiempos.trasnoche}\n\n`;
+    if (menu.itemsPorPersona && menu.itemsPorPersona.length > 0) {
+      msg += `• *Consumos Exactos por Comensal (${cotizacion.invitados} Pax):*\n`;
+      menu.itemsPorPersona.forEach(it => {
+        const total = it.cantidadPorPersona * cotizacion.invitados;
+        msg += `  - ${it.nombre}: ${it.cantidadPorPersona} ${it.unidad} p.p. (Total: ${total} ${it.unidad}s)\n`;
+      });
+      msg += `\n`;
+    } else if (incluirTiemposMenu) {
+      const esRelleno = (t?: string) => !t || t.includes('selección de bocados') || t.includes('entrada fresca de temporada') || t.includes('plato de fondo noble');
+      if (menu.tiempos && !esRelleno(menu.tiempos.fondo)) {
+        if (menu.tiempos.coctel) msg += `• *Cóctel de Entrada:* ${menu.tiempos.coctel}\n`;
+        if (menu.tiempos.entrada) msg += `• *Entrada Gourmet:* ${menu.tiempos.entrada}\n`;
+        if (menu.tiempos.fondo) msg += `• *Plato Principal:* ${menu.tiempos.fondo}\n`;
+        if (menu.tiempos.postre) msg += `• *Mesa de Postres:* ${menu.tiempos.postre}\n`;
+        if (menu.tiempos.trasnoche) msg += `• *Trasnoche:* ${menu.tiempos.trasnoche}\n`;
+        msg += `\n`;
+      } else {
+        msg += `_${menu.descripcion}_\n\n`;
+      }
     } else {
       msg += `_${menu.descripcion}_\n\n`;
     }
@@ -98,16 +111,19 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
       msg += `• ${cotizacion.personal.garzones} Garzones de salón\n`;
       msg += `• ${cotizacion.personal.cocineros} Chefs / Cocineros\n`;
       msg += `• ${cotizacion.personal.aseo} Auxiliares de aseo\n`;
-      msg += `• ${cotizacion.personal.maitre} Maître de sala y supervisión\n\n`;
+      if (cotizacion.personal.maitre > 0) {
+        msg += `• ${cotizacion.personal.maitre} Maître de sala y supervisión\n`;
+      }
+      msg += `\n`;
     }
 
-    if (incluirProveedores && proveedoresActivos.length > 0) {
-      msg += `✨ *EQUIPAMIENTO & SERVICIOS COMPLEMENTARIOS:*\n`;
+    if (incluirProveedores && (proveedoresActivos.length > 0 || (estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' && estiloDecoracion.costoFijo > 0))) {
+      msg += `✨ *SERVICIOS & EQUIPAMIENTO COMPLEMENTARIO:*\n`;
       proveedoresActivos.forEach(p => {
         msg += `• ${p.nombre}\n`;
       });
-      if (estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion') {
-        msg += `• Concepto de Decoración: ${estiloDecoracion.nombre}\n`;
+      if (estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' && estiloDecoracion.costoFijo > 0) {
+        msg += `• Ambientación: ${estiloDecoracion.nombre}\n`;
       }
       msg += `\n`;
     }
