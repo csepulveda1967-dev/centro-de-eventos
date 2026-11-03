@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MenuOption } from '../types';
+import { MenuOption, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { formatMoneda } from '../utils/formatters';
 import { ModalCrearMenu } from './ModalCrearMenu';
 import { Utensils, Users, ChevronDown, ChevronUp, Check, Sparkles, Plus, FolderPlus } from 'lucide-react';
@@ -13,6 +13,8 @@ interface Modulo1MenuProps {
   onIrARecetas?: (menuId: string) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
   costoFijoPorPersona?: number;
+  recetasDisponibles?: RecetaFichaTecnica[];
+  insumosDisponibles?: InsumoMaestro[];
 }
 
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
@@ -23,7 +25,9 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   onChangeInvitados,
   onIrARecetas,
   onAddMenu,
-  costoFijoPorPersona = 0
+  costoFijoPorPersona = 0,
+  recetasDisponibles = [],
+  insumosDisponibles = []
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
   const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
@@ -371,6 +375,8 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
         <ModalCrearMenu
           isOpen={modalNuevoMenuOpen}
           onClose={() => setModalNuevoMenuOpen(false)}
+          recetasDisponibles={recetasDisponibles}
+          insumosDisponibles={insumosDisponibles}
           onGuardarMenu={(nuevoMenu) => {
             onAddMenu(nuevoMenu);
             onSelectMenu(nuevoMenu.id);
