@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { MenuOption, MenuItemRatio, InsumoMaestro } from '../types';
-import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { MenuOption, MenuItemRatio, InsumoMaestro, RecetaFichaTecnica } from '../types';
+import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
+import { calcularCostoReceta } from '../config/insumosYRecetas';
 
 interface ModalCrearMenuProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface ModalCrearMenuProps {
     nombrePlato: string;
   };
   insumosDisponibles?: InsumoMaestro[];
+  recetasDisponibles?: RecetaFichaTecnica[];
   invitadosReferencia?: number;
 }
 
@@ -34,6 +36,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   onGuardarMenu,
   tiempoInicial,
   insumosDisponibles = [],
+  recetasDisponibles = [],
   invitadosReferencia = 100
 }) => {
   const [nombre, setNombre] = useState('');
@@ -54,7 +57,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   });
 
   const [descripcion, setDescripcion] = useState('');
-  const [costoPersona, setCostoPersona] = useState<number | string>(22000);
+  const [costoPersona, setCostoPersona] = useState<number | string>(0);
   const [margenSugerido, setMargenSugerido] = useState<number>(33); // 33% estándar gastronómico
   const [destacado, setDestacado] = useState(false);
 
@@ -79,37 +82,32 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
 
   // ── Ítems por Persona (p.p.) para calcular consumos exactos y comprar ──
   // Ejemplo: "1 sandwich pp 2", "bebidas pp 2"
-  const [itemsPorPersona, setItemsPorPersona] = useState<MenuItemRatio[]>([
-    {
-      id: 'ratio-1',
-      nombre: 'Sandwich de Miga Gourmet',
-      cantidadPorPersona: 2,
-      unidad: 'unidad',
-      costoUnitario: 1200
-    },
-    {
-      id: 'ratio-2',
-      nombre: 'Bebidas / Gaseosas & Aguas',
-      cantidadPorPersona: 2,
-      unidad: 'lata / vaso',
-      costoUnitario: 900
-    }
-  ]);
+  // Se inicia vacío: cada menú nuevo parte de cero, sin ítems de ejemplo precargados.
+  const [itemsPorPersona, setItemsPorPersona] = useState<MenuItemRatio[]>([]);
 
   // Formulario rápido para añadir nuevo ítem p.p.
   const [nuevoItemNombre, setNuevoItemNombre] = useState('');
   const [nuevoItemCantidadPP, setNuevoItemCantidadPP] = useState<number | string>(2);
   const [nuevoItemUnidad, setNuevoItemUnidad] = useState<string>('unidad');
-  const [nuevoItemCostoUnitario, setNuevoItemCostoUnitario] = useState<number | string>(1000);
+  const [nuevoItemCostoUnitario, setNuevoItemCostoUnitario] = useState<number | string>('');
   const [nuevoItemInsumoId, setNuevoItemInsumoId] = useState<string>('');
+  const [nuevoItemRecetaId, setNuevoItemRecetaId] = useState<string>('');
+  // Cuando está activo, el "Costo Base de Insumos ($/pax)" sigue automáticamente la suma de los ítems p.p.
+  const [costoSincronizadoConItems, setCostoSincronizadoConItems] = useState(true);
+
+  // Cálculo del costo total de los ítems p.p. por persona (se calcula antes del early-return para poder usarlo en hooks)
+  const costoTotalItemsPP = useMemo(
+    () => itemsPorPersona.reduce((acc, it) => acc + (it.cantidadPorPersona * (it.costoUnitario || 0)), 0),
+    [itemsPorPersona]
+  );
+
+  // Sincronización automática: el costo base del menú refleja siempre la suma real de los ítems p.p.
+  useEffect(() => {
+    if (!costoSincronizadoConItems) return;
+    setCostoPersona(Math.round(costoTotalItemsPP));
+  }, [costoTotalItemsPP, costoSincronizadoConItems]);
 
   if (!isOpen) return null;
-
-  // Cálculo del costo total de los ítems p.p. por persona
-  const costoTotalItemsPP = itemsPorPersona.reduce(
-    (acc, it) => acc + (it.cantidadPorPersona * (it.costoUnitario || 0)),
-    0
-  );
 
   // Cálculo de precio sugerido con Food Cost estándar del 33%
   const costoPersonaNum = typeof costoPersona === 'number' ? costoPersona : parseFloat(String(costoPersona)) || 0;
@@ -128,14 +126,34 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       cantidadPorPersona: Math.max(0.1, cantPP),
       unidad: nuevoItemUnidad || 'unidad',
       costoUnitario: Math.max(0, costoUnit),
-      insumoId: nuevoItemInsumoId || undefined
+      insumoId: nuevoItemInsumoId || undefined,
+      recetaId: nuevoItemRecetaId || undefined,
+      recetaNombre: nuevoItemRecetaId ? recetasDisponibles.find(r => r.id === nuevoItemRecetaId)?.nombre : undefined
     };
 
     setItemsPorPersona(prev => [...prev, nuevo]);
     setNuevoItemNombre('');
     setNuevoItemCantidadPP(2);
-    setNuevoItemCostoUnitario(1000);
+    setNuevoItemCostoUnitario('');
     setNuevoItemInsumoId('');
+    setNuevoItemRecetaId('');
+  };
+
+  // Al elegir una receta creada en la Calculadora de Recetas, el nombre y el costo unitario se llenan solos
+  const handleSeleccionarRecetaItem = (recetaId: string) => {
+    setNuevoItemRecetaId(recetaId);
+    if (!recetaId) {
+      setNuevoItemNombre('');
+      setNuevoItemCostoUnitario('');
+      setNuevoItemUnidad('unidad');
+      return;
+    }
+    const receta = recetasDisponibles.find(r => r.id === recetaId);
+    if (!receta) return;
+    const { costoPorPorcion } = calcularCostoReceta(receta, insumosDisponibles);
+    setNuevoItemNombre(receta.nombre);
+    setNuevoItemUnidad('porción');
+    setNuevoItemCostoUnitario(costoPorPorcion > 0 ? costoPorPorcion : '');
   };
 
   const handleEliminarItemPP = (id: string) => {
@@ -149,9 +167,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   };
 
   const handleAplicarCostoItemsAlCostoPersona = () => {
-    if (costoTotalItemsPP > 0) {
-      setCostoPersona(costoTotalItemsPP);
-    }
+    setCostoSincronizadoConItems(true);
+    setCostoPersona(Math.round(costoTotalItemsPP));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -175,6 +192,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     }
 
     const id = 'menu-' + Date.now();
+    const recetasVinculadas = Array.from(new Set(itemsPorPersona.map(it => it.recetaId).filter(Boolean) as string[]));
     const nuevoMenu: MenuOption = {
       id,
       nombre: nombre.trim(),
@@ -190,7 +208,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
         trasnoche: trasnoche.trim()
       },
       destacado,
-      costoCalculadoDesdeRecetas: false,
+      recetasIds: recetasVinculadas.length > 0 ? recetasVinculadas : undefined,
+      costoCalculadoDesdeRecetas: recetasVinculadas.length > 0,
       itemsPorPersona: itemsPorPersona.length > 0 ? itemsPorPersona : undefined
     };
 
@@ -200,7 +219,14 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     // Resetear formulario
     setNombre('');
     setDescripcion('');
-    setCostoPersona(22000);
+    setCostoPersona(0);
+    setCostoSincronizadoConItems(true);
+    setItemsPorPersona([]);
+    setNuevoItemNombre('');
+    setNuevoItemCantidadPP(2);
+    setNuevoItemCostoUnitario('');
+    setNuevoItemInsumoId('');
+    setNuevoItemRecetaId('');
     setCoctel('');
     setEntrada('');
     setFondo('');
@@ -387,6 +413,12 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                         <tr key={item.id} className="hover:bg-amber-50/30">
                           <td className="py-2 px-3 font-semibold text-slate-900">
                             {item.nombre}
+                            {item.recetaId && (
+                              <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md align-middle whitespace-nowrap">
+                                <ChefHat className="w-2.5 h-2.5" />
+                                Desde receta
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 px-3 text-center">
                             <div className="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -449,6 +481,29 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                 + Agregar Ítem por Persona (ej: 1 sandwich pp 2, bebidas pp 2)
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                {recetasDisponibles.length > 0 && (
+                  <div className="sm:col-span-12">
+                    <label className="block text-[10px] font-bold text-emerald-700 mb-1 flex items-center gap-1">
+                      <ChefHat className="w-3 h-3" />
+                      Usar una receta creada en la Calculadora (el nombre y el costo se llenan solos) — opcional
+                    </label>
+                    <select
+                      value={nuevoItemRecetaId}
+                      onChange={(e) => handleSeleccionarRecetaItem(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-emerald-300 bg-emerald-50/60 rounded-lg text-slate-800 focus:outline-hidden text-xs font-semibold"
+                    >
+                      <option value="">— Ítem libre (ingresar nombre y costo a mano) —</option>
+                      {recetasDisponibles.map((receta) => {
+                        const { costoPorPorcion } = calcularCostoReceta(receta, insumosDisponibles);
+                        return (
+                          <option key={receta.id} value={receta.id}>
+                            {receta.nombre} · {formatMoneda(costoPorPorcion)} por porción
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
                 <div className="sm:col-span-5">
                   <input
                     type="text"
@@ -559,7 +614,11 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                     step="any"
                     value={costoPersona}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setCostoPersona(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) => {
+                      // Si el usuario edita el costo a mano, se desactiva el cálculo automático
+                      setCostoSincronizadoConItems(false);
+                      setCostoPersona(e.target.value === '' ? '' : Number(e.target.value));
+                    }}
                     onBlur={() => {
                       if (costoPersona === '') setCostoPersona(0);
                     }}
@@ -581,6 +640,29 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Estado de la sincronización entre ítems p.p. y el costo base */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {costoSincronizadoConItems ? (
+                <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  El costo base se calcula solo desde los ítems p.p. ({formatMoneda(costoTotalItemsPP)}/pax)
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-500">
+                  Costo base ingresado a mano (no sigue la suma de los ítems p.p.)
+                </span>
+              )}
+              {!costoSincronizadoConItems && costoTotalItemsPP > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCostoSincronizadoConItems(true)}
+                  className="text-[10px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg border border-amber-300 transition-colors cursor-pointer"
+                >
+                  Volver a calcular desde los ítems p.p.
+                </button>
+              )}
             </div>
           </div>
 
