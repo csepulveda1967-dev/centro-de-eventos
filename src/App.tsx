@@ -1236,6 +1236,8 @@ export default function App() {
                     onIrARecetas={() => setVistaActual('recetas')}
                     onAddMenu={handleAddMenu}
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
+                    recetasDisponibles={recetas}
+                    insumosDisponibles={insumos}
                   />
                 )}
 
