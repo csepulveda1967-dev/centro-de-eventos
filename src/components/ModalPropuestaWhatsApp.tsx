@@ -7,7 +7,7 @@ interface ModalPropuestaWhatsAppProps {
   cotizacion: CotizacionState;
   menu: MenuOption;
   proveedores: ProveedorServicio[];
-  estiloDecoracion: EstiloDecoracion;
+  estiloDecoracion?: EstiloDecoracion;
   precioVentaNeto: number;
   ivaMonto: number;
   precioVentaTotal: number;
@@ -106,7 +106,10 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
       proveedoresActivos.forEach(p => {
         msg += `• ${p.nombre}\n`;
       });
-      msg += `• Concepto de Decoración: ${estiloDecoracion.nombre}\n\n`;
+      if (estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion') {
+        msg += `• Concepto de Decoración: ${estiloDecoracion.nombre}\n`;
+      }
+      msg += `\n`;
     }
 
     msg += `💰 *VALORES & PRESUPUESTO:* (Valores en Pesos Chilenos CLP)\n`;

@@ -1,7 +1,17 @@
+export interface MenuItemRatio {
+  id: string;
+  nombre: string;
+  cantidadPorPersona: number; // Ej: 2 para "2 pp", 1.5, etc.
+  unidad: string; // 'unidad' | 'porción' | 'vaso' | 'botella' | 'lata' | 'taza' | 'copa' | 'L' | 'g' | 'kg'
+  tiempo?: string; // 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche' | 'bebidas' | libre
+  insumoId?: string; // Vinculación opcional a un insumo para compras exactas
+  costoUnitario?: number; // Costo por unidad si no está vinculado
+}
+
 export interface MenuOption {
   id: string;
   nombre: string;
-  categoria: 'formal' | 'campestre' | 'cocktail' | 'premium';
+  categoria: string; // Permite 'formal' | 'campestre' | 'cocktail' | 'premium' o cualquier categoría libre
   costoPersona: number;
   precioSugeridoPersona: number;
   descripcion: string;
@@ -15,6 +25,8 @@ export interface MenuOption {
   destacado?: boolean;
   recetasIds?: string[]; // IDs de las recetas vinculadas que componen este menú
   costoCalculadoDesdeRecetas?: boolean;
+  // Cantidad de ítems por persona (p.p.) para calcular consumos exactos y compras
+  itemsPorPersona?: MenuItemRatio[];
 }
 
 export interface InsumoMaestro {
@@ -39,7 +51,7 @@ export interface IngredienteReceta {
 export interface RecetaFichaTecnica {
   id: string;
   nombre: string;
-  tiempoMenu: 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche' | 'coffee-break';
+  tiempoMenu: string; // 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche' | 'coffee-break' o tiempos personalizados libres
   categoria: string;
   rendimientoPorciones: number; // Para cuántas porciones está costeada esta ficha (normalmente 1 comensal o 10 comensales)
   ingredientes: IngredienteReceta[];

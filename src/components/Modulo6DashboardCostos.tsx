@@ -365,10 +365,22 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
           {/* Campo Básico 1: Luz */}
           <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1 mb-1">
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              Luz ($ mensual)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                Luz ($ mensual)
+              </label>
+              {gastoLuzMensual > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onChangeGastoLuz?.(0)}
+                  className="text-[9px] text-slate-400 hover:text-rose-600 font-semibold flex items-center gap-0.5 cursor-pointer"
+                  title="Volver celda de luz a 0"
+                >
+                  Volver a $0
+                </button>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
               <input
@@ -376,11 +388,17 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 min={0}
                 step={10000}
                 value={gastoLuzMensual === 0 ? '' : gastoLuzMensual}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
                   const val = e.target.value === '' ? 0 : Number(e.target.value);
                   onChangeGastoLuz?.(isNaN(val) ? 0 : Math.max(0, val));
                 }}
-                placeholder="180.000"
+                onBlur={() => {
+                  if (gastoLuzMensual === 0 || isNaN(gastoLuzMensual)) {
+                    onChangeGastoLuz?.(0);
+                  }
+                }}
+                placeholder="0"
                 className="w-full pl-6 pr-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums"
               />
             </div>
@@ -389,10 +407,22 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
 
           {/* Campo Básico 2: Gas */}
           <div className="bg-white p-2.5 rounded-lg border border-slate-200">
-            <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1 mb-1">
-              <Flame className="w-3.5 h-3.5 text-orange-500" />
-              Gas ($ mensual)
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 text-orange-500" />
+                Gas ($ mensual)
+              </label>
+              {gastoGasMensual > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onChangeGastoGas?.(0)}
+                  className="text-[9px] text-slate-400 hover:text-rose-600 font-semibold flex items-center gap-0.5 cursor-pointer"
+                  title="Volver celda de gas a 0"
+                >
+                  Volver a $0
+                </button>
+              )}
+            </div>
             <div className="relative">
               <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">$</span>
               <input
@@ -400,11 +430,17 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 min={0}
                 step={10000}
                 value={gastoGasMensual === 0 ? '' : gastoGasMensual}
+                onFocus={(e) => e.target.select()}
                 onChange={(e) => {
                   const val = e.target.value === '' ? 0 : Number(e.target.value);
                   onChangeGastoGas?.(isNaN(val) ? 0 : Math.max(0, val));
                 }}
-                placeholder="140.000"
+                onBlur={() => {
+                  if (gastoGasMensual === 0 || isNaN(gastoGasMensual)) {
+                    onChangeGastoGas?.(0);
+                  }
+                }}
+                placeholder="0"
                 className="w-full pl-6 pr-2.5 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-md focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums"
               />
             </div>
@@ -423,14 +459,30 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 Anota gastos adicionales del mes (arriendos, fletes, patentes, etc.)
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => onAddOtroGastoFijo?.(`Costo #${otrosGastosFijos.length + 1}`, 0)}
-              className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Añadir Costo del Mes</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              {gastosFijosMensuales > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChangeGastoLuz?.(0);
+                    onChangeGastoGas?.(0);
+                    otrosGastosFijos.forEach(gf => onUpdateOtroGastoFijo?.(gf.id, gf.nombre, 0));
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold px-2 py-1 rounded hover:bg-slate-100 cursor-pointer"
+                  title="Volver todas las celdas de costos a $0"
+                >
+                  Volver todas a $0
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setMostrarFormNuevo(true)}
+                className="text-[10px] font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Añadir Costo del Mes</span>
+              </button>
+            </div>
           </div>
 
           {/* Formulario rápido para nuevo costo */}
@@ -503,11 +555,27 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                       min={0}
                       step={5000}
                       value={gf.monto === 0 ? '' : gf.monto}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => onUpdateOtroGastoFijo?.(gf.id, gf.nombre, e.target.value === '' ? 0 : Number(e.target.value))}
+                      onBlur={() => {
+                        if (gf.monto === 0 || isNaN(gf.monto)) {
+                          onUpdateOtroGastoFijo?.(gf.id, gf.nombre, 0);
+                        }
+                      }}
                       placeholder="0"
                       className="w-full pl-5 pr-2 py-1 text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-teal-500 tabular-nums text-right"
                     />
                   </div>
+                  {gf.monto > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateOtroGastoFijo?.(gf.id, gf.nombre, 0)}
+                      className="px-1.5 py-0.5 rounded text-[10px] font-bold text-slate-500 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 border border-slate-200 cursor-pointer"
+                      title="Volver celda a $0"
+                    >
+                      $0
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onRemoveOtroGastoFijo?.(gf.id)}

@@ -183,14 +183,23 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
             Selección del Menú Gastronómico ({menus.length} opciones)
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setModalNuevoMenuOpen(true)}
+              className="text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-amber-800" />
+              <span>+ Crear Nuevo Menú</span>
+            </button>
+
             {onIrARecetas && (
               <button
                 type="button"
                 onClick={() => onIrARecetas(menuSeleccionadoId)}
                 className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
               >
-                <span>Gestionar & Crear Menús en Recetas</span>
+                <span>Gestionar Recetas</span>
                 <span>→</span>
               </button>
             )}
@@ -310,6 +319,30 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                       <span className="font-bold text-slate-700">Bajonativo / Trasnoche:</span>{' '}
                       <span className="text-slate-600">{menu.tiempos.trasnoche}</span>
                     </div>
+
+                    {/* Consumos por persona (p.p.) para calcular compras exactas */}
+                    {menu.itemsPorPersona && menu.itemsPorPersona.length > 0 && (
+                      <div className="pt-2.5 border-t border-slate-200 bg-amber-50/60 p-2.5 rounded-lg border border-amber-200">
+                        <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider block mb-1">
+                          📦 Consumos por Persona & Compras Exactas ({invitados} Pax):
+                        </span>
+                        <div className="space-y-1">
+                          {menu.itemsPorPersona.map((it) => {
+                            const totalCompra = Math.round(it.cantidadPorPersona * invitados);
+                            return (
+                              <div key={it.id} className="flex items-center justify-between text-xs bg-white p-1.5 rounded border border-amber-200/70">
+                                <span className="font-semibold text-slate-800">
+                                  • {it.nombre}: <strong className="text-amber-800">{it.cantidadPorPersona} pp</strong> ({it.unidad})
+                                </span>
+                                <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px] tabular-nums">
+                                  Total a comprar: {totalCompra} {it.unidad}s
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {onIrARecetas && (
                       <div className="pt-2 border-t border-slate-200">

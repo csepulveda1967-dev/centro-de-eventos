@@ -163,6 +163,41 @@ export function calcularExplosionInsumos(
     });
   });
 
+  // ── INTEGRAR CONSUMOS DIRECTOS DEL MENÚ POR PERSONA (ÍTEMS P.P.) ──
+  // Ejemplo: "1 sandwich pp 2" = 2 * invitados, "bebidas pp 2" = 2 * invitados
+  if (menuActual?.itemsPorPersona && menuActual.itemsPorPersona.length > 0) {
+    menuActual.itemsPorPersona.forEach((ratio) => {
+      const cantidadTotal = Math.ceil(ratio.cantidadPorPersona * invitados);
+      const precioUnit = ratio.costoUnitario || 0;
+      const costoTotal = cantidadTotal * precioUnit;
+      
+      costoTotalInsumos += costoTotal;
+
+      // Verificar si ya existe en items por insumoId
+      const existente = items.find(it => it.insumoId === ratio.insumoId || it.insumoNombre.toLowerCase() === ratio.nombre.toLowerCase());
+      if (existente) {
+        existente.cantidadBrutaAComprar += cantidadTotal;
+        existente.cantidadNetaTotal += cantidadTotal;
+        existente.costoTotalCompra += costoTotal;
+        existente.recetasDondeAparece.push(`Consumo Menú (${ratio.cantidadPorPersona} pp)`);
+      } else {
+        items.push({
+          insumoId: ratio.insumoId || `ratio-${ratio.id}`,
+          insumoNombre: ratio.nombre,
+          categoria: 'abarrotes',
+          proveedor: 'Distribuidor Directo / Bebidas & Panadería',
+          unidadMedida: ratio.unidad,
+          cantidadNetaTotal: cantidadTotal,
+          mermaPromedio: 0,
+          cantidadBrutaAComprar: cantidadTotal,
+          precioUnitarioCompra: precioUnit,
+          costoTotalCompra: costoTotal,
+          recetasDondeAparece: [`Menú: ${menuActual.nombre} (${ratio.cantidadPorPersona} pp)`]
+        });
+      }
+    });
+  }
+
   // Ordenar por costo total descendente
   items.sort((a, b) => b.costoTotalCompra - a.costoTotalCompra);
 

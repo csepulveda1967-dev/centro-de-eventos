@@ -19,7 +19,7 @@ interface FichaCotizacionModalProps {
   cotizacion: CotizacionState;
   menu: MenuOption;
   proveedores: ProveedorServicio[];
-  estiloDecoracion: EstiloDecoracion;
+  estiloDecoracion?: EstiloDecoracion;
   tarifasStaff: StaffTarifas;
   precioVentaNeto: number;
   ivaMonto: number;
@@ -145,8 +145,12 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
   <div class="section-title">3. Ambientación & Decoración</div>
   <div class="card">
-    <strong>${estiloDecoracion.nombre}:</strong> ${estiloDecoracion.descripcion}<br>
-    <span style="font-size: 11px; color: #64748b;">Incluye: ${estiloDecoracion.elementos.join(' · ')}</span>
+    ${estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' ? `
+      <strong>${estiloDecoracion.nombre}:</strong> ${estiloDecoracion.descripcion}<br>
+      <span style="font-size: 11px; color: #64748b;">Incluye: ${estiloDecoracion.elementos.join(' · ')}</span>
+    ` : `
+      <strong>Sin ambientación incluida:</strong> El cliente aporta su propia decoración o no requiere montaje escenográfico ($0 CLP).
+    `}
   </div>
 
   <div class="total-box">
@@ -441,19 +445,25 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
           <div className="space-y-2">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                4. Concepto de Ambientación: {estiloDecoracion.nombre}
+                4. Concepto de Ambientación: {estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' ? estiloDecoracion.nombre : 'No incluida'}
               </h3>
               <span className="text-xs font-bold text-rose-900 tabular-nums">
-                {formatMoneda(estiloDecoracion.precioVentaSugerido)}
+                {formatMoneda(estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' ? estiloDecoracion.precioVentaSugerido : 0)}
               </span>
             </div>
 
             <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5 border border-slate-200">
-              <p className="text-slate-600">{estiloDecoracion.descripcion}</p>
-              <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
-                <span className="font-bold text-slate-700">Incluye:</span>{' '}
-                {estiloDecoracion.elementos.join(' · ')}
-              </div>
+              <p className="text-slate-600">
+                {estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion'
+                  ? estiloDecoracion.descripcion
+                  : 'Opción libre: Sin servicio de ambientación incluido ($0). El cliente aporta su propio montaje decorativo.'}
+              </p>
+              {estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' && (
+                <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+                  <span className="font-bold text-slate-700">Incluye:</span>{' '}
+                  {estiloDecoracion.elementos.join(' · ')}
+                </div>
+              )}
             </div>
           </div>
 

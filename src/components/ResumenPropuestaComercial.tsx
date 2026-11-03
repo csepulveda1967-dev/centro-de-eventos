@@ -237,15 +237,23 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
             </div>
 
             {/* Decoración */}
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+            <div className={`flex items-center justify-between p-2 rounded-lg border ${
+              cotizacion.decoracionId === 'sin-decoracion' || !estiloActual
+                ? 'bg-slate-50/70 border-dashed border-slate-200 text-slate-500'
+                : 'bg-slate-50 border-slate-100'
+            }`}>
               <div className="flex items-center gap-2 truncate">
-                <Palette className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <Palette className={`w-3.5 h-3.5 shrink-0 ${
+                  cotizacion.decoracionId === 'sin-decoracion' || !estiloActual ? 'text-slate-400' : 'text-rose-600'
+                }`} />
                 <span className="font-semibold text-slate-800 truncate">
-                  Ambientación: {estiloActual?.nombre || 'Decoración'}
+                  Ambientación: {cotizacion.decoracionId === 'sin-decoracion' || !estiloActual ? 'No incluida (Aporte cliente)' : estiloActual.nombre}
                 </span>
               </div>
-              <span className="font-bold text-emerald-700 shrink-0 ml-2">
-                Incluido
+              <span className={`font-bold shrink-0 ml-2 ${
+                cotizacion.decoracionId === 'sin-decoracion' || !estiloActual ? 'text-slate-500' : 'text-emerald-700'
+              }`}>
+                {cotizacion.decoracionId === 'sin-decoracion' || !estiloActual ? 'Opcional / $0' : 'Incluido'}
               </span>
             </div>
           </div>

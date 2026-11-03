@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta } from '../types';
 import {
   calcularCostoReceta,
@@ -6,7 +6,9 @@ import {
   calcularCostoMenuDesdeRecetas,
   calcularDesglosePorCategoria,
   formatearNombreCategoria,
-  obtenerColorCategoria
+  obtenerColorCategoria,
+  TIEMPOS_MENU_DEFAULT,
+  formatearNombreTiempoMenu
 } from '../config/insumosYRecetas';
 import { formatMoneda, formatPorcentaje, formatPrecioUnitario } from '../utils/formatters';
 import { ModalCrearMenu } from './ModalCrearMenu';
@@ -161,8 +163,125 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   // Modal para nueva receta
   const [modalNuevaRecetaOpen, setModalNuevaRecetaOpen] = useState(false);
   const [nuevoNombreReceta, setNuevoNombreReceta] = useState('');
-  const [nuevoTiempoReceta, setNuevoTiempoReceta] = useState<RecetaFichaTecnica['tiempoMenu']>('fondo');
+  const [nuevoTiempoReceta, setNuevoTiempoReceta] = useState<string>('fondo');
+  const [esTiempoNuevoLibre, setEsTiempoNuevoLibre] = useState(false);
+  const [tiempoLibreInput, setTiempoLibreInput] = useState('');
   const [nuevoMenuAsociadoId, setNuevoMenuAsociadoId] = useState<string>(menus[0]?.id || '');
+
+  // ── Categoría libre para Nueva Ficha Técnica de Costeo ──
+  const STORAGE_CATEGORIAS_RECETAS_KEY = 'hlr_categorias_recetas_personalizadas';
+  const [categoriasRecetasPersonalizadas, setCategoriasRecetasPersonalizadas] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_CATEGORIAS_RECETAS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [nuevaCategoriaReceta, setNuevaCategoriaReceta] = useState<string>('Plato de Fondo Gourmet');
+  const [esCategoriaRecetaLibre, setEsCategoriaRecetaLibre] = useState(false);
+  const [categoriaRecetaLibreInput, setCategoriaRecetaLibreInput] = useState('');
+
+  // Tiempos personalizados guardados en localStorage
+  const STORAGE_TIEMPOS_KEY = 'hlr_tiempos_menu_personalizados';
+  const [tiemposPersonalizados, setTiemposPersonalizados] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_TIEMPOS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const guardarTiemposPersonalizados = (nuevos: string[]) => {
+    setTiemposPersonalizados(nuevos);
+    try {
+      localStorage.setItem(STORAGE_TIEMPOS_KEY, JSON.stringify(nuevos));
+    } catch (e) {
+      console.error('Error guardando tiempos en localStorage:', e);
+    }
+  };
+
+  // Consolidar todos los tiempos disponibles (predeterminados + personalizados + existentes en recetas)
+  const todosLosTiempos = useMemo(() => {
+    const lista: { id: string; label: string; count: number; esPersonalizado: boolean }[] = [];
+    const setIds = new Set<string>();
+
+    for (const def of TIEMPOS_MENU_DEFAULT) {
+      setIds.add(def.id.toLowerCase());
+      const count = recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === def.id.toLowerCase()).length;
+      lista.push({ id: def.id, label: def.label, count, esPersonalizado: false });
+    }
+
+    for (const tPers of tiemposPersonalizados) {
+      const tTrim = tPers.trim();
+      const slug = tTrim.toLowerCase().replace(/\s+/g, '_');
+      if (!setIds.has(slug) && !setIds.has(tTrim.toLowerCase())) {
+        setIds.add(slug);
+        const count = recetas.filter(r => {
+          const t = (r.tiempoMenu || '').toLowerCase();
+          return t === slug || t === tTrim.toLowerCase();
+        }).length;
+        lista.push({ id: slug, label: tTrim, count, esPersonalizado: true });
+      }
+    }
+
+    for (const rec of recetas) {
+      if (rec.tiempoMenu) {
+        const tTrim = rec.tiempoMenu.trim();
+        const slug = tTrim.toLowerCase().replace(/\s+/g, '_');
+        if (!setIds.has(slug) && !setIds.has(tTrim.toLowerCase())) {
+          setIds.add(slug);
+          const count = recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === rec.tiempoMenu.toLowerCase()).length;
+          lista.push({
+            id: rec.tiempoMenu,
+            label: formatearNombreTiempoMenu(rec.tiempoMenu),
+            count,
+            esPersonalizado: true
+          });
+        }
+      }
+    }
+
+    return lista;
+  }, [recetas, tiemposPersonalizados]);
+
+  // Consolidar todas las categorías disponibles para recetas (predeterminadas + personalizadas + en recetas)
+  const todasLasCategoriasRecetas = useMemo(() => {
+    const defaultCats = [
+      'Plato de Fondo Gourmet',
+      'Entrada de Gala',
+      'Cóctel de Apertura',
+      'Postre de Autor',
+      'Bajonativo / Trasnoche',
+      'Coffee Break & Coctelería',
+      'Guarniciones & Ensaladas',
+      'Pastelería & Repostería',
+      'Bebidas & Bar',
+      'Servicio Alternativo',
+      'Receta de Autor'
+    ];
+    const setCats = new Set<string>();
+    const lista: string[] = [];
+
+    const addCat = (c: string) => {
+      const trim = c.trim();
+      if (!trim) return;
+      const lower = trim.toLowerCase();
+      if (!setCats.has(lower)) {
+        setCats.add(lower);
+        lista.push(trim);
+      }
+    };
+
+    defaultCats.forEach(addCat);
+    categoriasRecetasPersonalizadas.forEach(addCat);
+    recetas.forEach(r => {
+      if (r.categoria) addCat(r.categoria);
+    });
+
+    return lista;
+  }, [recetas, categoriasRecetasPersonalizadas]);
 
   // Estado para creación de nuevo menú dentro de la receta
   const [modoMenuReceta, setModoMenuReceta] = useState<'existente' | 'nuevo'>('existente');
@@ -353,7 +472,21 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     e.preventDefault();
     if (!nuevoNombreReceta.trim()) return;
 
-    const esCoffeeBreak = nuevoTiempoReceta === 'coffee-break';
+    let tiempoFinal = nuevoTiempoReceta;
+
+    // Si el usuario eligió escribir un tiempo nuevo y libre
+    if (esTiempoNuevoLibre && tiempoLibreInput.trim()) {
+      const nombreTiempoLimpio = tiempoLibreInput.trim();
+      const slug = nombreTiempoLimpio.toLowerCase().replace(/\s+/g, '_');
+      tiempoFinal = slug;
+
+      if (!tiemposPersonalizados.some(t => t.toLowerCase() === nombreTiempoLimpio.toLowerCase())) {
+        const actualizados = [...tiemposPersonalizados, nombreTiempoLimpio];
+        guardarTiemposPersonalizados(actualizados);
+      }
+    }
+
+    const esCoffeeBreak = tiempoFinal === 'coffee-break';
     let menuFinalId = nuevoMenuAsociadoId;
 
     // Si el usuario eligió crear un nuevo menú para esta receta
@@ -405,11 +538,28 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         }));
     }
 
+    // Determinar categoría final de la receta
+    let categoriaFinal = nuevaCategoriaReceta;
+    if (esCategoriaRecetaLibre && categoriaRecetaLibreInput.trim()) {
+      categoriaFinal = categoriaRecetaLibreInput.trim();
+      if (!categoriasRecetasPersonalizadas.some(c => c.toLowerCase() === categoriaFinal.toLowerCase())) {
+        const actualizadas = [...categoriasRecetasPersonalizadas, categoriaFinal];
+        setCategoriasRecetasPersonalizadas(actualizadas);
+        try {
+          localStorage.setItem(STORAGE_CATEGORIAS_RECETAS_KEY, JSON.stringify(actualizadas));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    } else if (esCoffeeBreak && !esCategoriaRecetaLibre) {
+      categoriaFinal = 'Servicio Alternativo';
+    }
+
     const nueva: RecetaFichaTecnica = {
       id: 'rec-' + Date.now(),
       nombre: nuevoNombreReceta.trim(),
-      tiempoMenu: nuevoTiempoReceta,
-      categoria: esCoffeeBreak ? 'Servicio Alternativo' : 'Receta de Autor',
+      tiempoMenu: tiempoFinal,
+      categoria: categoriaFinal,
       rendimientoPorciones: 1,
       margenSugerido: 33, // 33% estándar de la industria
       costoAdicionalElaboracion: costoElaboracion,
@@ -443,6 +593,10 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     setNombreNuevoMenu('');
     setDescripcionNuevoMenu('');
     setModoMenuReceta('existente');
+    setEsTiempoNuevoLibre(false);
+    setTiempoLibreInput('');
+    setEsCategoriaRecetaLibre(false);
+    setCategoriaRecetaLibreInput('');
 
     // Si es Coffee Break, inyectar directamente en la tarjeta de Tarifas Generales
     if (esCoffeeBreak && onVincularCoffeeBreak) {
@@ -770,7 +924,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         Coffee Break / Coctelería
                       </span>
                     ) : (
-                      r.tiempoMenu
+                      formatearNombreTiempoMenu(r.tiempoMenu)
                     )}
                   </span>
                   <span className="font-bold text-xs text-slate-900 line-clamp-2 mt-0.5">
@@ -801,10 +955,51 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-slate-100">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-[10px] uppercase flex items-center gap-1">
-                    {recetaActiva.tiempoMenu === 'coffee-break' && <Coffee className="w-3 h-3 text-amber-800" />}
-                    Tiempo: {recetaActiva.tiempoMenu === 'coffee-break' ? 'Coffee Break / Coctelería' : recetaActiva.tiempoMenu}
-                  </span>
+                  <div className="relative inline-flex items-center">
+                    <select
+                      value={recetaActiva.tiempoMenu}
+                      onChange={(e) => {
+                        const nuevo = e.target.value;
+                        onUpdateReceta({
+                          ...recetaActiva,
+                          tiempoMenu: nuevo
+                        });
+                        notificar(`✓ Tiempo del plato actualizado a "${formatearNombreTiempoMenu(nuevo)}"`);
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-amber-100 hover:bg-amber-200/80 text-amber-950 font-bold text-[11px] uppercase border border-amber-300 focus:outline-hidden cursor-pointer transition-colors"
+                      title="Cambiar tiempo de este plato"
+                    >
+                      {todosLosTiempos.map(t => (
+                        <option key={t.id} value={t.id}>
+                          Tiempo: {t.label} {t.esPersonalizado ? '★' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Selector y visualizador de Categoría de la Receta */}
+                  <div className="relative inline-flex items-center">
+                    <select
+                      value={recetaActiva.categoria || 'Receta de Autor'}
+                      onChange={(e) => {
+                        const nueva = e.target.value;
+                        onUpdateReceta({
+                          ...recetaActiva,
+                          categoria: nueva
+                        });
+                        notificar(`✓ Categoría actualizada a "${nueva}"`);
+                      }}
+                      className="px-2.5 py-1 rounded-md bg-blue-100 hover:bg-blue-200/80 text-blue-950 font-bold text-[11px] border border-blue-300 focus:outline-hidden cursor-pointer transition-colors"
+                      title="Cambiar categoría de esta receta"
+                    >
+                      {todasLasCategoriasRecetas.map(cat => (
+                        <option key={cat} value={cat}>
+                          Categoría: {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {recetaActiva.tiempoMenu === 'coffee-break' ? (
                     <span className="text-xs text-amber-900 flex items-center gap-1 font-bold bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-md">
                       <LinkIcon className="w-3.5 h-3.5 text-amber-700" />
@@ -1377,20 +1572,118 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                 />
               </div>
 
+              {/* ── Categoría Libre para la Ficha Técnica de Costeo ── */}
+              <div className="p-3 bg-blue-50/50 border border-blue-200/80 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-blue-950 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-blue-700" />
+                    Categoría de la Receta / Ficha
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEsCategoriaRecetaLibre(!esCategoriaRecetaLibre);
+                      if (!esCategoriaRecetaLibre) {
+                        setCategoriaRecetaLibreInput('');
+                      }
+                    }}
+                    className="text-[11px] font-bold text-blue-800 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {esCategoriaRecetaLibre ? '← Elegir de la lista' : '+ Nueva categoría libre'}
+                  </button>
+                </div>
+
+                {esCategoriaRecetaLibre ? (
+                  <div className="space-y-1 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      required={esCategoriaRecetaLibre}
+                      autoFocus
+                      value={categoriaRecetaLibreInput}
+                      onChange={(e) => setCategoriaRecetaLibreInput(e.target.value)}
+                      placeholder="Escribe tu categoría (ej: Platos de Fondo, Tapas & Pintxos, Repostería...)"
+                      className="w-full px-3 py-2 border-2 border-blue-500 bg-white rounded-xl focus:outline-hidden font-bold text-slate-900"
+                    />
+                    <span className="text-[10px] text-blue-800 font-medium block">
+                      ✓ Esta categoría quedará registrada libremente para organizar tus recetas.
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={nuevaCategoriaReceta}
+                    onChange={(e) => {
+                      if (e.target.value === '__NUEVA_CAT_RECETA__') {
+                        setEsCategoriaRecetaLibre(true);
+                        setCategoriaRecetaLibreInput('');
+                      } else {
+                        setNuevaCategoriaReceta(e.target.value);
+                      }
+                    }}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-blue-500 focus:outline-hidden font-medium bg-white text-slate-800"
+                  >
+                    {todasLasCategoriasRecetas.map((cat, idx) => (
+                      <option key={idx} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__NUEVA_CAT_RECETA__">+ Escribir nueva categoría libre...</option>
+                  </select>
+                )}
+              </div>
+
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Tiempo del Menú</label>
-                <select
-                  value={nuevoTiempoReceta}
-                  onChange={(e) => setNuevoTiempoReceta(e.target.value as any)}
-                  className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-amber-500 focus:outline-hidden font-medium"
-                >
-                  <option value="coctel">Cóctel de Bienvenida</option>
-                  <option value="entrada">Entrada</option>
-                  <option value="fondo">Plato de Fondo</option>
-                  <option value="postre">Postre</option>
-                  <option value="trasnoche">Trasnoche / Bajón</option>
-                  <option value="coffee-break">Coffee Break / Coctelería</option>
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">Tiempo del Menú</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEsTiempoNuevoLibre(!esTiempoNuevoLibre);
+                      if (!esTiempoNuevoLibre) {
+                        setTiempoLibreInput('');
+                      }
+                    }}
+                    className="text-[11px] text-amber-700 hover:text-amber-800 hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    {esTiempoNuevoLibre ? '← Elegir de la lista' : '+ Crear nuevo tiempo libre'}
+                  </button>
+                </div>
+
+                {esTiempoNuevoLibre ? (
+                  <div className="space-y-1.5 animate-in fade-in duration-150">
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      value={tiempoLibreInput}
+                      onChange={(e) => setTiempoLibreInput(e.target.value)}
+                      placeholder="Ej: Aperitivo, Mesa Dulce, Estación de Quesos, Tornaboda, Once Criolla..."
+                      className="w-full px-3 py-2 border border-amber-400 bg-amber-50/40 rounded-xl focus:bg-white focus:border-amber-600 focus:outline-hidden font-bold text-slate-900"
+                    />
+                    <span className="text-[10px] text-slate-500 block leading-tight">
+                      Este nuevo tiempo se creará y quedará guardado para todas tus fichas de costeo.
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={nuevoTiempoReceta}
+                    onChange={(e) => {
+                      if (e.target.value === '__NUEVO_TIEMPO__') {
+                        setEsTiempoNuevoLibre(true);
+                        setTiempoLibreInput('');
+                      } else {
+                        setNuevoTiempoReceta(e.target.value);
+                      }
+                    }}
+                    className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-amber-500 focus:outline-hidden font-medium bg-white"
+                  >
+                    {todosLosTiempos.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.label} {t.esPersonalizado ? '★ (Personalizado)' : ''}
+                      </option>
+                    ))}
+                    <option value="__NUEVO_TIEMPO__">+ Escribir nuevo tiempo libre...</option>
+                  </select>
+                )}
               </div>
 
               {nuevoTiempoReceta === 'coffee-break' ? (

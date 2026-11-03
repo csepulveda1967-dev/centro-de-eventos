@@ -17,6 +17,30 @@ export const CATEGORIAS_INSUMOS_DEFAULT: CategoriaInsumoInfo[] = [
   { id: 'condimentos_especias', label: 'Condimentos y Especias' },
   { id: 'menaje_desechables', label: 'Menaje y Desechables' }
 ];
+export interface TiempoMenuInfo {
+  id: string;
+  label: string;
+  esPersonalizado?: boolean;
+}
+
+export const TIEMPOS_MENU_DEFAULT: TiempoMenuInfo[] = [
+  { id: 'coctel', label: 'Cóctel de Bienvenida' },
+  { id: 'entrada', label: 'Entrada' },
+  { id: 'fondo', label: 'Plato de Fondo' },
+  { id: 'postre', label: 'Postre' },
+  { id: 'trasnoche', label: 'Trasnoche / Bajón' },
+  { id: 'coffee-break', label: 'Coffee Break / Coctelería' }
+];
+
+export function formatearNombreTiempoMenu(tiempoId: string): string {
+  if (!tiempoId) return 'General';
+  const match = TIEMPOS_MENU_DEFAULT.find(t => t.id.toLowerCase() === tiempoId.toLowerCase());
+  if (match) return match.label;
+  return tiempoId
+    .replace(/[_-]/g, ' ')
+    .trim()
+    .replace(/\b\w/g, char => char.toUpperCase());
+}
 
 export function formatearNombreCategoria(categoriaId: string): string {
   if (!categoriaId) return 'General';

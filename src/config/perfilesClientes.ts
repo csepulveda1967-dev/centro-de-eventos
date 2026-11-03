@@ -642,13 +642,31 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
         cotizacionLimpia.menuId = menusFinales[0].id;
       }
 
+      // Asegurar que insumos creados en el maestro o BD se conserven siempre
+      let insumosFinales = parsed.insumos && parsed.insumos.length > 0 ? parsed.insumos : def.insumos;
+      try {
+        const savedGlobal = localStorage.getItem('hlr_maestro_insumos');
+        if (savedGlobal) {
+          const parsedGlobal = JSON.parse(savedGlobal);
+          if (Array.isArray(parsedGlobal) && parsedGlobal.length > 0) {
+            const mapIds = new Map(insumosFinales.map((i: InsumoMaestro) => [i.id, i]));
+            for (const item of parsedGlobal) {
+              if (item && item.id && !mapIds.has(item.id)) {
+                mapIds.set(item.id, item);
+              }
+            }
+            insumosFinales = Array.from(mapIds.values());
+          }
+        }
+      } catch (err) {}
+
       return {
         cotizacion: cotizacionLimpia,
         menus: menusFinales,
         tarifasStaff: parsed.tarifasStaff || def.tarifasStaff,
         proveedores: proveedoresLimpios,
         estilosDecoracion: parsed.estilosDecoracion && parsed.estilosDecoracion.length > 0 ? parsed.estilosDecoracion : def.estilosDecoracion,
-        insumos: parsed.insumos && parsed.insumos.length > 0 ? parsed.insumos : def.insumos,
+        insumos: insumosFinales,
         recetas: parsed.recetas && parsed.recetas.length > 0 ? migrarRecetasAGramos(parsed.recetas) : def.recetas,
         reservas: parsed.reservas || def.reservas,
         empresa: empresaFinal
@@ -661,6 +679,19 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
   // Inicialización limpia
   const datosIniciales = config.crearDatosIniciales();
   try {
+    const savedGlobal = localStorage.getItem('hlr_maestro_insumos');
+    if (savedGlobal) {
+      const parsedGlobal = JSON.parse(savedGlobal);
+      if (Array.isArray(parsedGlobal) && parsedGlobal.length > 0) {
+        const mapIds = new Map(datosIniciales.insumos.map((i: InsumoMaestro) => [i.id, i]));
+        for (const item of parsedGlobal) {
+          if (item && item.id && !mapIds.has(item.id)) {
+            mapIds.set(item.id, item);
+          }
+        }
+        datosIniciales.insumos = Array.from(mapIds.values());
+      }
+    }
     localStorage.setItem(clave, JSON.stringify(datosIniciales));
   } catch (err) {
     console.error('Error guardando en localStorage:', err);

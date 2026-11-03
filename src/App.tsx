@@ -60,6 +60,12 @@ import { BotonFlotanteWhatsApp } from './components/BotonFlotanteWhatsApp';
 import { ModalRespaldoSupabase } from './components/ModalRespaldoSupabase';
 import { ModuloExplosionInsumos } from './components/ModuloExplosionInsumos';
 import { ModalPropuestaWhatsApp } from './components/ModalPropuestaWhatsApp';
+import {
+  guardarInsumoEnSupabase,
+  eliminarInsumoEnSupabase,
+  cargarInsumosDesdeSupabase,
+  isSupabaseConfigured
+} from './lib/supabase';
 import { PaqueteRespaldoCompleto } from './utils/respaldoDiscoDuro';
 import { descargarPaqueteCompletoZip } from './utils/generadorZipCliente';
 import { formatMoneda } from './utils/formatters';
@@ -170,6 +176,26 @@ export default function App() {
     setToastMensaje(msg);
     setTimeout(() => setToastMensaje(null), 3500);
   };
+
+  // Sincronización automática de insumos con Supabase si está conectado
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    cargarInsumosDesdeSupabase(empresaActiva.id).then(resultado => {
+      if (resultado.ok && resultado.insumos && resultado.insumos.length > 0) {
+        const insumosRemotos = resultado.insumos;
+        setInsumos(prev => {
+          const mapa = new Map<string, InsumoMaestro>();
+          prev.forEach(i => mapa.set(i.id, i));
+          insumosRemotos.forEach(i => mapa.set(i.id, i));
+          const combinados = Array.from(mapa.values());
+          try {
+            localStorage.setItem('hlr_maestro_insumos', JSON.stringify(combinados));
+          } catch {}
+          return combinados;
+        });
+      }
+    });
+  }, [empresaActiva.id]);
 
   // ── PERSISTENCIA CONTINUA CON AISLAMIENTO DE DATOS EN LOCALSTORAGE ──
   // Guarda el estado actual dinámicamente bajo propuesta_datos_${clienteActivoId}
@@ -289,9 +315,10 @@ export default function App() {
       return acc + p.costo;
     }, 0);
 
-    // 4. Costo Decoración
-    const estiloActual = estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0];
-    const costoDecoracion = estiloActual?.costoFijo || 0;
+    // 4. Costo Decoración (opción libre de no incluir ambientación $0)
+    const noIncluyeDecoracion = cotizacion.decoracionId === 'sin-decoracion' || !cotizacion.decoracionId;
+    const estiloActual = noIncluyeDecoracion ? undefined : (estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0]);
+    const costoDecoracion = noIncluyeDecoracion ? 0 : (estiloActual?.costoFijo || 0);
 
     // 5. Costos Fijos Operacionales Prorrateados para Emprendedores
     const gastoLuzMensual = Math.max(0, Number(cotizacion.gastoLuzMensual) || 0);
@@ -371,7 +398,7 @@ export default function App() {
     };
   }, [cotizacion, menus, tarifasStaff, proveedores, estilosDecoracion]);
 
-  // ── Handlers de actualización de insumos con propagación automática a menús ──
+  // ── Handlers de actualización de insumos con propagación automática a menús y Base de Datos ──
   const handleUpdateInsumo = (
     id: string,
     precioCompra: number,
@@ -394,6 +421,16 @@ export default function App() {
         : i
     );
     setInsumos(nuevosInsumos);
+    try {
+      localStorage.setItem('hlr_maestro_insumos', JSON.stringify(nuevosInsumos));
+    } catch (e) {
+      console.error('Error guardando insumos en localStorage:', e);
+    }
+
+    const insumoModificado = nuevosInsumos.find(i => i.id === id);
+    if (insumoModificado && isSupabaseConfigured()) {
+      guardarInsumoEnSupabase(insumoModificado, empresaActiva.id);
+    }
 
     // Propagación automática: recalcular costos de menús que tienen recetas asociadas
     setMenus(prevMenus =>
@@ -412,13 +449,37 @@ export default function App() {
     );
   };
 
-  const handleAddInsumo = (nuevo: InsumoMaestro) => {
-    setInsumos(prev => [nuevo, ...prev]);
-    mostrarToast(`✓ Insumo "${nuevo.nombre}" agregado al maestro`);
+  const handleAddInsumo = async (nuevo: InsumoMaestro) => {
+    const actualizados = [nuevo, ...insumos];
+    setInsumos(actualizados);
+    try {
+      localStorage.setItem('hlr_maestro_insumos', JSON.stringify(actualizados));
+    } catch (e) {
+      console.error('Error guardando insumo en localStorage:', e);
+    }
+
+    if (isSupabaseConfigured()) {
+      const guardado = await guardarInsumoEnSupabase(nuevo, empresaActiva.id);
+      if (guardado) {
+        mostrarToast(`✓ Insumo "${nuevo.nombre}" guardado en BD Supabase`);
+      } else {
+        mostrarToast(`✓ Insumo "${nuevo.nombre}" guardado localmente`);
+      }
+    } else {
+      mostrarToast(`✓ Insumo "${nuevo.nombre}" agregado al maestro`);
+    }
   };
 
-  const handleDeleteInsumo = (id: string) => {
-    setInsumos(prev => prev.filter(i => i.id !== id));
+  const handleDeleteInsumo = async (id: string) => {
+    const actualizados = insumos.filter(i => i.id !== id);
+    setInsumos(actualizados);
+    try {
+      localStorage.setItem('hlr_maestro_insumos', JSON.stringify(actualizados));
+    } catch (e) {}
+
+    if (isSupabaseConfigured()) {
+      await eliminarInsumoEnSupabase(id);
+    }
     mostrarToast('✓ Insumo eliminado del maestro');
   };
 
@@ -856,7 +917,9 @@ export default function App() {
   };
 
   const menuActual = menus.find(m => m.id === cotizacion.menuId) || menus[0];
-  const estiloActual = estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0];
+  const estiloActual = cotizacion.decoracionId === 'sin-decoracion'
+    ? undefined
+    : (estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0]);
   const perfilActualConfig = PERFILES_CLIENTES_CATALOGO[clienteActivoId] || PERFILES_CLIENTES_CATALOGO['dominga-eventos'];
 
   return (
@@ -1128,6 +1191,7 @@ export default function App() {
                     invitados={cotizacion.invitados}
                     onChangeInvitados={handleChangeInvitados}
                     onIrARecetas={() => setVistaActual('recetas')}
+                    onAddMenu={handleAddMenu}
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
                   />
                 )}

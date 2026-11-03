@@ -267,6 +267,47 @@ export const ModuloExplosionInsumos: React.FC<ModuloExplosionInsumosProps> = ({
           </div>
         </div>
 
+        {/* ── BANNER DE CONSUMOS POR PERSONA DEFINIDOS EN EL MENÚ (ÍTEMS P.P.) ── */}
+        {menuActual.itemsPorPersona && menuActual.itemsPorPersona.length > 0 && (
+          <div className="mt-5 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-amber-200/80">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-lg bg-amber-600 text-white">
+                  <ShoppingCart className="w-4 h-4" />
+                </span>
+                <span className="font-extrabold text-amber-950 text-xs uppercase tracking-wide">
+                  Consumos Exactos del Menú por Persona ({cotizacion.invitados} Pax)
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                Menú: {menuActual.nombre}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 mt-3">
+              {menuActual.itemsPorPersona.map((ratio) => {
+                const totalExacto = Math.round(ratio.cantidadPorPersona * cotizacion.invitados);
+                return (
+                  <div key={ratio.id} className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-900 text-xs block">{ratio.nombre}</span>
+                      <span className="text-[11px] text-amber-800 font-semibold">
+                        Ratio: <strong>{ratio.cantidadPorPersona} pp</strong> ({ratio.unidad})
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block uppercase font-bold">A Comprar</span>
+                      <span className="font-black text-emerald-800 text-sm tabular-nums">
+                        {totalExacto} {ratio.unidad}s
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* SECCIÓN EXPANDIBLE: DIRECTORIO OFICIAL DE CONTACTO DE PROVEEDORES */}
