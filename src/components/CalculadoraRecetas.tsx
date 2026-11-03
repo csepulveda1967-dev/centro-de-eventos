@@ -1866,6 +1866,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         isOpen={modalNuevoMenuOpen}
         onClose={() => setModalNuevoMenuOpen(false)}
         onGuardarMenu={handleGuardarMenuDirecto}
+        recetasDisponibles={recetas}
+        insumosDisponibles={insumos}
       />
     </div>
   );
