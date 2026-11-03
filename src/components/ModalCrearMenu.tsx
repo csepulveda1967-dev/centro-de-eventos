@@ -550,7 +550,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                   <input
                     type="number"
                     min={0}
-                    step={100}
+                    step="any"
                     value={nuevoItemCostoUnitario}
                     onChange={(e) => setNuevoItemCostoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
                     placeholder="Costo unit."
