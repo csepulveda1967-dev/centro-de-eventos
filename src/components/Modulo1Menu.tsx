@@ -17,7 +17,9 @@ import {
   GlassWater,
   Coffee,
   ExternalLink,
-  Tag
+  Tag,
+  Pencil,
+  Download
 } from 'lucide-react';
 
 interface Modulo1MenuProps {
@@ -28,6 +30,7 @@ interface Modulo1MenuProps {
   onChangeInvitados: (num: number) => void;
   onIrARecetas?: (menuId: string) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
+  onUpdateMenu?: (menuActualizado: MenuOption) => void;
   costoFijoPorPersona?: number;
   bebestibles?: MenuItemRatio[];
   onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
@@ -56,6 +59,7 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   onChangeInvitados,
   onIrARecetas,
   onAddMenu,
+  onUpdateMenu,
   costoFijoPorPersona = 0,
   bebestibles = [],
   onUpdateBebestibles,
@@ -64,12 +68,36 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
   const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
+  const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
   const [nuevoBebNombre, setNuevoBebNombre] = useState('');
   const [nuevoBebRatio, setNuevoBebRatio] = useState<number | string>(2);
   const [nuevoBebUnidad, setNuevoBebUnidad] = useState('lata / vaso');
   const [nuevoBebCosto, setNuevoBebCosto] = useState<number | string>(900);
+  const [nuevoBebRecetaId, setNuevoBebRecetaId] = useState('');
 
+  // Bebestibles definidos en la ficha del menú seleccionado (ítems marcados como bebestible)
   const menuActual = menus.find(m => m.id === menuSeleccionadoId) || menus[0];
+  const bebsDelMenuActual = useMemo(() => {
+    if (!menuActual) return [];
+    if (menuActual.bebestiblesPorPersona && menuActual.bebestiblesPorPersona.length > 0) {
+      return menuActual.bebestiblesPorPersona;
+    }
+    return (menuActual.itemsPorPersona || []).filter(
+      it => it.categoria === 'bebestible' || it.categoria === 'cocteleria'
+    );
+  }, [menuActual]);
+
+  // Carga (reemplaza) la lista de bebestibles del cotizador con la ficha del menú
+  const handleCargarBebestiblesDelMenu = () => {
+    if (!onUpdateBebestibles || bebsDelMenuActual.length === 0) return;
+    const nuevos: MenuItemRatio[] = bebsDelMenuActual.map((it, idx) => ({
+      ...it,
+      id: 'beb-menu-' + Date.now() + '-' + idx,
+      incluido: true
+    }));
+    onUpdateBebestibles(nuevos);
+  };
+
   const costoTotalMenu = (menuActual?.costoPersona || 0) * invitados;
   const precioVentaTotalMenu = (menuActual?.precioSugeridoPersona || 0) * invitados;
 
@@ -300,12 +328,15 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
       // Ya está en la lista: lo quitamos
       onUpdateBebestibles(bebestibles.filter(it => !it.nombre.toLowerCase().includes(clave)));
     } else {
-      // No está: lo agregamos como nuevo ítem activo
+      // No está: lo agregamos. Si el menú tiene ese bebestible en su ficha,
+      // se usan los valores del menú (vinculado); si no, los referenciales.
+      const delMenu = bebsDelMenuActual.find(it => it.nombre.toLowerCase().includes(clave));
+      const fuente = delMenu || preset;
       const nuevo: MenuItemRatio = {
-        ...preset,
+        ...fuente,
         id: 'beb-preset-' + Date.now(),
         incluido: true,
-        tipoOrigen: 'libre',
+        tipoOrigen: delMenu ? (delMenu.tipoOrigen || 'libre') : 'libre',
         categoria: 'bebestible'
       };
       onUpdateBebestibles([...bebestibles, nuevo]);
@@ -326,23 +357,43 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
 
   const handleAddCustomBeb = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoBebNombre.trim() || !onUpdateBebestibles) return;
+    if (!onUpdateBebestibles) return;
+    const recetaElegida = recetas.find(r => r.id === nuevoBebRecetaId);
+    const nombreFinal = recetaElegida ? recetaElegida.nombre : nuevoBebNombre.trim();
+    if (!nombreFinal) return;
     const cantNum = typeof nuevoBebRatio === 'number' ? nuevoBebRatio : parseFloat(String(nuevoBebRatio).replace(',', '.')) || 1;
-    const costoNum = typeof nuevoBebCosto === 'number' ? nuevoBebCosto : parseFloat(String(nuevoBebCosto).replace(',', '.')) || 0;
+    const costoBase = typeof nuevoBebCosto === 'number' ? nuevoBebCosto : parseFloat(String(nuevoBebCosto).replace(',', '.')) || 0;
+    // Si viene de una receta, el costo real se calcula dinámicamente desde la ficha técnica
+    const costoNum = recetaElegida ? calcularCostoReceta(recetaElegida, insumos).costoPorPorcion : costoBase;
     const nuevo: MenuItemRatio = {
       id: 'beb-cust-' + Date.now(),
-      nombre: nuevoBebNombre.trim(),
+      nombre: nombreFinal,
       cantidadPorPersona: Math.max(0.01, cantNum),
       unidad: nuevoBebUnidad,
       costoUnitario: Math.max(0, costoNum),
       categoria: 'bebestible',
-      tipoOrigen: 'libre',
+      tipoOrigen: recetaElegida ? 'receta' : 'libre',
+      recetaId: recetaElegida ? recetaElegida.id : undefined,
+      recetaNombre: recetaElegida ? recetaElegida.nombre : undefined,
       incluido: true
     };
     onUpdateBebestibles([...bebestibles, nuevo]);
     setNuevoBebNombre('');
     setNuevoBebRatio(2);
     setNuevoBebCosto(900);
+    setNuevoBebRecetaId('');
+  };
+
+  // Al elegir una receta para el bebestible personalizado, nombre y costo se llenan solos
+  const handleSeleccionarRecetaBeb = (recetaId: string) => {
+    setNuevoBebRecetaId(recetaId);
+    if (!recetaId) return;
+    const receta = recetas.find(r => r.id === recetaId);
+    if (!receta) return;
+    const { costoPorPorcion } = calcularCostoReceta(receta, insumos);
+    setNuevoBebNombre(receta.nombre);
+    setNuevoBebUnidad('copa');
+    if (costoPorPorcion > 0) setNuevoBebCosto(Math.round(costoPorPorcion));
   };
 
   return (
@@ -470,7 +521,10 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
             {onAddMenu && (
               <button
                 type="button"
-                onClick={() => setModalNuevoMenuOpen(true)}
+                onClick={() => {
+                  setMenuAEditar(null);
+                  setModalNuevoMenuOpen(true);
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
               >
                 <FolderPlus className="w-3.5 h-3.5 text-amber-700" />
@@ -552,6 +606,22 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                       <span>{isExpanded ? 'Ocultar minuta detallada' : 'Ver minuta de los 5 tiempos'}</span>
                       {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
+
+                    {onUpdateMenu && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuAEditar(menu);
+                          setModalNuevoMenuOpen(true);
+                        }}
+                        className="mt-1.5 w-full py-1.5 text-[11px] font-bold text-amber-800 hover:text-amber-950 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        title="Editar nombre, descripción, tiempos, ítems p.p. y costos de este menú"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        <span>✏️ Editar este menú</span>
+                      </button>
+                    )}
 
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-200/60 text-xs space-y-2 bg-slate-50/70 -mx-4 -mb-4 p-4 rounded-b-xl">
@@ -664,9 +734,25 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
 
         {/* Presets Rápidos de Bebestibles para Activar en 1 Clic */}
         <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-4 space-y-2.5">
-          <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-            Catálogo Rápido: Activar o desactivar servicios de bebestibles
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Catálogo Rápido: Activar o desactivar servicios de bebestibles
+            </span>
+            {onUpdateBebestibles && bebsDelMenuActual.length > 0 && (
+              <button
+                type="button"
+                onClick={handleCargarBebestiblesDelMenu}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-lg border border-purple-700 transition-colors cursor-pointer shadow-2xs shrink-0"
+                title={`Reemplaza la lista de abajo con los ${bebsDelMenuActual.length} bebestibles definidos en la ficha del menú "${menuActual?.nombre || ''}"`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Cargar los {bebsDelMenuActual.length} bebestibles del menú "{(menuActual?.nombre || '').slice(0, 22)}"</span>
+              </button>
+            )}
+          </div>
+          <p className="text-[10px] text-slate-500">
+            💡 Tip: los valores de estos botones son referenciales. Para usar los valores reales, márcalos como "bebestible" en la ficha del menú y pulsa "Cargar bebestibles del menú", o edita la cantidad y costo en la tabla de abajo.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {BEBESTIBLES_SUGERIDOS_PRESET.map((b) => {
               const estaActivo = bebestibles.some(it => it.nombre.toLowerCase().includes(b.nombre.toLowerCase().slice(0, 10)));
@@ -713,14 +799,23 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {bebestibles.map((item) => {
+                {bebestiblesConCostoDinamico.map((item) => {
                   const totalCompra = Math.round(item.cantidadPorPersona * invitados * 10) / 10;
-                  const subtotalPP = Math.round(item.cantidadPorPersona * (item.costoUnitario || 0));
 
                   return (
                     <tr key={item.id} className="hover:bg-purple-50/30 transition-colors">
                       <td className="py-2.5 px-3 font-semibold text-slate-900">
                         {item.nombre}
+                        {item.iconoTipo === 'receta' && (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-md align-middle whitespace-nowrap">
+                            🍸 Desde receta
+                          </span>
+                        )}
+                        {item.iconoTipo === 'insumo' && (
+                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md align-middle whitespace-nowrap">
+                            📦 Desde insumo
+                          </span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <div className="inline-flex items-center justify-center gap-1 font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-300">
@@ -743,10 +838,13 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                         {totalCompra} {item.unidad}s
                       </td>
                       <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
-                        {formatMoneda(item.costoUnitario || 0)}
+                        {formatMoneda(item.costoReal || 0)}
+                        {item.iconoTipo !== 'libre' && item.costoReal !== (item.costoUnitario || 0) && (
+                          <span className="block text-[9px] text-slate-400 line-through">{formatMoneda(item.costoUnitario || 0)}</span>
+                        )}
                       </td>
                       <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
-                        {formatMoneda(subtotalPP)}
+                        {formatMoneda(item.subtotalPP)}
                       </td>
                       <td className="py-2.5 px-2 text-center">
                         <button
@@ -786,6 +884,28 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
           <span className="text-[11px] font-bold text-purple-950 block">
             + Añadir Otro Bebestible o Barra Personalizada por Persona (p.p.)
           </span>
+          {recetas.length > 0 && (
+            <div>
+              <label className="block text-[10px] font-bold text-purple-800 mb-1">
+                🍸 Trago con receta (cocteles, pisco sour, mojito...) — el costo sale solo de la ficha técnica
+              </label>
+              <select
+                value={nuevoBebRecetaId}
+                onChange={(e) => handleSeleccionarRecetaBeb(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-purple-300 rounded-lg text-slate-800 focus:outline-hidden text-xs font-semibold"
+              >
+                <option value="">— Bebestible libre (ingresar nombre y costo a mano) —</option>
+                {recetas.map((receta) => {
+                  const { costoPorPorcion } = calcularCostoReceta(receta, insumos);
+                  return (
+                    <option key={receta.id} value={receta.id}>
+                      {receta.nombre} · {formatMoneda(costoPorPorcion)} por porción
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
             <div className="sm:col-span-5">
               <input
@@ -849,11 +969,20 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
       {onAddMenu && (
         <ModalCrearMenu
           isOpen={modalNuevoMenuOpen}
-          onClose={() => setModalNuevoMenuOpen(false)}
-          onGuardarMenu={(nuevoMenu) => {
-            onAddMenu(nuevoMenu);
-            onSelectMenu(nuevoMenu.id);
-            setMenuExpandido(nuevoMenu.id);
+          onClose={() => {
+            setModalNuevoMenuOpen(false);
+            setMenuAEditar(null);
+          }}
+          menuAEditar={menuAEditar}
+          onGuardarMenu={(menuGuardado) => {
+            if (menuAEditar && onUpdateMenu) {
+              onUpdateMenu(menuGuardado);
+            } else {
+              onAddMenu(menuGuardado);
+              onSelectMenu(menuGuardado.id);
+            }
+            setMenuExpandido(menuGuardado.id);
+            setMenuAEditar(null);
           }}
           recetasDisponibles={recetas}
           insumosDisponibles={insumos}
