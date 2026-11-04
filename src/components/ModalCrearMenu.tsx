@@ -15,6 +15,8 @@ interface ModalCrearMenuProps {
   insumosDisponibles?: InsumoMaestro[];
   recetasDisponibles?: RecetaFichaTecnica[];
   invitadosReferencia?: number;
+  // Si se entrega un menú, el modal abre en MODO EDICIÓN sobre ese menú
+  menuAEditar?: MenuOption | null;
 }
 
 const STORAGE_CATEGORIAS_MENU_KEY = 'hlr_categorias_menus_personalizadas';
@@ -37,8 +39,10 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   tiempoInicial,
   insumosDisponibles = [],
   recetasDisponibles = [],
-  invitadosReferencia = 100
+  invitadosReferencia = 100,
+  menuAEditar = null
 }) => {
+  const modoEdicion = !!menuAEditar;
   const [nombre, setNombre] = useState('');
   
   // Categoría: Predefinida o Libre
@@ -95,6 +99,33 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   // Cuando está activo, el "Costo Base de Insumos ($/pax)" sigue automáticamente la suma de los ítems p.p.
   const [costoSincronizadoConItems, setCostoSincronizadoConItems] = useState(true);
 
+  // Tipo del ítem p.p. que se está agregando: comida o bebestible/trago
+  const [nuevoItemEsBebestible, setNuevoItemEsBebestible] = useState(false);
+
+  // MODO EDICIÓN: al abrir con un menú existente, llenar el formulario con sus datos
+  useEffect(() => {
+    if (!isOpen || !menuAEditar) return;
+    setNombre(menuAEditar.nombre);
+    setDescripcion(menuAEditar.descripcion);
+    setCostoPersona(menuAEditar.costoPersona);
+    setDestacado(!!menuAEditar.destacado);
+    setCoctel(menuAEditar.tiempos?.coctel || '');
+    setEntrada(menuAEditar.tiempos?.entrada || '');
+    setFondo(menuAEditar.tiempos?.fondo || '');
+    setPostre(menuAEditar.tiempos?.postre || '');
+    setTrasnoche(menuAEditar.tiempos?.trasnoche || '');
+    setItemsPorPersona(
+      menuAEditar.itemsPorPersona ? JSON.parse(JSON.stringify(menuAEditar.itemsPorPersona)) : []
+    );
+    const esPredefinida = CATEGORIAS_MENU_PREDEFINIDAS.some(c => c.id === menuAEditar.categoria);
+    setEsCategoriaLibre(!esPredefinida);
+    setCategoriaLibreInput(esPredefinida ? '' : menuAEditar.categoria);
+    setCategoria(esPredefinida ? menuAEditar.categoria : 'formal');
+    setMostrarTiemposDetallados(true);
+    setCostoSincronizadoConItems(false); // conservar el costo ya guardado
+    setNuevoItemEsBebestible(false);
+  }, [isOpen, menuAEditar]);
+
   // Cálculo del costo total de los ítems p.p. por persona (se calcula antes del early-return para poder usarlo en hooks)
   const costoTotalItemsPP = useMemo(
     () => itemsPorPersona.reduce((acc, it) => acc + (it.cantidadPorPersona * (it.costoUnitario || 0)), 0),
@@ -128,10 +159,13 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       costoUnitario: Math.max(0, costoUnit),
       insumoId: nuevoItemInsumoId || undefined,
       recetaId: nuevoItemRecetaId || undefined,
-      recetaNombre: nuevoItemRecetaId ? recetasDisponibles.find(r => r.id === nuevoItemRecetaId)?.nombre : undefined
+      recetaNombre: nuevoItemRecetaId ? recetasDisponibles.find(r => r.id === nuevoItemRecetaId)?.nombre : undefined,
+      categoria: nuevoItemEsBebestible ? 'bebestible' : 'comida',
+      tipoOrigen: nuevoItemRecetaId ? 'receta' : 'libre'
     };
 
     setItemsPorPersona(prev => [...prev, nuevo]);
+    setNuevoItemEsBebestible(false);
     setNuevoItemNombre('');
     setNuevoItemCantidadPP(2);
     setNuevoItemCostoUnitario('');
@@ -191,8 +225,11 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       }
     }
 
-    const id = 'menu-' + Date.now();
+    const id = modoEdicion && menuAEditar ? menuAEditar.id : 'menu-' + Date.now();
     const recetasVinculadas = Array.from(new Set(itemsPorPersona.map(it => it.recetaId).filter(Boolean) as string[]));
+    // Ítems marcados como bebestible/trago se copian también a bebestiblesPorPersona
+    // para que el módulo de Bebestibles del cotizador pueda cargarlos en 1 clic
+    const bebsDelMenu = itemsPorPersona.filter(it => it.categoria === 'bebestible' || it.categoria === 'cocteleria');
     const nuevoMenu: MenuOption = {
       id,
       nombre: nombre.trim(),
@@ -210,7 +247,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
       destacado,
       recetasIds: recetasVinculadas.length > 0 ? recetasVinculadas : undefined,
       costoCalculadoDesdeRecetas: recetasVinculadas.length > 0,
-      itemsPorPersona: itemsPorPersona.length > 0 ? itemsPorPersona : undefined
+      itemsPorPersona: itemsPorPersona.length > 0 ? itemsPorPersona : undefined,
+      bebestiblesPorPersona: bebsDelMenu.length > 0 ? bebsDelMenu : undefined
     };
 
     onGuardarMenu(nuevoMenu);
@@ -248,7 +286,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-slate-900">
-                Crear Nuevo Menú Gastronómico
+                {modoEdicion ? 'Editar Menú Gastronómico' : 'Crear Nuevo Menú Gastronómico'}
               </h2>
               <p className="text-xs text-slate-500">
                 Categorías 100% libres, tiempos de plato y cálculo de ítems por persona (p.p.) para compras exactas
@@ -504,6 +542,19 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                     </select>
                   </div>
                 )}
+                <div className="sm:col-span-12 flex items-center">
+                  <label className="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-xl border border-purple-200 w-full">
+                    <input
+                      type="checkbox"
+                      checked={nuevoItemEsBebestible}
+                      onChange={(e) => setNuevoItemEsBebestible(e.target.checked)}
+                      className="rounded border-slate-300 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span className="font-bold text-purple-800 flex items-center gap-1 text-[11px]">
+                      🍷 Es bebestible / trago (se cargará en el módulo de Bebestibles)
+                    </span>
+                  </label>
+                </div>
                 <div className="sm:col-span-5">
                   <input
                     type="text"
@@ -765,7 +816,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
               className="px-5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>Guardar y Crear Menú</span>
+              <span>{modoEdicion ? 'Guardar Cambios del Menú' : 'Guardar y Crear Menú'}</span>
             </button>
           </div>
         </form>
