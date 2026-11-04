@@ -606,6 +606,7 @@ export default function App() {
 
   // ── Handlers de actualización de recetas con propagación automática a menús y tarifas ──
   const handleUpdateReceta = (recetaActualizada: RecetaFichaTecnica) => {
+    const recetaAnterior = recetas.find(r => r.id === recetaActualizada.id);
     const nuevasRecetas = recetas.map(r => r.id === recetaActualizada.id ? recetaActualizada : r);
     setRecetas(nuevasRecetas);
 
@@ -616,23 +617,33 @@ export default function App() {
       return;
     }
 
-    // Si tiene menú asociado, actualizar automáticamente el menú
-    if (recetaActualizada.menuAsociadoId) {
-      const { costoMenuCalculado } = calcularCostoMenuDesdeRecetas(recetaActualizada.menuAsociadoId, nuevasRecetas, insumos);
-      if (costoMenuCalculado > 0) {
-        setMenus(prevMenus =>
-          prevMenus.map(m =>
-            m.id === recetaActualizada.menuAsociadoId
-              ? {
-                  ...m,
-                  costoPersona: costoMenuCalculado,
-                  precioSugeridoPersona: Math.round(costoMenuCalculado / (recetaActualizada.margenSugerido / 100 || 0.33))
-                }
-              : m
-          )
-        );
-      }
-    }
+    // VINCULACIÓN MÚLTIPLE: recopilar TODOS los menús afectados (vinculaciones previas y nuevas),
+    // de modo que agregar/quitar la ficha de un menú o editar sus ingredientes
+    // actualice automáticamente el costo de cada menú involucrado en el cotizador.
+    const menusAfectados = new Set<string>();
+    if (recetaAnterior?.menuAsociadoId) menusAfectados.add(recetaAnterior.menuAsociadoId);
+    (recetaAnterior?.menusAsociadosIds || []).forEach(id => menusAfectados.add(id));
+    if (recetaActualizada.menuAsociadoId) menusAfectados.add(recetaActualizada.menuAsociadoId);
+    (recetaActualizada.menusAsociadosIds || []).forEach(id => menusAfectados.add(id));
+
+    if (menusAfectados.size === 0) return;
+
+    setMenus(prevMenus =>
+      prevMenus.map(m => {
+        if (!menusAfectados.has(m.id)) return m;
+        const { costoMenuCalculado, recetasEncontradas } = calcularCostoMenuDesdeRecetas(m.id, nuevasRecetas, insumos);
+        // Solo re-escribir el costo si el menú sigue teniendo fichas asociadas
+        // (así no se borra por accidente un costo ingresado a mano)
+        if (recetasEncontradas > 0 && costoMenuCalculado > 0) {
+          return {
+            ...m,
+            costoPersona: costoMenuCalculado,
+            precioSugeridoPersona: Math.round(costoMenuCalculado / (recetaActualizada.margenSugerido / 100 || 0.33))
+          };
+        }
+        return m;
+      })
+    );
   };
 
   const handleAddReceta = (nueva: RecetaFichaTecnica) => {
@@ -1827,23 +1838,4 @@ export default function App() {
         <p className="text-[11px] text-slate-500">
           Software de gestión integral de centros de eventos y productoras · Desarrollado por <strong className="text-slate-800">CS Consultoría</strong>
         </p>
-        <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
-          <span>Empresa: {empresaActiva.nombre}</span>
-          <span>·</span>
-          <button
-            type="button"
-            onClick={toggleModoAdmin}
-            className="hover:text-indigo-600 transition-colors inline-flex items-center gap-1 cursor-pointer font-semibold px-2 py-0.5 rounded-md hover:bg-slate-100 text-slate-600"
-            title={modoAdmin ? "Modo Administrador Activo. Clic para volver a Modo Demo para Clientes" : "Hacer clic para activar Modo Administrador"}
-          >
-            {modoAdmin ? '🔓 Admin Activo (Clic para Modo Demo)' : '🔒 Cambiar a Modo Administrador'}
-          </button>
-        </div>
-      </footer>
-
-      {/* Botón Flotante Permanente de WhatsApp con Demo */}
-      <BotonFlotanteWhatsApp empresa={empresaActiva} />
-
-    </div>
-  );
-}
+        <div className="flex items-center justify-center gap-2 text-[11px] text-s
