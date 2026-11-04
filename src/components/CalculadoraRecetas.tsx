@@ -30,7 +30,8 @@ import {
   Tag,
   Filter,
   PieChart,
-  FolderPlus
+  FolderPlus,
+  Pencil
 } from 'lucide-react';
 import { Modulo2Personal } from './Modulo2Personal';
 import { StaffTarifas } from '../types';
@@ -47,6 +48,7 @@ interface CalculadoraRecetasProps {
   onVincularCoffeeBreak?: (receta: RecetaFichaTecnica, costoPorPorcion: number, precioSugerido: number) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
   onDeleteMenu?: (menuId: string) => void;
+  onUpdateMenu?: (menuActualizado: MenuOption) => void;
   // Brigada de Servicio & Personal de Operaciones
   tarifasStaff?: StaffTarifas;
   personal?: {
@@ -147,6 +149,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onVincularCoffeeBreak,
   onAddMenu,
   onDeleteMenu,
+  onUpdateMenu,
   tarifasStaff,
   personal,
   onChangePersonal
@@ -297,6 +300,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
   // Filtro de recetas por menú
   const [menuFiltroRecetas, setMenuFiltroRecetas] = useState<string>('todos');
+
+  // Menú que se está editando en el ModalCrearMenu (modo edición)
+  const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
 
   const recetaActiva = recetas.find(r => r.id === recetaSeleccionadaId) || recetas[0];
 
@@ -613,6 +619,12 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   };
 
   const handleGuardarMenuDirecto = (nuevoMenu: MenuOption) => {
+    if (menuAEditar && onUpdateMenu) {
+      onUpdateMenu(nuevoMenu);
+      notificar(`✓ Menú "${nuevoMenu.nombre}" actualizado correctamente`);
+      setMenuAEditar(null);
+      return;
+    }
     if (onAddMenu) {
       onAddMenu(nuevoMenu);
       setNuevoMenuAsociadoId(nuevoMenu.id);
@@ -735,6 +747,22 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         {numRecetas} recetas asociadas
                       </span>
                     </div>
+
+                    {/* Botón Editar Menú */}
+                    {onUpdateMenu && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuAEditar(m);
+                          setModalNuevoMenuOpen(true);
+                        }}
+                        className="text-slate-400 hover:text-amber-600 p-1 rounded-md hover:bg-amber-50 transition-colors cursor-pointer"
+                        title={`Editar menú "${m.nombre}"`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
 
                     {/* Botón Eliminar Menú */}
                     {onDeleteMenu && (
@@ -1917,7 +1945,11 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       {/* Modal independiente para Crear Nuevo Menú Completo */}
       <ModalCrearMenu
         isOpen={modalNuevoMenuOpen}
-        onClose={() => setModalNuevoMenuOpen(false)}
+        onClose={() => {
+          setModalNuevoMenuOpen(false);
+          setMenuAEditar(null);
+        }}
+        menuAEditar={menuAEditar}
         onGuardarMenu={handleGuardarMenuDirecto}
         recetasDisponibles={recetas}
         insumosDisponibles={insumos}
