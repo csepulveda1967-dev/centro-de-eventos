@@ -643,6 +643,11 @@ export default function App() {
     mostrarToast(`✓ Menú "${nuevoMenu.nombre}" creado exitosamente e integrado a la propuesta`);
   };
 
+  const handleUpdateMenu = (menuActualizado: MenuOption) => {
+    setMenus(prev => prev.map(m => (m.id === menuActualizado.id ? menuActualizado : m)));
+    mostrarToast(`✓ Menú "${menuActualizado.nombre}" actualizado correctamente`);
+  };
+
   const handleDeleteMenu = (menuId: string) => {
     if (menus.length <= 1) {
       mostrarToast('⚠️ Debe existir al menos un menú en la carta gastronómica');
@@ -1338,6 +1343,7 @@ export default function App() {
                     onChangeInvitados={handleChangeInvitados}
                     onIrARecetas={() => setVistaActual('recetas')}
                     onAddMenu={handleAddMenu}
+                    onUpdateMenu={handleUpdateMenu}
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
                     recetas={recetas}
                     insumos={insumos}
