@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta } from '../types';
+import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta, MenuItemRatio } from '../types';
 import {
   calcularCostoReceta,
   calcularCostoIngrediente,
@@ -61,6 +61,9 @@ interface CalculadoraRecetasProps {
     aseo: number;
     maitre: number;
   }) => void;
+  // Bebestibles gestionados en el Módulo 1 (Menús); se reciben por compatibilidad
+  bebestibles?: MenuItemRatio[];
+  onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
 }
 
 interface InputNumeroCeldaRecetasProps {
