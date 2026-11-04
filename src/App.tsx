@@ -1574,6 +1574,7 @@ export default function App() {
             onSincronizarCostosMenu={handleSincronizarCostosMenu}
             onVincularCoffeeBreak={handleVincularCoffeeBreak}
             onAddMenu={handleAddMenu}
+            onUpdateMenu={handleUpdateMenu}
             onDeleteMenu={handleDeleteMenu}
             tarifasStaff={tarifasStaff}
             personal={cotizacion.personal}
