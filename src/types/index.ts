@@ -147,7 +147,7 @@ export interface CotizacionState {
   cliente: string;
   emailCliente: string;
   telefonoCliente: string;
-  tipoEvento: 'Boda' | 'Corporativo' | 'Graduación' | 'Cumpleaños / Aniversario' | 'Fiesta Fin de Año';
+  tipoEvento: 'Boda' | 'Corporativo' | 'Graduación' | 'Cumpleaños / Aniversario' | 'Fiesta Fin de Año' | (string & {});
   fechaEvento: string;
   invitados: number;
   menuId: string;
