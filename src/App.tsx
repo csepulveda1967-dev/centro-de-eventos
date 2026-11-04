@@ -123,6 +123,15 @@ export default function App() {
   );
   const [estilosDecoracion, setEstilosDecoracion] = useState<EstiloDecoracion[]>(() => datosIniciales.estilosDecoracion);
   const [reservas, setReservas] = useState<ReservaCalendario[]>(() => datosIniciales.reservas);
+
+  // Tipos de evento personalizados creados por el usuario (ej: "Fiesta de 15 Años", "Cena de Cumpleaños")
+  const [tiposEventoPersonalizados, setTiposEventoPersonalizados] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('hlr_tipos_evento_personalizados') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const [cotizacion, setCotizacion] = useState<CotizacionState>(() => {
     const cot = { ...datosIniciales.cotizacion };
     if (cot.proveedoresSeleccionados) {
@@ -1230,7 +1239,22 @@ export default function App() {
                     <span className="text-slate-400 font-semibold">Tipo:</span>
                     <select
                       value={cotizacion.tipoEvento}
-                      onChange={(e) => setCotizacion(prev => ({ ...prev, tipoEvento: e.target.value as CotizacionState['tipoEvento'] }))}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        if (valor === '__OTRO_TIPO__') {
+                          const escrito = window.prompt('Escribe el tipo de evento (ej: Fiesta de 15 Años, Cena de Cumpleaños, Bautizo...):');
+                          const limpio = (escrito || '').trim();
+                          if (!limpio) return; // sin texto: no cambia nada
+                          if (!tiposEventoPersonalizados.some(t => t.toLowerCase() === limpio.toLowerCase())) {
+                            const actualizados = [...tiposEventoPersonalizados, limpio];
+                            setTiposEventoPersonalizados(actualizados);
+                            try { localStorage.setItem('hlr_tipos_evento_personalizados', JSON.stringify(actualizados)); } catch (err) { console.error(err); }
+                          }
+                          setCotizacion(prev => ({ ...prev, tipoEvento: limpio }));
+                        } else {
+                          setCotizacion(prev => ({ ...prev, tipoEvento: valor as CotizacionState['tipoEvento'] }));
+                        }
+                      }}
                       className="bg-transparent focus:outline-hidden text-slate-800 font-medium w-full"
                     >
                       <option value="Boda">Boda</option>
@@ -1238,6 +1262,10 @@ export default function App() {
                       <option value="Graduación">Graduación</option>
                       <option value="Cumpleaños / Aniversario">Cumpleaños / Aniversario</option>
                       <option value="Fiesta Fin de Año">Fiesta Fin de Año</option>
+                      {tiposEventoPersonalizados.map(t => (
+                        <option key={t} value={t}>{t} ★</option>
+                      ))}
+                      <option value="__OTRO_TIPO__">+ Otro tipo de evento...</option>
                     </select>
                   </div>
                 </div>
