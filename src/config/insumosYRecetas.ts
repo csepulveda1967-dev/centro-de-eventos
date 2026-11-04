@@ -796,13 +796,23 @@ export function calcularCostoReceta(
   };
 }
 
+// ¿Pertenece esta ficha técnica al menú indicado?
+// Soporta vinculación múltiple (menusAsociadosIds) y el vínculo clásico (menuAsociadoId).
+// Las fichas de Coffee Break tributan a Tarifas Generales, por lo que nunca cuentan como plato de menú.
+export function recetaPerteneceAMenu(receta: RecetaFichaTecnica, menuId: string): boolean {
+  if (!receta || !menuId) return false;
+  if (receta.tiempoMenu === 'coffee-break') return false;
+  if (receta.menuAsociadoId === menuId) return true;
+  return Array.isArray(receta.menusAsociadosIds) && receta.menusAsociadosIds.includes(menuId);
+}
+
 // Calcula el costo total de un menú sumando las recetas asociadas a él
 export function calcularCostoMenuDesdeRecetas(
   menuId: string,
   recetas: RecetaFichaTecnica[],
   insumos: InsumoMaestro[]
 ): { costoMenuCalculado: number; recetasEncontradas: number } {
-  const recetasDelMenu = recetas.filter(r => r.menuAsociadoId === menuId && r.tiempoMenu !== 'coffee-break');
+  const recetasDelMenu = recetas.filter(r => recetaPerteneceAMenu(r, menuId));
 
   if (recetasDelMenu.length === 0) {
     return { costoMenuCalculado: 0, recetasEncontradas: 0 };
