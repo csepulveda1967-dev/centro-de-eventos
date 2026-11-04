@@ -35,6 +35,19 @@ interface Modulo1MenuProps {
   insumos?: InsumoMaestro[];
 }
 
+// Catálogo rápido de bebestibles sugeridos para activar en 1 clic.
+// Los costos son referenciales en CLP y se pueden ajustar después en la tabla.
+const BEBESTIBLES_SUGERIDOS_PRESET: MenuItemRatio[] = [
+  { id: 'beb-pre-gaseosa', nombre: 'Gaseosa (Coca / Sprite)', cantidadPorPersona: 0.5, unidad: 'L', costoUnitario: 1500 },
+  { id: 'beb-pre-agua', nombre: 'Agua Mineral', cantidadPorPersona: 0.5, unidad: 'L', costoUnitario: 900 },
+  { id: 'beb-pre-cerveza', nombre: 'Cerveza (lata 330cc)', cantidadPorPersona: 1, unidad: 'lata', costoUnitario: 1200 },
+  { id: 'beb-pre-vinotinto', nombre: 'Vino Tinto (botella)', cantidadPorPersona: 0.4, unidad: 'botella', costoUnitario: 6000 },
+  { id: 'beb-pre-vinoblanco', nombre: 'Vino Blanco (botella)', cantidadPorPersona: 0.3, unidad: 'botella', costoUnitario: 5500 },
+  { id: 'beb-pre-pisco', nombre: 'Pisco / Coctelería (copa)', cantidadPorPersona: 2, unidad: 'copa', costoUnitario: 1500 },
+  { id: 'beb-pre-champagne', nombre: 'Champagne (brindis)', cantidadPorPersona: 0.2, unidad: 'botella', costoUnitario: 8000 },
+  { id: 'beb-pre-jugo', nombre: 'Jugo Natural (vaso)', cantidadPorPersona: 1, unidad: 'vaso', costoUnitario: 700 }
+];
+
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   menus,
   menuSeleccionadoId,
@@ -276,6 +289,27 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
     onUpdateBebestibles(
       bebestibles.map(b => b.id === id ? { ...b, incluido: b.incluido === false ? true : false } : b)
     );
+  };
+
+  // Activa o desactiva un bebestible sugerido del catálogo rápido (por nombre)
+  const handleToggleBebestibleSugerido = (preset: MenuItemRatio) => {
+    if (!onUpdateBebestibles) return;
+    const clave = preset.nombre.toLowerCase().slice(0, 10);
+    const yaEsta = bebestibles.some(it => it.nombre.toLowerCase().includes(clave));
+    if (yaEsta) {
+      // Ya está en la lista: lo quitamos
+      onUpdateBebestibles(bebestibles.filter(it => !it.nombre.toLowerCase().includes(clave)));
+    } else {
+      // No está: lo agregamos como nuevo ítem activo
+      const nuevo: MenuItemRatio = {
+        ...preset,
+        id: 'beb-preset-' + Date.now(),
+        incluido: true,
+        tipoOrigen: 'libre',
+        categoria: 'bebestible'
+      };
+      onUpdateBebestibles([...bebestibles, nuevo]);
+    }
   };
 
   const handleUpdateCantidadBeb = (id: string, cant: number) => {
@@ -650,7 +684,7 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                   <div className="text-xs leading-tight pr-2">
                     <strong className="block text-[11px] font-bold truncate">{b.nombre}</strong>
                     <span className={estaActivo ? 'text-purple-200 text-[10px]' : 'text-slate-500 text-[10px]'}>
-                      {b.cantidadPorPersona} {b.unidad} pp · {formatMoneda(b.costoUnitario)} c/u
+                      {b.cantidadPorPersona} {b.unidad} pp · {formatMoneda(b.costoUnitario || 0)} c/u
                     </span>
                   </div>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
