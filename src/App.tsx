@@ -44,6 +44,7 @@ import {
 } from './config/perfilesClientes';
 import { Header } from './components/Header';
 import { Modulo1Menu } from './components/Modulo1Menu';
+import { ModuloCocteleria } from './components/ModuloCocteleria';
 import { Modulo3Proveedores } from './components/Modulo3Proveedores';
 import { Modulo4Mesas } from './components/Modulo4Mesas';
 import { Modulo5Decoracion } from './components/Modulo5Decoracion';
@@ -89,7 +90,7 @@ import {
 
 export default function App() {
   // ── Vista activa ──
-  const [vistaActual, setVistaActual] = useState<'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas'>('cotizador');
+  const [vistaActual, setVistaActual] = useState<'cotizador' | 'adm-costos' | 'recetas' | 'cocteleria' | 'insumos' | 'compras' | 'calendario' | 'tarifas'>('cotizador');
 
   // ── Pestaña activa dentro del formulario de cotización ──
   const [seccionActiva, setSeccionActiva] = useState<'todos' | '1' | '2' | '3' | '4' | '5'>('todos');
@@ -649,7 +650,24 @@ export default function App() {
 
   const handleAddMenu = (nuevoMenu: MenuOption) => {
     setMenus(prev => [nuevoMenu, ...prev]);
-    mostrarToast(`✓ Menú "${nuevoMenu.nombre}" creado exitosamente e integrado a la propuesta`);
+    // Vinculación automática TOTAL al crear un menú:
+    // 1) El menú nuevo queda SELECCIONADO de inmediato (el Resumen y los costos lo muestran al instante,
+    //    ya no queda la propuesta "en blanco" ni apuntando al menú anterior).
+    // 2) Si el menú tiene bebestibles marcados en su ficha, se cargan solos a la sección Bebestibles.
+    // 3) Los tragos con receta vinculada (creados en Tragos & Barra) se conservan siempre.
+    setCotizacion(prev => {
+      const bebsMenu = nuevoMenu.bebestiblesPorPersona;
+      if (bebsMenu && bebsMenu.length > 0) {
+        const conservar = (prev.bebestibles || []).filter(b => b.recetaId);
+        const yaVinculados = new Set(conservar.map(b => b.recetaId));
+        const delMenu = bebsMenu
+          .filter(it => !it.recetaId || !yaVinculados.has(it.recetaId))
+          .map((it, idx) => ({ ...it, id: 'beb-menu-' + Date.now() + '-' + idx, incluido: true }));
+        return { ...prev, menuId: nuevoMenu.id, bebestibles: [...conservar, ...delMenu] };
+      }
+      return { ...prev, menuId: nuevoMenu.id };
+    });
+    mostrarToast(`✓ Menú "${nuevoMenu.nombre}" creado, seleccionado e integrado a la propuesta`);
   };
 
   const handleUpdateMenu = (menuActualizado: MenuOption) => {
@@ -690,7 +708,21 @@ export default function App() {
 
   // ── Handlers de actualización de cotización ──
   const handleSelectMenu = (id: string) => {
-    setCotizacion(prev => ({ ...prev, menuId: id }));
+    setCotizacion(prev => {
+      const menuElegido = menus.find(m => m.id === id);
+      const bebsMenu = menuElegido?.bebestiblesPorPersona;
+      // Vinculación automática: al elegir un menú con bebestibles en su ficha,
+      // se cargan al cotizador solos. Se conservan los tragos con receta vinculada.
+      if (bebsMenu && bebsMenu.length > 0) {
+        const conservar = (prev.bebestibles || []).filter(b => b.recetaId);
+        const yaVinculados = new Set(conservar.map(b => b.recetaId));
+        const delMenu = bebsMenu
+          .filter(it => !it.recetaId || !yaVinculados.has(it.recetaId))
+          .map((it, idx) => ({ ...it, id: 'beb-menu-' + Date.now() + '-' + idx, incluido: true }));
+        return { ...prev, menuId: id, bebestibles: [...conservar, ...delMenu] };
+      }
+      return { ...prev, menuId: id };
+    });
   };
 
   const handleChangeInvitados = (inv: number) => {
@@ -1609,6 +1641,23 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
+          />
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════════
+            VISTA: COTIZADOR DE TRAGOS & LICORES (COCTELERÍA VINCULADA AL MENÚ)
+        ════════════════════════════════════════════════════════════════════════ */}
+        {vistaActual === 'cocteleria' && (
+          <ModuloCocteleria
+            recetas={recetas}
+            insumos={insumos}
+            invitados={cotizacion.invitados}
+            onAddReceta={handleAddReceta}
+            onUpdateReceta={handleUpdateReceta}
+            onDeleteReceta={handleDeleteReceta}
+            bebestibles={cotizacion.bebestibles}
+            onUpdateBebestibles={handleUpdateBebestibles}
+            onIrACotizador={() => setVistaActual('cotizador')}
           />
         )}
 
