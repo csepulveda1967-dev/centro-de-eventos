@@ -1,25 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MenuOption, MenuItemRatio, InsumoMaestro, RecetaFichaTecnica } from '../types';
-import {
-  Utensils,
-  X,
-  Plus,
-  Sparkles,
-  Check,
-  DollarSign,
-  Trash2,
-  ShoppingCart,
-  Info,
-  Tag,
-  ChefHat,
-  Wine,
-  Link as LinkIcon,
-  Coffee
-} from 'lucide-react';
+import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
-import { calcularCostoReceta, formatearNombreTiempoMenu, formatearNombreCategoria } from '../config/insumosYRecetas';
-
-const formatearCategoria = (str: string) => formatearNombreTiempoMenu(str) || formatearNombreCategoria(str);
+import { calcularCostoReceta } from '../config/insumosYRecetas';
 
 interface ModalCrearMenuProps {
   isOpen: boolean;
@@ -29,8 +12,8 @@ interface ModalCrearMenuProps {
     tiempo: 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche';
     nombrePlato: string;
   };
-  recetasDisponibles?: RecetaFichaTecnica[];
   insumosDisponibles?: InsumoMaestro[];
+  recetasDisponibles?: RecetaFichaTecnica[];
   invitadosReferencia?: number;
 }
 
@@ -47,22 +30,13 @@ const CATEGORIAS_MENU_PREDEFINIDAS = [
   { id: 'infantil', label: 'Menú Infantil & Familiar' }
 ];
 
-const BEBESTIBLES_CATALOGO_PREDEFINIDO = [
-  { id: 'beb-gaseosas', nombre: 'Bebidas, Gaseosas 350cc & Aguas Minerales', cantidadPP: 2, unidad: 'lata / vaso', costo: 900 },
-  { id: 'beb-jugos', nombre: 'Jugos Naturales 100% Pulpa Estacional', cantidadPP: 1.5, unidad: 'vaso', costo: 1200 },
-  { id: 'beb-vinos', nombre: 'Vinos Tintos & Blancos Reserva (Copa)', cantidadPP: 1.5, unidad: 'copa', costo: 1800 },
-  { id: 'beb-barra-libre', nombre: 'Barra Libre / Coctelería de Autor (Pisco Sour, Mojito, Gin)', cantidadPP: 2, unidad: 'copa / vaso', costo: 2500 },
-  { id: 'beb-cervezas', nombre: 'Cervezas Artesanales & Premium', cantidadPP: 2, unidad: 'botella', costo: 1500 },
-  { id: 'beb-cafe-te', nombre: 'Estación Café de Grano & Té Gourmet', cantidadPP: 1, unidad: 'taza', costo: 800 }
-];
-
 export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   isOpen,
   onClose,
   onGuardarMenu,
   tiempoInicial,
-  recetasDisponibles = [],
   insumosDisponibles = [],
+  recetasDisponibles = [],
   invitadosReferencia = 100
 }) => {
   const [nombre, setNombre] = useState('');
@@ -83,7 +57,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   });
 
   const [descripcion, setDescripcion] = useState('');
-  const [costoPersona, setCostoPersona] = useState<number | string>(22000);
+  const [costoPersona, setCostoPersona] = useState<number | string>(0);
   const [margenSugerido, setMargenSugerido] = useState<number>(33); // 33% estándar gastronómico
   const [destacado, setDestacado] = useState(false);
 
@@ -106,122 +80,80 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
 
   const [mostrarTiemposDetallados, setMostrarTiemposDetallados] = useState(!!tiempoInicial);
 
-  // ── Ítems por Persona (p.p.) para calcular consumos exactos y compras ──
-  const [itemsPorPersona, setItemsPorPersona] = useState<MenuItemRatio[]>([
-    {
-      id: 'ratio-1',
-      nombre: 'Sandwich de Miga Gourmet',
-      cantidadPorPersona: 2,
-      unidad: 'unidad',
-      costoUnitario: 1200,
-      categoria: 'comida'
-    },
-    {
-      id: 'ratio-2',
-      nombre: 'Bebidas / Gaseosas & Aguas',
-      cantidadPorPersona: 2,
-      unidad: 'lata / vaso',
-      costoUnitario: 900,
-      categoria: 'bebestible'
-    }
-  ]);
-
-  // Modo de selección de ítem: 'receta' | 'bebestible' | 'manual'
-  const [origenItem, setOrigenItem] = useState<'receta' | 'bebestible' | 'manual'>('receta');
-  const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>('');
-  const [bebestibleSeleccionadoId, setBebestibleSeleccionadoId] = useState<string>('');
+  // ── Ítems por Persona (p.p.) para calcular consumos exactos y comprar ──
+  // Ejemplo: "1 sandwich pp 2", "bebidas pp 2"
+  // Se inicia vacío: cada menú nuevo parte de cero, sin ítems de ejemplo precargados.
+  const [itemsPorPersona, setItemsPorPersona] = useState<MenuItemRatio[]>([]);
 
   // Formulario rápido para añadir nuevo ítem p.p.
   const [nuevoItemNombre, setNuevoItemNombre] = useState('');
-  const [nuevoItemCantidadPP, setNuevoItemCantidadPP] = useState<number | string>(1);
-  const [nuevoItemUnidad, setNuevoItemUnidad] = useState<string>('porción');
-  const [nuevoItemCostoUnitario, setNuevoItemCostoUnitario] = useState<number | string>(1000);
+  const [nuevoItemCantidadPP, setNuevoItemCantidadPP] = useState<number | string>(2);
+  const [nuevoItemUnidad, setNuevoItemUnidad] = useState<string>('unidad');
+  const [nuevoItemCostoUnitario, setNuevoItemCostoUnitario] = useState<number | string>('');
   const [nuevoItemInsumoId, setNuevoItemInsumoId] = useState<string>('');
   const [nuevoItemRecetaId, setNuevoItemRecetaId] = useState<string>('');
+  // Cuando está activo, el "Costo Base de Insumos ($/pax)" sigue automáticamente la suma de los ítems p.p.
+  const [costoSincronizadoConItems, setCostoSincronizadoConItems] = useState(true);
+
+  // Cálculo del costo total de los ítems p.p. por persona (se calcula antes del early-return para poder usarlo en hooks)
+  const costoTotalItemsPP = useMemo(
+    () => itemsPorPersona.reduce((acc, it) => acc + (it.cantidadPorPersona * (it.costoUnitario || 0)), 0),
+    [itemsPorPersona]
+  );
+
+  // Sincronización automática: el costo base del menú refleja siempre la suma real de los ítems p.p.
+  useEffect(() => {
+    if (!costoSincronizadoConItems) return;
+    setCostoPersona(Math.round(costoTotalItemsPP));
+  }, [costoTotalItemsPP, costoSincronizadoConItems]);
 
   if (!isOpen) return null;
-
-  // Cálculo del costo total de los ítems p.p. por persona
-  const costoTotalItemsPP = itemsPorPersona.reduce(
-    (acc, it) => acc + (it.cantidadPorPersona * (it.costoUnitario || 0)),
-    0
-  );
 
   // Cálculo de precio sugerido con Food Cost estándar del 33%
   const costoPersonaNum = typeof costoPersona === 'number' ? costoPersona : parseFloat(String(costoPersona)) || 0;
   const precioSugerido = Math.round(costoPersonaNum / (margenSugerido / 100 || 0.33));
 
-  // Manejo de cambio de receta vinculada automática
-  const handleSeleccionarReceta = (id: string) => {
-    setRecetaSeleccionadaId(id);
-    if (!id) return;
-    const rec = recetasDisponibles.find(r => r.id === id);
-    if (rec) {
-      const calc = calcularCostoReceta(rec, insumosDisponibles);
-      setNuevoItemNombre(rec.nombre);
-      setNuevoItemCostoUnitario(calc.costoPorPorcion);
-      setNuevoItemUnidad('porción');
-      setNuevoItemRecetaId(rec.id);
-      setNuevoItemCantidadPP(1);
-    }
-  };
-
-  // Manejo de selección rápida de Bebestibles
-  const handleSeleccionarBebestible = (id: string) => {
-    setBebestibleSeleccionadoId(id);
-    if (!id) return;
-    const beb = BEBESTIBLES_CATALOGO_PREDEFINIDO.find(b => b.id === id);
-    if (beb) {
-      setNuevoItemNombre(beb.nombre);
-      setNuevoItemCostoUnitario(beb.costo);
-      setNuevoItemUnidad(beb.unidad);
-      setNuevoItemCantidadPP(beb.cantidadPP);
-      setNuevoItemRecetaId('');
-    }
-  };
-
-  const handleAgregarItemPP = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleAgregarItemPP = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!nuevoItemNombre.trim()) return;
 
-    const cantPP = typeof nuevoItemCantidadPP === 'number'
-      ? nuevoItemCantidadPP
-      : parseFloat(String(nuevoItemCantidadPP).replace(',', '.')) || 1;
-    const costoUnit = typeof nuevoItemCostoUnitario === 'number'
-      ? nuevoItemCostoUnitario
-      : parseFloat(String(nuevoItemCostoUnitario).replace(',', '.')) || 0;
+    const cantPP = typeof nuevoItemCantidadPP === 'number' ? nuevoItemCantidadPP : parseFloat(String(nuevoItemCantidadPP)) || 1;
+    const costoUnit = typeof nuevoItemCostoUnitario === 'number' ? nuevoItemCostoUnitario : parseFloat(String(nuevoItemCostoUnitario)) || 0;
 
     const nuevo: MenuItemRatio = {
       id: 'ratio-' + Date.now(),
       nombre: nuevoItemNombre.trim(),
-      cantidadPorPersona: Math.max(0.01, cantPP),
+      cantidadPorPersona: Math.max(0.1, cantPP),
       unidad: nuevoItemUnidad || 'unidad',
       costoUnitario: Math.max(0, costoUnit),
       insumoId: nuevoItemInsumoId || undefined,
       recetaId: nuevoItemRecetaId || undefined,
-      categoria: origenItem === 'bebestible' ? 'bebestible' : 'comida'
+      recetaNombre: nuevoItemRecetaId ? recetasDisponibles.find(r => r.id === nuevoItemRecetaId)?.nombre : undefined
     };
 
     setItemsPorPersona(prev => [...prev, nuevo]);
     setNuevoItemNombre('');
-    setNuevoItemCantidadPP(1);
-    setNuevoItemCostoUnitario(1000);
+    setNuevoItemCantidadPP(2);
+    setNuevoItemCostoUnitario('');
     setNuevoItemInsumoId('');
     setNuevoItemRecetaId('');
-    setRecetaSeleccionadaId('');
-    setBebestibleSeleccionadoId('');
   };
 
-  const handleAgregarBebestibleRapido = (beb: typeof BEBESTIBLES_CATALOGO_PREDEFINIDO[0]) => {
-    const nuevo: MenuItemRatio = {
-      id: 'ratio-beb-' + Date.now(),
-      nombre: beb.nombre,
-      cantidadPorPersona: beb.cantidadPP,
-      unidad: beb.unidad,
-      costoUnitario: beb.costo,
-      categoria: 'bebestible'
-    };
-    setItemsPorPersona(prev => [...prev, nuevo]);
+  // Al elegir una receta creada en la Calculadora de Recetas, el nombre y el costo unitario se llenan solos
+  const handleSeleccionarRecetaItem = (recetaId: string) => {
+    setNuevoItemRecetaId(recetaId);
+    if (!recetaId) {
+      setNuevoItemNombre('');
+      setNuevoItemCostoUnitario('');
+      setNuevoItemUnidad('unidad');
+      return;
+    }
+    const receta = recetasDisponibles.find(r => r.id === recetaId);
+    if (!receta) return;
+    const { costoPorPorcion } = calcularCostoReceta(receta, insumosDisponibles);
+    setNuevoItemNombre(receta.nombre);
+    setNuevoItemUnidad('porción');
+    setNuevoItemCostoUnitario(costoPorPorcion > 0 ? costoPorPorcion : '');
   };
 
   const handleEliminarItemPP = (id: string) => {
@@ -235,9 +167,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   };
 
   const handleAplicarCostoItemsAlCostoPersona = () => {
-    if (costoTotalItemsPP > 0) {
-      setCostoPersona(costoTotalItemsPP);
-    }
+    setCostoSincronizadoConItems(true);
+    setCostoPersona(Math.round(costoTotalItemsPP));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -261,6 +192,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     }
 
     const id = 'menu-' + Date.now();
+    const recetasVinculadas = Array.from(new Set(itemsPorPersona.map(it => it.recetaId).filter(Boolean) as string[]));
     const nuevoMenu: MenuOption = {
       id,
       nombre: nombre.trim(),
@@ -276,7 +208,8 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
         trasnoche: trasnoche.trim()
       },
       destacado,
-      costoCalculadoDesdeRecetas: false,
+      recetasIds: recetasVinculadas.length > 0 ? recetasVinculadas : undefined,
+      costoCalculadoDesdeRecetas: recetasVinculadas.length > 0,
       itemsPorPersona: itemsPorPersona.length > 0 ? itemsPorPersona : undefined
     };
 
@@ -286,7 +219,14 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     // Resetear formulario
     setNombre('');
     setDescripcion('');
-    setCostoPersona(22000);
+    setCostoPersona(0);
+    setCostoSincronizadoConItems(true);
+    setItemsPorPersona([]);
+    setNuevoItemNombre('');
+    setNuevoItemCantidadPP(2);
+    setNuevoItemCostoUnitario('');
+    setNuevoItemInsumoId('');
+    setNuevoItemRecetaId('');
     setCoctel('');
     setEntrada('');
     setFondo('');
@@ -450,96 +390,63 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
               )}
             </div>
 
-            {/* ── BOTONES RÁPIDOS DE BEBESTIBLES Y BARRA P.P. ── */}
-            <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2">
-              <span className="text-[11px] font-extrabold text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
-                <Wine className="w-3.5 h-3.5 text-amber-700" />
-                Incluir Bebestibles por Persona (p.p.) en 1 Clic
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {BEBESTIBLES_CATALOGO_PREDEFINIDO.map((beb) => (
-                  <button
-                    key={beb.id}
-                    type="button"
-                    onClick={() => handleAgregarBebestibleRapido(beb)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-100/80 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3 text-amber-700" />
-                    <span>{beb.nombre.split(' ')[0]}: {beb.cantidadPP} pp ({formatMoneda(beb.costo)})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Lista actual de ítems p.p. */}
             {itemsPorPersona.length > 0 ? (
-              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100/90 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                  <thead className="bg-slate-100/80 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
                     <tr>
-                      <th className="py-2.5 px-3">Ítem / Preparación</th>
-                      <th className="py-2.5 px-3 text-center">Ratio p.p. (Entero o Decimal)</th>
-                      <th className="py-2.5 px-3 text-center">Para {invitadosReferencia} Pax</th>
-                      <th className="py-2.5 px-3 text-right">Costo Unit.</th>
-                      <th className="py-2.5 px-3 text-right">Subtotal p.p.</th>
-                      <th className="py-2.5 px-2 text-center"></th>
+                      <th className="py-2 px-3">Ítem / Consumo</th>
+                      <th className="py-2 px-3 text-center">Ratio p.p.</th>
+                      <th className="py-2 px-3 text-center">Para {invitadosReferencia} Pax (Compra Exacta)</th>
+                      <th className="py-2 px-3 text-right">Costo Unit.</th>
+                      <th className="py-2 px-3 text-right">Subtotal p.p.</th>
+                      <th className="py-2 px-2 text-center"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {itemsPorPersona.map((item) => {
-                      const totalCompraExacta = Math.round(item.cantidadPorPersona * invitadosReferencia * 10) / 10;
-                      const subtotalPP = Math.round(item.cantidadPorPersona * (item.costoUnitario || 0));
+                      const totalCompraExacta = Math.round(item.cantidadPorPersona * invitadosReferencia);
+                      const subtotalPP = item.cantidadPorPersona * (item.costoUnitario || 0);
 
                       return (
-                        <tr key={item.id} className="hover:bg-amber-50/30 transition-colors">
-                          <td className="py-2.5 px-3 font-semibold text-slate-900">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span>{item.nombre}</span>
-                              {item.recetaId && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                  <ChefHat className="w-2.5 h-2.5 text-emerald-700" />
-                                  Receta Vinculada
-                                </span>
-                              )}
-                              {item.categoria === 'bebestible' && (
-                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-purple-100 text-purple-800 border border-purple-300">
-                                  <Wine className="w-2.5 h-2.5 text-purple-700" />
-                                  Bebestible
-                                </span>
-                              )}
-                            </div>
+                        <tr key={item.id} className="hover:bg-amber-50/30">
+                          <td className="py-2 px-3 font-semibold text-slate-900">
+                            {item.nombre}
+                            {item.recetaId && (
+                              <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-md align-middle whitespace-nowrap">
+                                <ChefHat className="w-2.5 h-2.5" />
+                                Desde receta
+                              </span>
+                            )}
                           </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <div className="inline-flex items-center justify-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-300">
+                          <td className="py-2 px-3 text-center">
+                            <div className="inline-flex items-center gap-1 font-bold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                               <input
                                 type="number"
                                 min={0}
                                 step="any"
                                 value={item.cantidadPorPersona}
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
-                                  handleActualizarCantidadPP(item.id, isNaN(val) ? 0 : val);
-                                }}
-                                className="w-14 text-center bg-white font-black text-slate-900 rounded border border-slate-300 py-0.5 focus:outline-hidden text-xs"
-                                title="Ingresa números enteros (ej: 1, 2, 3) o decimales (ej: 0.5, 1.5)"
+                                onChange={(e) => handleActualizarCantidadPP(item.id, Number(e.target.value))}
+                                className="w-12 text-center bg-white font-extrabold text-slate-900 rounded border border-slate-300 py-0.5 focus:outline-hidden"
                               />
-                              <span className="text-[10px] text-slate-600 font-medium">pp ({item.unidad})</span>
+                              <span className="text-[10px] text-slate-500">pp ({item.unidad})</span>
                             </div>
                           </td>
-                          <td className="py-2.5 px-3 text-center font-bold text-emerald-800 tabular-nums">
+                          <td className="py-2 px-3 text-center font-bold text-emerald-800 tabular-nums">
                             {totalCompraExacta} {item.unidad}s
                           </td>
-                          <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
+                          <td className="py-2 px-3 text-right text-slate-600 tabular-nums">
                             {formatMoneda(item.costoUnitario || 0)}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                          <td className="py-2 px-3 text-right font-extrabold text-slate-900 tabular-nums">
                             {formatMoneda(subtotalPP)}
                           </td>
-                          <td className="py-2.5 px-2 text-center">
+                          <td className="py-2 px-2 text-center">
                             <button
                               type="button"
                               onClick={() => handleEliminarItemPP(item.id)}
-                              className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors cursor-pointer"
                               title="Eliminar ítem"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -549,12 +456,12 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                       );
                     })}
                   </tbody>
-                  <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-xs">
+                  <tfoot className="bg-slate-50/90 font-bold border-t border-slate-200 text-xs">
                     <tr>
-                      <td colSpan={4} className="py-2.5 px-3 text-slate-700 text-right">
+                      <td colSpan={4} className="py-2 px-3 text-slate-700 text-right">
                         Costo Total de Consumos por Persona (p.p.):
                       </td>
-                      <td className="py-2.5 px-3 text-right font-black text-amber-950 tabular-nums text-sm">
+                      <td className="py-2 px-3 text-right font-black text-amber-950 tabular-nums">
                         {formatMoneda(costoTotalItemsPP)}/pax
                       </td>
                       <td></td>
@@ -563,167 +470,101 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                 </table>
               </div>
             ) : (
-              <div className="p-4 bg-white border border-dashed border-slate-300 rounded-xl text-center text-slate-400 text-xs">
-                No hay consumos p.p. registrados aún. Vincula una receta técnica o un bebestible abajo.
+              <div className="p-3 bg-white border border-dashed border-slate-300 rounded-xl text-center text-slate-400 text-xs">
+                No hay consumos p.p. registrados aún. Agrega ítems como sandwiches o bebidas usando el formulario de abajo.
               </div>
             )}
 
-            {/* Formulario inteligente para añadir ítem vinculado a Receta o Bebestible */}
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200/90 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                <span className="text-[11px] font-extrabold text-slate-800 flex items-center gap-1.5 uppercase">
-                  <LinkIcon className="w-3.5 h-3.5 text-indigo-600" />
-                  Agregar Ítem vinculado automáticamente
-                </span>
-
-                {/* Switch de origen */}
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setOrigenItem('receta')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      origenItem === 'receta'
-                        ? 'bg-amber-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <ChefHat className="w-3 h-3" />
-                    <span>Receta Técnica</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setOrigenItem('bebestible')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                      origenItem === 'bebestible'
-                        ? 'bg-purple-600 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Wine className="w-3 h-3" />
-                    <span>Bebestible</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setOrigenItem('manual')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
-                      origenItem === 'manual'
-                        ? 'bg-slate-800 text-white shadow-2xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Manual
-                  </button>
-                </div>
-              </div>
-
-              {/* Selector según origen */}
-              {origenItem === 'receta' && (
-                <div className="space-y-1 bg-amber-50/60 p-2.5 rounded-xl border border-amber-200/80">
-                  <label className="block text-[11px] font-bold text-amber-950">
-                    Seleccionar Receta / Ficha Técnica (Se costeará automáticamente):
-                  </label>
-                  <select
-                    value={recetaSeleccionadaId}
-                    onChange={(e) => handleSeleccionarReceta(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded-lg text-slate-900 text-xs font-semibold focus:outline-hidden"
-                  >
-                    <option value="">-- Elige una receta técnica para vincular costo --</option>
-                    {recetasDisponibles.map((r) => {
-                      const c = calcularCostoReceta(r, insumosDisponibles);
-                      return (
-                        <option key={r.id} value={r.id}>
-                          {r.nombre} ({formatearCategoria(r.tiempoMenu || r.categoria)}) · Costo automático: {formatMoneda(c.costoPorPorcion)}/porción
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              )}
-
-              {origenItem === 'bebestible' && (
-                <div className="space-y-1 bg-purple-50/60 p-2.5 rounded-xl border border-purple-200/80">
-                  <label className="block text-[11px] font-bold text-purple-950">
-                    Seleccionar Bebestible / Barra:
-                  </label>
-                  <select
-                    value={bebestibleSeleccionadoId}
-                    onChange={(e) => handleSeleccionarBebestible(e.target.value)}
-                    className="w-full px-2.5 py-1.5 bg-white border border-purple-300 rounded-lg text-slate-900 text-xs font-semibold focus:outline-hidden"
-                  >
-                    <option value="">-- Elige un servicio de bebestible --</option>
-                    {BEBESTIBLES_CATALOGO_PREDEFINIDO.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.nombre} · {b.cantidadPP} {b.unidad} pp ({formatMoneda(b.costo)} c/u)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Campos finales del ítem */}
+            {/* Formulario rápido para añadir ítem por persona */}
+            <div className="bg-white p-3 rounded-xl border border-slate-200/90 space-y-2">
+              <span className="text-[11px] font-bold text-slate-700 block">
+                + Agregar Ítem por Persona (ej: 1 sandwich pp 2, bebidas pp 2)
+              </span>
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                {recetasDisponibles.length > 0 && (
+                  <div className="sm:col-span-12">
+                    <label className="block text-[10px] font-bold text-emerald-700 mb-1 flex items-center gap-1">
+                      <ChefHat className="w-3 h-3" />
+                      Usar una receta creada en la Calculadora (el nombre y el costo se llenan solos) — opcional
+                    </label>
+                    <select
+                      value={nuevoItemRecetaId}
+                      onChange={(e) => handleSeleccionarRecetaItem(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-emerald-300 bg-emerald-50/60 rounded-lg text-slate-800 focus:outline-hidden text-xs font-semibold"
+                    >
+                      <option value="">— Ítem libre (ingresar nombre y costo a mano) —</option>
+                      {recetasDisponibles.map((receta) => {
+                        const { costoPorPorcion } = calcularCostoReceta(receta, insumosDisponibles);
+                        return (
+                          <option key={receta.id} value={receta.id}>
+                            {receta.nombre} · {formatMoneda(costoPorPorcion)} por porción
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
                 <div className="sm:col-span-5">
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Nombre del Ítem</label>
                   <input
                     type="text"
                     value={nuevoItemNombre}
                     onChange={(e) => setNuevoItemNombre(e.target.value)}
-                    placeholder="Ej: Plato de fondo, Bebidas, Sandwich..."
+                    placeholder="Nombre ítem (ej: Sandwich ave, Bebidas...)"
                     className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden text-xs"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5 text-center">Ratio p.p.</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={nuevoItemCantidadPP}
-                    onChange={(e) => setNuevoItemCantidadPP(e.target.value)}
-                    placeholder="1 o 2"
-                    className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-center font-black text-slate-900 focus:outline-hidden text-xs"
-                    title="Permite enteros (1, 2, 3...) o decimales (0.5, 1.5...)"
-                  />
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      step="any"
+                      value={nuevoItemCantidadPP}
+                      onChange={(e) => setNuevoItemCantidadPP(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="pp (ej: 2)"
+                      className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden text-xs"
+                      title="Cantidad por persona"
+                    />
+                    <span className="text-[9px] text-slate-400 block text-center">Cant. pp</span>
+                  </div>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5 text-center">Unidad</label>
                   <select
                     value={nuevoItemUnidad}
                     onChange={(e) => setNuevoItemUnidad(e.target.value)}
                     className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden text-xs bg-white"
                   >
-                    <option value="porción">porción</option>
                     <option value="unidad">unidad</option>
                     <option value="lata / vaso">lata / vaso</option>
+                    <option value="porción">porción</option>
                     <option value="copa">copa</option>
                     <option value="botella">botella</option>
                     <option value="taza">taza</option>
                   </select>
+                  <span className="text-[9px] text-slate-400 block text-center">Unidad</span>
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-600 mb-0.5 text-right">Costo Unit $</label>
                   <input
                     type="number"
                     min={0}
                     step="any"
                     value={nuevoItemCostoUnitario}
-                    onChange={(e) => setNuevoItemCostoUnitario(e.target.value)}
-                    placeholder="0"
+                    onChange={(e) => setNuevoItemCostoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Costo unit."
                     className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-hidden text-xs tabular-nums"
                   />
+                  <span className="text-[9px] text-slate-400 block text-center">Costo Unit $</span>
                 </div>
 
-                <div className="sm:col-span-1 flex items-end">
+                <div className="sm:col-span-1 flex items-start pt-0.5">
                   <button
                     type="button"
-                    onClick={() => handleAgregarItemPP()}
-                    className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-2xs h-[34px]"
-                    title="Añadir ítem al menú"
+                    onClick={handleAgregarItemPP}
+                    className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-2xs"
+                    title="Añadir ítem"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -773,7 +614,11 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                     step="any"
                     value={costoPersona}
                     onFocus={(e) => e.target.select()}
-                    onChange={(e) => setCostoPersona(e.target.value === '' ? '' : Number(e.target.value))}
+                    onChange={(e) => {
+                      // Si el usuario edita el costo a mano, se desactiva el cálculo automático
+                      setCostoSincronizadoConItems(false);
+                      setCostoPersona(e.target.value === '' ? '' : Number(e.target.value));
+                    }}
                     onBlur={() => {
                       if (costoPersona === '') setCostoPersona(0);
                     }}
@@ -795,6 +640,29 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Estado de la sincronización entre ítems p.p. y el costo base */}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {costoSincronizadoConItems ? (
+                <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  El costo base se calcula solo desde los ítems p.p. ({formatMoneda(costoTotalItemsPP)}/pax)
+                </span>
+              ) : (
+                <span className="text-[10px] font-semibold text-slate-500">
+                  Costo base ingresado a mano (no sigue la suma de los ítems p.p.)
+                </span>
+              )}
+              {!costoSincronizadoConItems && costoTotalItemsPP > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCostoSincronizadoConItems(true)}
+                  className="text-[10px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg border border-amber-300 transition-colors cursor-pointer"
+                >
+                  Volver a calcular desde los ítems p.p.
+                </button>
+              )}
             </div>
           </div>
 
