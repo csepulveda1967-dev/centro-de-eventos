@@ -308,6 +308,7 @@ export default function App() {
 
     // 1.5 Costo Bebestibles y Barra por Persona
     const costoBebestibles = (cotizacion.bebestibles || []).reduce((acc, it) => {
+      if (it.incluido === false) return acc;
       const cant = Number(it.cantidadPorPersona) || 0;
       const unit = Number(it.costoUnitario) || 0;
       return acc + (cant * unit * cotizacion.invitados);
@@ -1571,6 +1572,8 @@ export default function App() {
             tarifasStaff={tarifasStaff}
             personal={cotizacion.personal}
             onChangePersonal={handleChangePersonal}
+            bebestibles={cotizacion.bebestibles}
+            onUpdateBebestibles={handleUpdateBebestibles}
           />
         )}
 

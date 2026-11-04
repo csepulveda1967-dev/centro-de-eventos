@@ -8,6 +8,8 @@ export interface MenuItemRatio {
   recetaId?: string; // Vinculación automática a una receta técnica para costo dinámico
   costoUnitario?: number; // Costo por unidad si no está vinculado
   categoria?: 'comida' | 'bebestible' | 'cocteleria' | 'servicio';
+  tipoOrigen?: 'insumo' | 'receta' | 'libre';
+  incluido?: boolean;
 }
 
 export interface MenuOption {

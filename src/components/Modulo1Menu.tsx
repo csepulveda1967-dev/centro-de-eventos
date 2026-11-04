@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MenuOption, MenuItemRatio, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { formatMoneda } from '../utils/formatters';
 import { ModalCrearMenu } from './ModalCrearMenu';
+import { calcularCostoReceta } from '../config/insumosYRecetas';
 import {
   Utensils,
   Users,
@@ -14,7 +15,9 @@ import {
   Wine,
   Trash2,
   GlassWater,
-  Coffee
+  Coffee,
+  ExternalLink,
+  Tag
 } from 'lucide-react';
 
 interface Modulo1MenuProps {
@@ -31,15 +34,6 @@ interface Modulo1MenuProps {
   recetas?: RecetaFichaTecnica[];
   insumos?: InsumoMaestro[];
 }
-
-const BEBESTIBLES_SUGERIDOS_PRESET = [
-  { id: 'beb-sug-gaseosas', nombre: 'Bebidas, Gaseosas y Aguas Minerales (350cc)', cantidadPorPersona: 2, unidad: 'lata / vaso', costoUnitario: 900, categoria: 'bebestible' as const },
-  { id: 'beb-sug-vinos', nombre: 'Vinos Reserva & Espumante de Brindis', cantidadPorPersona: 1.5, unidad: 'copa', costoUnitario: 1800, categoria: 'bebestible' as const },
-  { id: 'beb-sug-barra', nombre: 'Barra Libre / Coctelería de Autor (Pisco Sour, Mojito, Gin)', cantidadPorPersona: 2, unidad: 'copa / vaso', costoUnitario: 2500, categoria: 'bebestible' as const },
-  { id: 'beb-sug-jugos', nombre: 'Jugos Naturales 100% Pulpa Estacional', cantidadPorPersona: 1.5, unidad: 'vaso', costoUnitario: 1200, categoria: 'bebestible' as const },
-  { id: 'beb-sug-cervezas', nombre: 'Cervezas Artesanales & Premium', cantidadPorPersona: 2, unidad: 'botella', costoUnitario: 1500, categoria: 'bebestible' as const },
-  { id: 'beb-sug-cafe', nombre: 'Estación Café de Grano & Té Gourmet', cantidadPorPersona: 1, unidad: 'taza', costoUnitario: 800, categoria: 'bebestible' as const }
-];
 
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   menus,
@@ -77,23 +71,211 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
     }
   };
 
+  // Bebestibles con cálculo de costo dinámico (insumo maestro / receta técnica / libre)
+  const bebestiblesConCostoDinamico = useMemo(() => {
+    return bebestibles.map(it => {
+      let costoUnitarioReal = it.costoUnitario || 0;
+      let detalleOrigen = 'Opción Libre';
+      let tagColor = 'bg-amber-100 text-amber-800 border-amber-200';
+      let iconoTipo = 'libre';
+
+      if (it.insumoId) {
+        const ins = insumos.find(i => i.id === it.insumoId);
+        if (ins) {
+          costoUnitarioReal = ins.precioCompra;
+          detalleOrigen = `Insumo (${ins.proveedor || 'Sin proveedor'})`;
+          tagColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+          iconoTipo = 'insumo';
+        }
+      } else if (it.recetaId) {
+        const rec = recetas.find(r => r.id === it.recetaId);
+        if (rec) {
+          const calc = calcularCostoReceta(rec, insumos);
+          costoUnitarioReal = calc.costoPorPorcion;
+          detalleOrigen = `Ficha Técnica (${rec.tiempoMenu || 'coctel'})`;
+          tagColor = 'bg-purple-100 text-purple-800 border-purple-200';
+          iconoTipo = 'receta';
+        }
+      }
+
+      const ratio = Number(it.cantidadPorPersona) || 0;
+      const subtotalPP = ratio * costoUnitarioReal;
+      const totalCompra = Math.round(ratio * invitados * 10) / 10;
+      const totalEvento = subtotalPP * invitados;
+
+      return {
+        ...it,
+        costoReal: costoUnitarioReal,
+        detalleOrigen,
+        tagColor,
+        iconoTipo,
+        subtotalPP,
+        totalCompra,
+        totalEvento
+      };
+    });
+  }, [bebestibles, insumos, recetas, invitados]);
+
+  const costoTotalBebestiblesPorPersona = useMemo(() => {
+    return bebestiblesConCostoDinamico
+      .filter(it => it.incluido !== false)
+      .reduce((acc, b) => acc + b.subtotalPP, 0);
+  }, [bebestiblesConCostoDinamico]);
+
+  const costoTotalBebestiblesEvento = costoTotalBebestiblesPorPersona * invitados;
+
+  // Presets Rápidos Vinculados Dinámicamente a Insumos y Recetas
+  const presetsDinamicos = useMemo(() => {
+    const lista: Array<{
+      id: string;
+      nombre: string;
+      cantidadPorPersona: number;
+      unidad: string;
+      costoUnitario: number;
+      tipoOrigen: 'insumo' | 'receta';
+      insumoId?: string;
+      recetaId?: string;
+      subtitulo: string;
+      iconoTipo: 'vino' | 'cerveza' | 'gaseosa' | 'coctel';
+    }> = [];
+
+    // Vino
+    const vinoInsumo = insumos.find(i => i.id === 'ins-vino-reserva-tinto') || insumos.find(i => (i.categoria || '').includes('licor') || i.nombre.toLowerCase().includes('vino'));
+    if (vinoInsumo) {
+      lista.push({
+        id: 'beb-preset-vino',
+        nombre: vinoInsumo.nombre,
+        cantidadPorPersona: 0.5,
+        unidad: 'botella',
+        costoUnitario: vinoInsumo.precioCompra,
+        tipoOrigen: 'insumo',
+        insumoId: vinoInsumo.id,
+        subtitulo: `Insumo: ${formatMoneda(vinoInsumo.precioCompra)}`,
+        iconoTipo: 'vino'
+      });
+    }
+
+    // Cerveza
+    const cervezaInsumo = insumos.find(i => i.id === 'ins-cerveza-lager') || insumos.find(i => i.nombre.toLowerCase().includes('cerveza'));
+    if (cervezaInsumo) {
+      lista.push({
+        id: 'beb-preset-cerveza',
+        nombre: cervezaInsumo.nombre,
+        cantidadPorPersona: 2,
+        unidad: 'botella',
+        costoUnitario: cervezaInsumo.precioCompra,
+        tipoOrigen: 'insumo',
+        insumoId: cervezaInsumo.id,
+        subtitulo: `Insumo: ${formatMoneda(cervezaInsumo.precioCompra)}`,
+        iconoTipo: 'cerveza'
+      });
+    }
+
+    // Gaseosas
+    const gaseosaInsumo = insumos.find(i => i.id === 'ins-gaseosa-15') || insumos.find(i => i.nombre.toLowerCase().includes('gaseosa') || i.nombre.toLowerCase().includes('bebida'));
+    if (gaseosaInsumo) {
+      lista.push({
+        id: 'beb-preset-gaseosa',
+        nombre: gaseosaInsumo.nombre,
+        cantidadPorPersona: 0.8,
+        unidad: 'botella',
+        costoUnitario: gaseosaInsumo.precioCompra,
+        tipoOrigen: 'insumo',
+        insumoId: gaseosaInsumo.id,
+        subtitulo: `Insumo: ${formatMoneda(gaseosaInsumo.precioCompra)}`,
+        iconoTipo: 'gaseosa'
+      });
+    }
+
+    // Pisco Sour
+    const piscoReceta = recetas.find(r => r.id === 'rec-pisco-sour-catedral') || recetas.find(r => r.nombre.toLowerCase().includes('pisco'));
+    if (piscoReceta) {
+      const calc = calcularCostoReceta(piscoReceta, insumos);
+      lista.push({
+        id: 'beb-preset-pisco',
+        nombre: piscoReceta.nombre,
+        cantidadPorPersona: 2,
+        unidad: 'trago',
+        costoUnitario: calc.costoPorPorcion,
+        tipoOrigen: 'receta',
+        recetaId: piscoReceta.id,
+        subtitulo: `Ficha: ${formatMoneda(calc.costoPorPorcion)}/porc.`,
+        iconoTipo: 'coctel'
+      });
+    }
+
+    // Mojito
+    const mojitoReceta = recetas.find(r => r.id === 'rec-mojito-cubano') || recetas.find(r => r.nombre.toLowerCase().includes('mojito'));
+    if (mojitoReceta) {
+      const calc = calcularCostoReceta(mojitoReceta, insumos);
+      lista.push({
+        id: 'beb-preset-mojito',
+        nombre: mojitoReceta.nombre,
+        cantidadPorPersona: 2,
+        unidad: 'trago',
+        costoUnitario: calc.costoPorPorcion,
+        tipoOrigen: 'receta',
+        recetaId: mojitoReceta.id,
+        subtitulo: `Ficha: ${formatMoneda(calc.costoPorPorcion)}/porc.`,
+        iconoTipo: 'coctel'
+      });
+    }
+
+    // Aperol Spritz
+    const aperolReceta = recetas.find(r => r.id === 'rec-aperol-spritz') || recetas.find(r => r.nombre.toLowerCase().includes('aperol'));
+    if (aperolReceta) {
+      const calc = calcularCostoReceta(aperolReceta, insumos);
+      lista.push({
+        id: 'beb-preset-aperol',
+        nombre: aperolReceta.nombre,
+        cantidadPorPersona: 1.5,
+        unidad: 'copa',
+        costoUnitario: calc.costoPorPorcion,
+        tipoOrigen: 'receta',
+        recetaId: aperolReceta.id,
+        subtitulo: `Ficha: ${formatMoneda(calc.costoPorPorcion)}/porc.`,
+        iconoTipo: 'coctel'
+      });
+    }
+
+    return lista;
+  }, [insumos, recetas]);
+
   // Manejadores de Bebestibles por Persona (p.p.)
-  const handleToggleBebestibleSugerido = (beb: typeof BEBESTIBLES_SUGERIDOS_PRESET[0]) => {
+  const handleTogglePresetDinamico = (preset: typeof presetsDinamicos[0]) => {
     if (!onUpdateBebestibles) return;
-    const existe = bebestibles.some(b => b.nombre.toLowerCase().includes(beb.nombre.toLowerCase().slice(0, 10)));
-    if (existe) {
-      onUpdateBebestibles(bebestibles.filter(b => !b.nombre.toLowerCase().includes(beb.nombre.toLowerCase().slice(0, 10))));
+    const existente = bebestibles.find(b =>
+      (preset.insumoId && b.insumoId === preset.insumoId) ||
+      (preset.recetaId && b.recetaId === preset.recetaId) ||
+      b.nombre.toLowerCase().includes(preset.nombre.toLowerCase().slice(0, 10))
+    );
+
+    if (existente) {
+      onUpdateBebestibles(
+        bebestibles.map(b => b.id === existente.id ? { ...b, incluido: b.incluido === false ? true : false } : b)
+      );
     } else {
       const nuevo: MenuItemRatio = {
         id: 'beb-' + Date.now(),
-        nombre: beb.nombre,
-        cantidadPorPersona: beb.cantidadPorPersona,
-        unidad: beb.unidad,
-        costoUnitario: beb.costoUnitario,
-        categoria: 'bebestible'
+        nombre: preset.nombre,
+        cantidadPorPersona: preset.cantidadPorPersona,
+        unidad: preset.unidad,
+        costoUnitario: preset.costoUnitario,
+        insumoId: preset.insumoId,
+        recetaId: preset.recetaId,
+        tipoOrigen: preset.tipoOrigen,
+        categoria: 'bebestible',
+        incluido: true
       };
       onUpdateBebestibles([...bebestibles, nuevo]);
     }
+  };
+
+  const handleToggleBebestible = (id: string) => {
+    if (!onUpdateBebestibles) return;
+    onUpdateBebestibles(
+      bebestibles.map(b => b.id === id ? { ...b, incluido: b.incluido === false ? true : false } : b)
+    );
   };
 
   const handleUpdateCantidadBeb = (id: string, cant: number) => {
@@ -119,19 +301,15 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
       cantidadPorPersona: Math.max(0.01, cantNum),
       unidad: nuevoBebUnidad,
       costoUnitario: Math.max(0, costoNum),
-      categoria: 'bebestible'
+      categoria: 'bebestible',
+      tipoOrigen: 'libre',
+      incluido: true
     };
     onUpdateBebestibles([...bebestibles, nuevo]);
     setNuevoBebNombre('');
     setNuevoBebRatio(2);
     setNuevoBebCosto(900);
   };
-
-  const costoTotalBebestiblesPorPersona = bebestibles.reduce(
-    (acc, b) => acc + (b.cantidadPorPersona * (b.costoUnitario || 0)),
-    0
-  );
-  const costoTotalBebestiblesEvento = costoTotalBebestiblesPorPersona * invitados;
 
   return (
     <div className="space-y-6">

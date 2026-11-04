@@ -302,7 +302,7 @@ export const INSUMOS_MAESTRO_INICIALES: InsumoMaestro[] = [
     proveedor: 'Chocolatería Belcolade'
   },
 
-  // ── Licores y Vinos para Cocina ──
+  // ── Licores, Vinos & Bebestibles de Bar ──
   {
     id: 'ins-vino-oporto',
     nombre: 'Vino Oporto Reserva para Reducciones',
@@ -314,12 +314,129 @@ export const INSUMOS_MAESTRO_INICIALES: InsumoMaestro[] = [
   },
   {
     id: 'ins-vino-reserva-tinto',
-    nombre: 'Vino Tinto Cabernet Sauvignon Reserva',
+    nombre: 'Vino Tinto Cabernet Sauvignon Reserva (750cc)',
     categoria: 'licores_bebidas',
-    unidadMedida: 'L',
-    precioCompra: 5400,
+    unidadMedida: 'unidad',
+    precioCompra: 4600,
     mermaPorcentaje: 0,
     proveedor: 'Viña Valle Central'
+  },
+  {
+    id: 'ins-vino-reserva-blanco',
+    nombre: 'Vino Blanco Sauvignon Blanc Reserva (750cc)',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'unidad',
+    precioCompra: 4400,
+    mermaPorcentaje: 0,
+    proveedor: 'Viña Valle Central'
+  },
+  {
+    id: 'ins-espumante-brut',
+    nombre: 'Espumante Brut Charmat Especial (750cc)',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'unidad',
+    precioCompra: 4900,
+    mermaPorcentaje: 0,
+    proveedor: 'Viña Valle Central'
+  },
+  {
+    id: 'ins-cerveza-lager',
+    nombre: 'Cerveza Lager / Artesanal Botella 330cc',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'unidad',
+    precioCompra: 990,
+    mermaPorcentaje: 0,
+    proveedor: 'Distribuidora Cervezas'
+  },
+  {
+    id: 'ins-gaseosa-15',
+    nombre: 'Bebida Gaseosa Variada Coca-Cola / Sprite 1.5L',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'unidad',
+    precioCompra: 1650,
+    mermaPorcentaje: 0,
+    proveedor: 'Embotelladora Andina'
+  },
+  {
+    id: 'ins-agua-mineral',
+    nombre: 'Agua Mineral Con / Sin Gas 1.5L',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'unidad',
+    precioCompra: 890,
+    mermaPorcentaje: 0,
+    proveedor: 'Vital Aguas'
+  },
+  {
+    id: 'ins-pisco-especial',
+    nombre: 'Pisco Especial 35° / 40° Transparente',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'L',
+    precioCompra: 8900,
+    mermaPorcentaje: 0,
+    proveedor: 'Distribuidora Licores'
+  },
+  {
+    id: 'ins-ron-blanco',
+    nombre: 'Ron Blanco Añejo Bar',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'L',
+    precioCompra: 7900,
+    mermaPorcentaje: 0,
+    proveedor: 'Distribuidora Licores'
+  },
+  {
+    id: 'ins-gin-artesanal',
+    nombre: 'Gin Destilado Botánico Artesanal',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'L',
+    precioCompra: 13500,
+    mermaPorcentaje: 0,
+    proveedor: 'Destilería Central'
+  },
+  {
+    id: 'ins-aperol-bitter',
+    nombre: 'Aperitivo Bitter Tipo Aperol',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'L',
+    precioCompra: 11900,
+    mermaPorcentaje: 0,
+    proveedor: 'Distribuidora Licores'
+  },
+  {
+    id: 'ins-agua-tonica',
+    nombre: 'Agua Tónica Botánica / Soda',
+    categoria: 'licores_bebidas',
+    unidadMedida: 'L',
+    precioCompra: 1600,
+    mermaPorcentaje: 0,
+    proveedor: 'Distribuidora Licores'
+  },
+  {
+    id: 'ins-jarabe-goma',
+    nombre: 'Jarabe de Goma / Almíbar Bar Artesanal',
+    categoria: 'abarrotes',
+    unidadMedida: 'L',
+    precioCompra: 3200,
+    mermaPorcentaje: 0,
+    proveedor: 'Insumos de Bar Chile'
+  },
+  {
+    id: 'ins-hielo-cubos',
+    nombre: 'Hielo Purificado en Cubos Macizos',
+    categoria: 'abarrotes',
+    unidadMedida: 'kg',
+    precioCompra: 550,
+    mermaPorcentaje: 5,
+    proveedor: 'Hielo Polar Express'
+  },
+  {
+    id: 'ins-menta-fresca',
+    nombre: 'Menta Fresca / Hierbabuena Hidropónica',
+    categoria: 'verduras_frutas',
+    unidadMedida: 'kg',
+    precioCompra: 5800,
+    mermaPorcentaje: 10,
+    proveedor: 'La Vega Central'
   },
 
   // ── Coffee Break, Pastelería y Bebidas de Estación ──
@@ -511,6 +628,80 @@ export const RECETAS_INICIALES: RecetaFichaTecnica[] = [
       { id: 'ing-cb-2', insumoId: 'ins-mini-pasteleria', cantidad: 3, unidad: 'unidad' }, // 3 bocados dulces/pax ($1.800)
       { id: 'ing-cb-3', insumoId: 'ins-cafe-grano', cantidad: 25, unidad: 'g' }, // 25g café en grano ($412 con merma)
       { id: 'ing-cb-4', insumoId: 'ins-jugo-natural', cantidad: 0.25, unidad: 'L' } // 250ml jugo natural ($714 con merma)
+    ]
+  },
+
+  // ── 7. Coctelería: Pisco Sour Catedral Artesanal ──
+  {
+    id: 'rec-pisco-sour-catedral',
+    nombre: 'Pisco Sour Catedral Artesanal',
+    tiempoMenu: 'coctel',
+    categoria: 'Bebidas & Bar',
+    rendimientoPorciones: 1,
+    margenSugerido: 33,
+    costoAdicionalElaboracion: 180, // Amargo de angostura, copa y preparación
+    descripcionProcedimiento: 'Pisco 35°/40° batido con limón sutil recién exprimido, jarabe de goma artesanal y clara de huevo de campo pasteurizada con hielo frappé.',
+    ingredientes: [
+      { id: 'ing-ps-1', insumoId: 'ins-pisco-especial', cantidad: 0.09, unidad: 'L' }, // 90ml pisco
+      { id: 'ing-ps-2', insumoId: 'ins-limon-sutil', cantidad: 50, unidad: 'g' }, // 50g limón
+      { id: 'ing-ps-3', insumoId: 'ins-jarabe-goma', cantidad: 0.03, unidad: 'L' }, // 30ml goma
+      { id: 'ing-ps-4', insumoId: 'ins-huevos-campo', cantidad: 0.35, unidad: 'unidad' }, // clara
+      { id: 'ing-ps-5', insumoId: 'ins-hielo-cubos', cantidad: 80, unidad: 'g' } // hielo
+    ]
+  },
+
+  // ── 8. Coctelería: Mojito Cubano con Menta Fresca ──
+  {
+    id: 'rec-mojito-cubano',
+    nombre: 'Mojito Cubano con Menta Fresca',
+    tiempoMenu: 'coctel',
+    categoria: 'Bebidas & Bar',
+    rendimientoPorciones: 1,
+    margenSugerido: 33,
+    costoAdicionalElaboracion: 150, // Vaso, bombilla ecológica y macerado
+    descripcionProcedimiento: 'Ron blanco macerado con hojas frescas de menta hidropónica, jugo de limón sutil, jarabe de goma y toque de soda con hielo en cubos.',
+    ingredientes: [
+      { id: 'ing-moj-1', insumoId: 'ins-ron-blanco', cantidad: 0.06, unidad: 'L' }, // 60ml ron
+      { id: 'ing-moj-2', insumoId: 'ins-limon-sutil', cantidad: 35, unidad: 'g' }, // 35g limón
+      { id: 'ing-moj-3', insumoId: 'ins-menta-fresca', cantidad: 10, unidad: 'g' }, // 10g menta
+      { id: 'ing-moj-4', insumoId: 'ins-jarabe-goma', cantidad: 0.025, unidad: 'L' }, // 25ml goma
+      { id: 'ing-moj-5', insumoId: 'ins-agua-mineral', cantidad: 1, unidad: 'unidad' }, // agua con gas
+      { id: 'ing-moj-6', insumoId: 'ins-hielo-cubos', cantidad: 100, unidad: 'g' }
+    ]
+  },
+
+  // ── 9. Coctelería: Aperol Spritz Veneciano ──
+  {
+    id: 'rec-aperol-spritz',
+    nombre: 'Aperol Spritz Veneciano',
+    tiempoMenu: 'coctel',
+    categoria: 'Bebidas & Bar',
+    rendimientoPorciones: 1,
+    margenSugerido: 33,
+    costoAdicionalElaboracion: 200, // Copa borgoña y rodaja de naranja fresca
+    descripcionProcedimiento: '3 partes de espumante brut, 2 partes de bitter Aperol y un toque de soda con abundante hielo y rodaja de naranja.',
+    ingredientes: [
+      { id: 'ing-ap-1', insumoId: 'ins-aperol-bitter', cantidad: 0.06, unidad: 'L' }, // 60ml Aperol
+      { id: 'ing-ap-2', insumoId: 'ins-espumante-brut', cantidad: 1, unidad: 'unidad' }, // Espumante
+      { id: 'ing-ap-3', insumoId: 'ins-hielo-cubos', cantidad: 100, unidad: 'g' }
+    ]
+  },
+
+  // ── 10. Coctelería: Gin Tonic Botánico de Autor ──
+  {
+    id: 'rec-gin-tonic-botanico',
+    nombre: 'Gin Tonic Botánico de Autor',
+    tiempoMenu: 'coctel',
+    categoria: 'Bebidas & Bar',
+    rendimientoPorciones: 1,
+    margenSugerido: 33,
+    costoAdicionalElaboracion: 220, // Botánicos seleccionados, enebro y piel de cítrico
+    descripcionProcedimiento: 'Gin artesanal destilado con agua tónica botánica fría, piel de limón perfumada y bayas de enebro con hielo macizo.',
+    ingredientes: [
+      { id: 'ing-gt-1', insumoId: 'ins-gin-artesanal', cantidad: 0.06, unidad: 'L' }, // 60ml Gin
+      { id: 'ing-gt-2', insumoId: 'ins-agua-tonica', cantidad: 0.18, unidad: 'L' }, // 180ml Tónica
+      { id: 'ing-gt-3', insumoId: 'ins-limon-sutil', cantidad: 20, unidad: 'g' },
+      { id: 'ing-gt-4', insumoId: 'ins-hielo-cubos', cantidad: 100, unidad: 'g' }
     ]
   }
 ];

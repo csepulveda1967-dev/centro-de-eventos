@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta } from '../types';
+import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta, MenuItemRatio } from '../types';
 import {
   calcularCostoReceta,
   calcularCostoIngrediente,
@@ -30,7 +30,13 @@ import {
   Tag,
   Filter,
   PieChart,
-  FolderPlus
+  FolderPlus,
+  Wine,
+  GlassWater,
+  Beer,
+  Check,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { Modulo2Personal } from './Modulo2Personal';
 import { StaffTarifas } from '../types';
@@ -61,6 +67,9 @@ interface CalculadoraRecetasProps {
     aseo: number;
     maitre: number;
   }) => void;
+  // Servicio de Bebestibles, Vinos & Barra por Persona
+  bebestibles?: MenuItemRatio[];
+  onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
 }
 
 interface InputNumeroCeldaRecetasProps {
@@ -146,7 +155,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onDeleteMenu,
   tarifasStaff,
   personal,
-  onChangePersonal
+  onChangePersonal,
+  bebestibles = [],
+  onUpdateBebestibles
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
@@ -633,6 +644,199 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   };
 
   const presetsMargen = [25, 30, 33, 35, 40, 45, 50];
+
+  // ── ESTADO & LÓGICA: SERVICIO DE BEBESTIBLES, VINOS & BARRA POR PERSONA ──
+  const [tabAgregarBebestible, setTabAgregarBebestible] = useState<'insumo' | 'receta' | 'libre'>('insumo');
+
+  // Filtrar insumos específicos de bar / bebidas o todos los disponibles
+  const insumosBebidas = useMemo(() => {
+    const list = insumos.filter(i => {
+      const cat = (i.categoria || '').toLowerCase();
+      return cat.includes('licor') || cat.includes('bebida') || cat.includes('vino') || cat.includes('bar');
+    });
+    return list.length > 0 ? list : insumos;
+  }, [insumos]);
+
+  const [selectedInsumoBebId, setSelectedInsumoBebId] = useState<string>(insumosBebidas[0]?.id || insumos[0]?.id || '');
+  const [insumoBebRatio, setInsumoBebRatio] = useState<number | string>(1);
+  const [insumoBebUnidad, setInsumoBebUnidad] = useState<string>('botella');
+
+  // Filtrar recetas específicas de cócteles / bar o todas las fichas técnicas
+  const recetasCocteleria = useMemo(() => {
+    const list = recetas.filter(r => {
+      const t = (r.tiempoMenu || '').toLowerCase();
+      const c = (r.categoria || '').toLowerCase();
+      return t === 'coctel' || c.includes('bar') || c.includes('coctel') || c.includes('bebida');
+    });
+    return list.length > 0 ? list : recetas;
+  }, [recetas]);
+
+  const [selectedRecetaBebId, setSelectedRecetaBebId] = useState<string>(recetasCocteleria[0]?.id || recetas[0]?.id || '');
+  const [recetaBebRatio, setRecetaBebRatio] = useState<number | string>(2);
+  const [recetaBebUnidad, setRecetaBebUnidad] = useState<string>('trago');
+
+  // Opción Libre
+  const [libreBebNombre, setLibreBebNombre] = useState<string>('');
+  const [libreBebRatio, setLibreBebRatio] = useState<number | string>(1);
+  const [libreBebUnidad, setLibreBebUnidad] = useState<string>('copa / vaso');
+  const [libreBebCosto, setLibreBebCosto] = useState<number | string>(1500);
+
+  // Handlers para Bebestibles
+  const handleToggleBebestible = (id: string) => {
+    if (!onUpdateBebestibles) return;
+    const actualizados = bebestibles.map(it =>
+      it.id === id ? { ...it, incluido: it.incluido === false ? true : false } : it
+    );
+    onUpdateBebestibles(actualizados);
+  };
+
+  const handleUpdateRatioBebestible = (id: string, nuevoRatio: number) => {
+    if (!onUpdateBebestibles) return;
+    const actualizados = bebestibles.map(it =>
+      it.id === id ? { ...it, cantidadPorPersona: nuevoRatio } : it
+    );
+    onUpdateBebestibles(actualizados);
+  };
+
+  const handleRemoveBebestible = (id: string) => {
+    if (!onUpdateBebestibles) return;
+    const actualizados = bebestibles.filter(it => it.id !== id);
+    onUpdateBebestibles(actualizados);
+  };
+
+  const handleAddBebestibleDesdeInsumo = (insumoIdParam?: string) => {
+    if (!onUpdateBebestibles) return;
+    const targetId = insumoIdParam || selectedInsumoBebId;
+    const insumo = insumos.find(i => i.id === targetId);
+    if (!insumo) return;
+
+    // Si ya existe, activarlo o informar
+    const existente = bebestibles.find(it => it.insumoId === insumo.id);
+    if (existente) {
+      if (existente.incluido === false) {
+        handleToggleBebestible(existente.id);
+      }
+      notificar(`✓ Bebestible "${insumo.nombre}" ya está en la barra`);
+      return;
+    }
+
+    const nuevoItem: MenuItemRatio = {
+      id: 'beb-ins-' + Date.now(),
+      nombre: insumo.nombre,
+      cantidadPorPersona: Number(insumoBebRatio) || 1,
+      unidad: insumoBebUnidad,
+      insumoId: insumo.id,
+      costoUnitario: insumo.precioCompra,
+      categoria: 'bebestible',
+      tipoOrigen: 'insumo',
+      incluido: true
+    };
+    onUpdateBebestibles([...bebestibles, nuevoItem]);
+    notificar(`✓ Insumo "${insumo.nombre}" vinculado a la barra`);
+  };
+
+  const handleAddBebestibleDesdeReceta = (recetaIdParam?: string) => {
+    if (!onUpdateBebestibles) return;
+    const targetId = recetaIdParam || selectedRecetaBebId;
+    const receta = recetas.find(r => r.id === targetId);
+    if (!receta) return;
+
+    const existente = bebestibles.find(it => it.recetaId === receta.id);
+    if (existente) {
+      if (existente.incluido === false) {
+        handleToggleBebestible(existente.id);
+      }
+      notificar(`✓ Cóctel "${receta.nombre}" ya está en la barra`);
+      return;
+    }
+
+    const { costoPorPorcion } = calcularCostoReceta(receta, insumos);
+    const nuevoItem: MenuItemRatio = {
+      id: 'beb-rec-' + Date.now(),
+      nombre: receta.nombre,
+      cantidadPorPersona: Number(recetaBebRatio) || 1,
+      unidad: recetaBebUnidad,
+      recetaId: receta.id,
+      costoUnitario: costoPorPorcion,
+      categoria: 'cocteleria',
+      tipoOrigen: 'receta',
+      incluido: true
+    };
+    onUpdateBebestibles([...bebestibles, nuevoItem]);
+    notificar(`✓ Cóctel "${receta.nombre}" vinculado desde Ficha Técnica`);
+  };
+
+  const handleAddBebestibleLibre = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!onUpdateBebestibles || !libreBebNombre.trim()) return;
+
+    const nuevoItem: MenuItemRatio = {
+      id: 'beb-lib-' + Date.now(),
+      nombre: libreBebNombre.trim(),
+      cantidadPorPersona: Number(libreBebRatio) || 1,
+      unidad: libreBebUnidad,
+      costoUnitario: Number(libreBebCosto) || 0,
+      categoria: 'bebestible',
+      tipoOrigen: 'libre',
+      incluido: true
+    };
+    onUpdateBebestibles([...bebestibles, nuevoItem]);
+    setLibreBebNombre('');
+    notificar(`✓ Bebestible personalizado "${nuevoItem.nombre}" agregado`);
+  };
+
+  // Cálculo en vivo y sincronizado de cada bebestible (resolviendo dinámicamente costos de insumo o receta)
+  const bebestiblesConCostoDinamico = useMemo(() => {
+    return bebestibles.map(it => {
+      let costoUnitarioCalculado = it.costoUnitario || 0;
+      let detalleOrigen = 'Opción Libre';
+      let tagColor = 'bg-amber-100 text-amber-800 border-amber-300';
+      let iconoTipo = 'libre';
+
+      if (it.insumoId) {
+        const ins = insumosMap.get(it.insumoId);
+        if (ins) {
+          costoUnitarioCalculado = ins.precioCompra;
+          detalleOrigen = `Insumo Maestro: ${ins.proveedor || 'Sin proveedor'}`;
+          tagColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+          iconoTipo = 'insumo';
+        }
+      } else if (it.recetaId) {
+        const rec = recetas.find(r => r.id === it.recetaId);
+        if (rec) {
+          const calc = calcularCostoReceta(rec, insumos);
+          costoUnitarioCalculado = calc.costoPorPorcion;
+          detalleOrigen = `Ficha Técnica (${rec.tiempoMenu || 'coctel'})`;
+          tagColor = 'bg-purple-100 text-purple-800 border-purple-300';
+          iconoTipo = 'receta';
+        }
+      }
+
+      const ratio = Number(it.cantidadPorPersona) || 0;
+      const subtotalPP = ratio * costoUnitarioCalculado;
+      const totalComprarEvento = Math.round(ratio * invitados * 10) / 10;
+      const totalCostoEvento = subtotalPP * invitados;
+
+      return {
+        ...it,
+        costoReal: costoUnitarioCalculado,
+        detalleOrigen,
+        tagColor,
+        iconoTipo,
+        subtotalPP,
+        totalComprarEvento,
+        totalCostoEvento
+      };
+    });
+  }, [bebestibles, insumos, recetas, invitados]);
+
+  const costoTotalBebestiblesPP = useMemo(() => {
+    return bebestiblesConCostoDinamico
+      .filter(it => it.incluido !== false)
+      .reduce((s, it) => s + it.subtotalPP, 0);
+  }, [bebestiblesConCostoDinamico]);
+
+  const costoTotalBebestiblesEvento = costoTotalBebestiblesPP * invitados;
 
   return (
     <div className="space-y-6">
@@ -1838,8 +2042,563 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             </form>
           </div>
+      {/* ── SECCIÓN: SERVICIO DE BEBESTIBLES, VINOS & BARRA POR PERSONA (CONSUMOS EXACTOS P.P.) ── */}
+      <div className="bg-white rounded-2xl border border-purple-200/80 p-5 sm:p-6 shadow-xs space-y-5">
+        {/* Cabecera de la sección */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-purple-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
+                Consumos Exactos p.p.
+              </span>
+              <span className="text-xs text-purple-700 font-semibold">
+                Fichas Técnicas & Maestro de Insumos
+              </span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
+              <Wine className="w-5 h-5 text-purple-600" />
+              <span>Servicio de Bebestibles, Vinos & Barra por Persona</span>
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Botellas y gaseosas vinculadas al Maestro de Insumos (precio de compra y proveedor). Cócteles y tragos vinculados a Fichas Técnicas (costeo exacto en ml/g).
+            </p>
+          </div>
+
+          {/* Badges de totales */}
+          <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
+            <div className="bg-purple-50 border border-purple-200 rounded-xl px-3.5 py-2 text-right">
+              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">
+                Total Barra / Comensal
+              </span>
+              <div className="text-base font-black text-purple-950 tabular-nums">
+                {formatMoneda(costoTotalBebestiblesPP)} <span className="text-xs font-semibold text-purple-700">p.p.</span>
+              </div>
+            </div>
+
+            <div className="bg-purple-900 text-white rounded-xl px-4 py-2 text-right shadow-xs">
+              <span className="text-[10px] font-bold text-purple-200 uppercase tracking-wider block">
+                Total Evento ({invitados} Pax)
+              </span>
+              <div className="text-base font-black text-white tabular-nums">
+                {formatMoneda(costoTotalBebestiblesEvento)}
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Atajos Rápidos Vinculados Directamente a Insumos y Recetas */}
+        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider block">
+              ⚡ Catálogo Rápido: Activar bebestibles vinculados en 1 clic
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Vinculados a Insumos y Recetas reales
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* 1. Vino Tinto Cabernet */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeInsumo('ins-vino-reserva-tinto')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.insumoId === 'ins-vino-reserva-tinto' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Vino Reserva 750cc</span>
+                <span className="text-[9px] opacity-80">Insumo: $4.600/bot</span>
+              </div>
+              <Wine className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 2. Cerveza Artesanal */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeInsumo('ins-cerveza-lager')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.insumoId === 'ins-cerveza-lager' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Cerveza 330cc</span>
+                <span className="text-[9px] opacity-80">Insumo: $990/un</span>
+              </div>
+              <Beer className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 3. Bebidas Gaseosas 1.5L */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeInsumo('ins-gaseosa-15')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.insumoId === 'ins-gaseosa-15' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Gaseosas 1.5L</span>
+                <span className="text-[9px] opacity-80">Insumo: $1.650/un</span>
+              </div>
+              <GlassWater className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 4. Pisco Sour Catedral */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeReceta('rec-pisco-sour-catedral')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.recetaId === 'rec-pisco-sour-catedral' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Pisco Sour Catedral</span>
+                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
+              </div>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 5. Mojito Cubano */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeReceta('rec-mojito-cubano')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.recetaId === 'rec-mojito-cubano' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Mojito Cubano</span>
+                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
+              </div>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 6. Aperol Spritz */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeReceta('rec-aperol-spritz')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.recetaId === 'rec-aperol-spritz' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Aperol Spritz</span>
+                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
+              </div>
+              <Wine className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 7. Gin Tonic Botánico */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeReceta('rec-gin-tonic-botanico')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.recetaId === 'rec-gin-tonic-botanico' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Gin Tonic Autor</span>
+                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
+              </div>
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            </button>
+
+            {/* 8. Agua Mineral */}
+            <button
+              type="button"
+              onClick={() => handleAddBebestibleDesdeInsumo('ins-agua-mineral')}
+              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
+                bebestibles.some(it => it.insumoId === 'ins-agua-mineral' && it.incluido !== false)
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
+                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
+              }`}
+            >
+              <div className="truncate pr-1">
+                <span className="font-bold block truncate text-[11px]">Agua Mineral 1.5L</span>
+                <span className="text-[9px] opacity-80">Insumo: $890/un</span>
+              </div>
+              <GlassWater className="w-3.5 h-3.5 shrink-0" />
+            </button>
+          </div>
+        </div>
+
+        {/* Formulario con 3 Pestañas para Vincular Bebestible */}
+        <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center gap-2 border-b border-purple-200/70 pb-2 text-xs font-bold flex-wrap">
+            <span className="text-purple-950 mr-1">Vincular Nuevo Ítem:</span>
+            <button
+              type="button"
+              onClick={() => setTabAgregarBebestible('insumo')}
+              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                tabAgregarBebestible === 'insumo'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              1. Desde Maestro de Insumos (Botellas, Vinos, Gaseosas)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTabAgregarBebestible('receta')}
+              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                tabAgregarBebestible === 'receta'
+                  ? 'bg-purple-600 text-white shadow-2xs'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              2. Desde Fichas de Recetas (Cócteles & Tragos)
+            </button>
+            <button
+              type="button"
+              onClick={() => setTabAgregarBebestible('libre')}
+              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                tabAgregarBebestible === 'libre'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              3. Opción Libre
+            </button>
+          </div>
+
+          {/* Modo 1: Insumos */}
+          {tabAgregarBebestible === 'insumo' && (
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
+              <div className="sm:col-span-5">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Insumo Maestro (Toma costo real de compra)
+                </label>
+                <select
+                  value={selectedInsumoBebId}
+                  onChange={(e) => setSelectedInsumoBebId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
+                >
+                  {insumosBebidas.map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.nombre} — {formatMoneda(i.precioCompra)}/{i.unidadMedida} ({i.proveedor || 'Sin proveedor'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Ratio p.p. (Entero/Dec)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={insumoBebRatio}
+                  onChange={(e) => setInsumoBebRatio(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
+                  placeholder="Ej: 0.5 o 2"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Unidad
+                </label>
+                <select
+                  value={insumoBebUnidad}
+                  onChange={(e) => setInsumoBebUnidad(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
+                >
+                  <option value="botella">botella</option>
+                  <option value="lata">lata</option>
+                  <option value="vaso">vaso</option>
+                  <option value="copa">copa</option>
+                  <option value="L">L</option>
+                  <option value="unidad">unidad</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-3">
+                <button
+                  type="button"
+                  onClick={() => handleAddBebestibleDesdeInsumo()}
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Vincular Insumo a Barra</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modo 2: Recetas */}
+          {tabAgregarBebestible === 'receta' && (
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
+              <div className="sm:col-span-5">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Ficha Técnica de Cóctel (Costo calculado de ingredientes)
+                </label>
+                <select
+                  value={selectedRecetaBebId}
+                  onChange={(e) => setSelectedRecetaBebId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
+                >
+                  {recetasCocteleria.map((r) => {
+                    const c = calcularCostoReceta(r, insumos);
+                    return (
+                      <option key={r.id} value={r.id}>
+                        {r.nombre} — {formatMoneda(c.costoPorPorcion)}/porción ({r.ingredientes.length} ingredientes)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Ratio p.p. (Entero/Dec)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={recetaBebRatio}
+                  onChange={(e) => setRecetaBebRatio(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
+                  placeholder="Ej: 2"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Unidad
+                </label>
+                <select
+                  value={recetaBebUnidad}
+                  onChange={(e) => setRecetaBebUnidad(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
+                >
+                  <option value="trago">trago</option>
+                  <option value="copa">copa</option>
+                  <option value="vaso">vaso</option>
+                  <option value="porción">porción</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-3">
+                <button
+                  type="button"
+                  onClick={() => handleAddBebestibleDesdeReceta()}
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Vincular Receta a Barra</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modo 3: Libre */}
+          {tabAgregarBebestible === 'libre' && (
+            <form onSubmit={handleAddBebestibleLibre} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
+              <div className="sm:col-span-5">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Nombre Personalizado (Opción Libre)
+                </label>
+                <input
+                  type="text"
+                  value={libreBebNombre}
+                  onChange={(e) => setLibreBebNombre(e.target.value)}
+                  placeholder="Ej: Coctelería temática especial, Whisky 12 Años..."
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Ratio p.p.
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={libreBebRatio}
+                  onChange={(e) => setLibreBebRatio(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Unidad
+                </label>
+                <select
+                  value={libreBebUnidad}
+                  onChange={(e) => setLibreBebUnidad(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
+                >
+                  <option value="copa / vaso">copa / vaso</option>
+                  <option value="botella">botella</option>
+                  <option value="trago">trago</option>
+                  <option value="lata">lata</option>
+                  <option value="unidad">unidad</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
+                  Costo Unitario
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={libreBebCosto}
+                  onChange={(e) => setLibreBebCosto(e.target.value)}
+                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-hidden tabular-nums"
+                />
+              </div>
+
+              <div className="sm:col-span-1">
+                <button
+                  type="submit"
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-xs"
+                  title="Añadir opción libre"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        {/* Tabla de Bebestibles Activos & Ratios */}
+        {bebestiblesConCostoDinamico.length > 0 ? (
+          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-100 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                <tr>
+                  <th className="py-2.5 px-3 text-center w-10">Activo</th>
+                  <th className="py-2.5 px-3">Bebestible / Líquido</th>
+                  <th className="py-2.5 px-3">Origen / Vinculación</th>
+                  <th className="py-2.5 px-3 text-center">Ratio p.p. (Entero/Dec)</th>
+                  <th className="py-2.5 px-3 text-center">Total Compras ({invitados} Pax)</th>
+                  <th className="py-2.5 px-3 text-right">Costo Unit. Real</th>
+                  <th className="py-2.5 px-3 text-right">Subtotal p.p.</th>
+                  <th className="py-2.5 px-3 text-right">Total Barra</th>
+                  <th className="py-2.5 px-2 text-center w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {bebestiblesConCostoDinamico.map((item) => {
+                  const estaActivo = item.incluido !== false;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={`transition-colors ${estaActivo ? 'hover:bg-purple-50/30' : 'bg-slate-50/70 opacity-60'}`}
+                    >
+                      <td className="py-2.5 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={estaActivo}
+                          onChange={() => handleToggleBebestible(item.id)}
+                          className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          title={estaActivo ? 'Desactivar de esta cotización' : 'Activar en esta cotización'}
+                        />
+                      </td>
+
+                      <td className="py-2.5 px-3 font-semibold text-slate-900">
+                        {item.nombre}
+                      </td>
+
+                      <td className="py-2.5 px-3">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${item.tagColor}`}>
+                          {item.iconoTipo === 'insumo' && <Wine className="w-3 h-3 text-emerald-700" />}
+                          {item.iconoTipo === 'receta' && <Sparkles className="w-3 h-3 text-purple-700" />}
+                          {item.iconoTipo === 'libre' && <Tag className="w-3 h-3 text-amber-700" />}
+                          <span>{item.detalleOrigen}</span>
+                        </span>
+                      </td>
+
+                      <td className="py-2.5 px-3 text-center">
+                        <div className="inline-flex items-center justify-center gap-1 font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={item.cantidadPorPersona}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value.replace(',', '.'));
+                              handleUpdateRatioBebestible(item.id, isNaN(val) ? 0 : val);
+                            }}
+                            className="w-14 text-center bg-white font-black text-slate-900 rounded border border-slate-300 py-0.5 focus:outline-hidden text-xs"
+                          />
+                          <span className="text-[10px] text-slate-600 font-medium">{item.unidad}</span>
+                        </div>
+                      </td>
+
+                      <td className="py-2.5 px-3 text-center font-bold text-emerald-800 tabular-nums">
+                        {item.totalComprarEvento} {item.unidad}s
+                      </td>
+
+                      <td className="py-2.5 px-3 text-right text-slate-700 tabular-nums">
+                        {formatMoneda(item.costoReal)}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                        {formatMoneda(item.subtotalPP)}
+                      </td>
+
+                      <td className="py-2.5 px-3 text-right font-bold text-purple-950 tabular-nums">
+                        {formatMoneda(item.totalCostoEvento)}
+                      </td>
+
+                      <td className="py-2.5 px-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBebestible(item.id)}
+                          className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
+                          title="Eliminar bebestible"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-xs">
+                <tr>
+                  <td colSpan={6} className="py-2.5 px-3 text-slate-700 text-right">
+                    Subtotal Activo por Comensal:
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-black text-purple-950 tabular-nums text-sm">
+                    {formatMoneda(costoTotalBebestiblesPP)}/pax
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-black text-purple-950 tabular-nums text-sm">
+                    {formatMoneda(costoTotalBebestiblesEvento)}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : (
+          <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-slate-500 text-xs">
+            No has agregado bebestibles para este menú aún. Selecciona cualquiera de las opciones rápidas de arriba o vincula directamente insumos o recetas.
+          </div>
+        )}
+      </div>
 
       {/* ── BRIGADA DE SERVICIO & PERSONAL DE OPERACIONES EN RECETA Y COSTEO ── */}
       {tarifasStaff && personal && onChangePersonal && (
