@@ -144,8 +144,12 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
   const costoPersonaNum = typeof costoPersona === 'number' ? costoPersona : parseFloat(String(costoPersona)) || 0;
   const precioSugerido = Math.round(costoPersonaNum / (margenSugerido / 100 || 0.33));
 
-  const handleAgregarItemPP = (e: React.FormEvent) => {
-    e.preventDefault();
+  // FIX IMPORTANTE: este formulario de ítems vive DENTRO del gran <form> del menú.
+  // Un <form> anidado dentro de otro hace que el navegador envíe el formulario
+  // nativamente y RECARGUE la página perdiendo todo (el clásico "sale en blanco").
+  // Por eso ahora es un <div> + botón type="button" y Enter se maneja a mano.
+  const handleAgregarItemPP = (e?: React.FormEvent) => {
+    if (e && 'preventDefault' in e) e.preventDefault();
     if (!nuevoItemNombre.trim()) return;
 
     const cantPP = typeof nuevoItemCantidadPP === 'number' ? nuevoItemCantidadPP : parseFloat(String(nuevoItemCantidadPP)) || 1;
@@ -513,7 +517,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
               </div>
             )}
 
-            {/* Formulario rápido para añadir ítem por persona */}
+            {/* Formulario rápido para añadir ítem por persona (div, NO form anidado) */}
             <div className="bg-white p-3 rounded-xl border border-slate-200/90 space-y-2">
               <span className="text-[11px] font-bold text-slate-700 block">
                 + Agregar Ítem por Persona (ej: 1 sandwich pp 2, bebidas pp 2)
@@ -560,6 +564,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                     type="text"
                     value={nuevoItemNombre}
                     onChange={(e) => setNuevoItemNombre(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarItemPP(); } }}
                     placeholder="Nombre ítem (ej: Sandwich ave, Bebidas...)"
                     className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden text-xs"
                   />
@@ -573,6 +578,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                       step="any"
                       value={nuevoItemCantidadPP}
                       onChange={(e) => setNuevoItemCantidadPP(e.target.value === '' ? '' : Number(e.target.value))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarItemPP(); } }}
                       placeholder="pp (ej: 2)"
                       className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden text-xs"
                       title="Cantidad por persona"
@@ -604,6 +610,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                     step="any"
                     value={nuevoItemCostoUnitario}
                     onChange={(e) => setNuevoItemCostoUnitario(e.target.value === '' ? '' : Number(e.target.value))}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAgregarItemPP(); } }}
                     placeholder="Costo unit."
                     className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-hidden text-xs tabular-nums"
                   />
@@ -613,9 +620,9 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                 <div className="sm:col-span-1 flex items-start pt-0.5">
                   <button
                     type="button"
-                    onClick={handleAgregarItemPP}
+                    onClick={() => handleAgregarItemPP()}
                     className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-2xs"
-                    title="Añadir ítem"
+                    title="Añadir ítem (o presiona Enter)"
                   >
                     <Plus className="w-4 h-4" />
                   </button>

@@ -17,13 +17,14 @@ import {
   Lock,
   Unlock,
   FilePlus,
-  Save
+  Save,
+  Martini
 } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 
 interface HeaderProps {
-  vistaActual: 'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas';
-  setVistaActual: (vista: 'cotizador' | 'adm-costos' | 'recetas' | 'insumos' | 'compras' | 'calendario' | 'tarifas') => void;
+  vistaActual: 'cotizador' | 'adm-costos' | 'recetas' | 'cocteleria' | 'insumos' | 'compras' | 'calendario' | 'tarifas';
+  setVistaActual: (vista: 'cotizador' | 'adm-costos' | 'recetas' | 'cocteleria' | 'insumos' | 'compras' | 'calendario' | 'tarifas') => void;
   invitados: number;
   precioSugeridoVenta: number;
   empresaActiva: EmpresaCliente;
@@ -164,6 +165,20 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="w-2 h-2 rounded-full bg-amber-500" />
               <span>Recetas & Costeo</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setVistaActual('cocteleria')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all duration-150 cursor-pointer ${
+                vistaActual === 'cocteleria'
+                  ? 'bg-white text-slate-900 shadow-xs font-bold ring-1 ring-purple-500/30'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+              title="Cotizador de Tragos & Licores: fichas de coctelería vinculadas al menú"
+            >
+              <Martini className="w-3.5 h-3.5 text-purple-700" />
+              <span>Tragos & Barra</span>
             </button>
 
             <button
