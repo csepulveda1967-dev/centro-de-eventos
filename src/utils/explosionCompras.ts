@@ -1,4 +1,5 @@
 import { CotizacionState, MenuOption, RecetaFichaTecnica, InsumoMaestro } from '../types';
+import { recetaPerteneceAMenu } from '../config/insumosYRecetas';
 
 export interface ItemExplosionCompra {
   insumoId: string;
@@ -63,8 +64,8 @@ export function calcularExplosionInsumos(
   const insumosMap = new Map<string, InsumoMaestro>(insumos.map(i => [i.id, i]));
   const menuActual = menus.find(m => m.id === cotizacion.menuId) || menus[0];
   
-  // Buscar recetas asociadas al menú (por menuAsociadoId o por recetasIds)
-  let recetasDelMenu = recetas.filter(r => r.menuAsociadoId === cotizacion.menuId);
+  // Buscar recetas asociadas al menú (por vinculación simple, múltiple o por recetasIds)
+  let recetasDelMenu = recetas.filter(r => recetaPerteneceAMenu(r, cotizacion.menuId));
   if (recetasDelMenu.length === 0 && menuActual?.recetasIds && menuActual.recetasIds.length > 0) {
     const idsSet = new Set(menuActual.recetasIds);
     recetasDelMenu = recetas.filter(r => idsSet.has(r.id));
