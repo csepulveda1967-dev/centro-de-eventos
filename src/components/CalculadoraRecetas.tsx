@@ -1868,6 +1868,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         onGuardarMenu={handleGuardarMenuDirecto}
         recetasDisponibles={recetas}
         insumosDisponibles={insumos}
+        invitadosReferencia={invitados}
       />
     </div>
   );

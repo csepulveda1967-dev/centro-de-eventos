@@ -66,7 +66,7 @@ import {
   cargarInsumosDesdeSupabase,
   isSupabaseConfigured
 } from './lib/supabase';
-import { PaqueteRespaldoCompleto } from './utils/respaldoDiscoDuro';
+import { PaqueteRespaldoCompleto, descargarRespaldoJSON, descargarRespaldoSQL } from './utils/respaldoDiscoDuro';
 import { descargarPaqueteCompletoZip } from './utils/generadorZipCliente';
 import { formatMoneda } from './utils/formatters';
 import {
@@ -79,7 +79,12 @@ import {
   HardDrive,
   Download,
   Building2,
-  Users
+  Users,
+  Save,
+  FilePlus,
+  Wine,
+  Database,
+  FileCode2
 } from 'lucide-react';
 
 export default function App() {
@@ -134,12 +139,14 @@ export default function App() {
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
   const [toastMensaje, setToastMensaje] = useState<string | null>(null);
 
-  // ── Modo Administrador (Oculto por defecto para Demos a Clientes) ──
+  // ── Modo Administrador (Libre por defecto para Respaldos y Gestión) ──
   const [modoAdmin, setModoAdmin] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('solvi_flow_modo_admin') === 'true';
+      const saved = localStorage.getItem('solvi_flow_modo_admin');
+      if (saved !== null) return saved === 'true';
+      return true; // Libre y desbloqueado por defecto para respaldo
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -299,6 +306,13 @@ export default function App() {
     const menuActual = menus.find(m => m.id === cotizacion.menuId) || menus[0];
     const costoMenu = (menuActual?.costoPersona || 0) * cotizacion.invitados;
 
+    // 1.5 Costo Bebestibles y Barra por Persona
+    const costoBebestibles = (cotizacion.bebestibles || []).reduce((acc, it) => {
+      const cant = Number(it.cantidadPorPersona) || 0;
+      const unit = Number(it.costoUnitario) || 0;
+      return acc + (cant * unit * cotizacion.invitados);
+    }, 0);
+
     // 2. Costo Personal
     const costoPersonal =
       cotizacion.personal.garzones * tarifasStaff.garzonJornada +
@@ -341,7 +355,7 @@ export default function App() {
       : 0;
 
     // Costo Variables Total y Costo Total Real de Operación (Tu Gasto Base)
-    const costoVariablesTotal = costoMenu + costoPersonal + costoProveedores + costoDecoracion;
+    const costoVariablesTotal = costoMenu + costoBebestibles + costoPersonal + costoProveedores + costoDecoracion;
     const costoTotalReal = costoVariablesTotal + costosFijosEvento;
     const costoPorInvitado = cotizacion.invitados > 0 ? costoTotalReal / cotizacion.invitados : 0;
 
@@ -371,6 +385,7 @@ export default function App() {
 
     return {
       costoMenu,
+      costoBebestibles,
       costoPersonal,
       costoProveedores,
       costoDecoracion,
@@ -845,23 +860,40 @@ export default function App() {
     mostrarToast(`✓ Cuentas de ${registro.mesNombre} cargadas`);
   };
 
-  // ── Guardar en Calendario ──
-  const handleGuardarEnCalendario = () => {
-    const fecha = cotizacion.fechaEvento || '2026-11-28';
+  // ── Guardar en Calendario e Historial de Cotizaciones ──
+  const handleGuardarCotizacionActual = () => {
+    const fecha = cotizacion.fechaEvento || new Date().toISOString().slice(0, 10);
+    const nombre = cotizacion.nombreEvento?.trim() || (cotizacion.cliente ? `Evento ${cotizacion.cliente}` : 'Cotización en Proceso');
+    const idReserva = cotizacion.id || ('res-' + Date.now());
+
     const nuevaReserva: ReservaCalendario = {
-      id: 'res-' + Date.now(),
-      titulo: cotizacion.nombreEvento || `Evento ${cotizacion.cliente}`,
+      id: idReserva,
+      titulo: nombre,
       cliente: cotizacion.cliente || 'Cliente Particular',
       tipoEvento: cotizacion.tipoEvento,
       fecha,
       invitados: cotizacion.invitados,
       estado: 'cotizado',
-      montoTotal: Math.round(resumenFinanciero.precioVentaTotal),
-      cotizacionSnapshot: { ...cotizacion }
+      montoTotal: Math.round(resumenFinanciero.precioCobradoFinal || resumenFinanciero.precioVentaTotal),
+      cotizacionSnapshot: { ...cotizacion, id: idReserva, nombreEvento: nombre, fechaEvento: fecha }
     };
 
-    setReservas(prev => [nuevaReserva, ...prev]);
-    mostrarToast(`✓ Cotización agendada con éxito para el ${fecha}`);
+    setReservas(prev => {
+      const filtradas = prev.filter(r => r.id !== idReserva);
+      return [nuevaReserva, ...filtradas];
+    });
+
+    setCotizacion(prev => ({
+      ...prev,
+      id: idReserva,
+      nombreEvento: nombre
+    }));
+
+    mostrarToast(`✓ Cotización "${nombre}" guardada con éxito en tu historial y calendario`);
+  };
+
+  const handleGuardarEnCalendario = () => {
+    handleGuardarCotizacionActual();
   };
 
   const handleCrearReservaDesdeActual = (fecha: string, estado: 'confirmado' | 'cotizado' | 'bloqueado') => {
@@ -873,7 +905,7 @@ export default function App() {
       fecha,
       invitados: cotizacion.invitados,
       estado,
-      montoTotal: Math.round(resumenFinanciero.precioVentaTotal),
+      montoTotal: Math.round(resumenFinanciero.precioCobradoFinal || resumenFinanciero.precioVentaTotal),
       cotizacionSnapshot: { ...cotizacion, fechaEvento: fecha }
     };
 
@@ -889,22 +921,68 @@ export default function App() {
     mostrarToast(`✓ Cotización cargada: "${snapshot.nombreEvento}" (${snapshot.invitados} invitados)`);
   };
 
-  // ── Iniciar Nueva Cotización Limpia para el Cliente Actual ──
-  const handleNuevaCotizacion = () => {
+  // ── Iniciar Nueva Cotización Limpia (Todos los Cotizadores en Blanco) ──
+  const handleNuevaCotizacionLimpia = () => {
     const config = PERFILES_CLIENTES_CATALOGO[clienteActivoId];
-    if (window.confirm(`¿Deseas iniciar una nueva cotización limpia para ${config.nombreOpcion}?`)) {
-      const def = config.crearDatosIniciales();
-      setCotizacion({
-        ...def.cotizacion,
-        nombreEvento: `Nueva Cotización ${config.nombreOpcion}`,
-        cliente: '',
-        emailCliente: '',
-        telefonoCliente: '',
-        fechaEvento: new Date().toISOString().slice(0, 10),
-        observaciones: ''
-      });
-      mostrarToast(`✓ Nueva cotización iniciada para ${config.nombreOpcion}`);
-    }
+    const def = config.crearDatosIniciales();
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    const cotizacionLimpia: CotizacionState = {
+      id: 'cot-' + Date.now(),
+      nombreEvento: '',
+      cliente: '',
+      emailCliente: '',
+      telefonoCliente: '',
+      tipoEvento: 'Boda',
+      fechaEvento: hoy,
+      invitados: 100,
+      menuId: menus[0]?.id || def.menus[0]?.id || 'menu-gourmet',
+      personal: {
+        garzones: Math.ceil(100 / 15),
+        cocineros: Math.ceil(100 / 35),
+        aseo: Math.ceil(100 / 60),
+        maitre: 1
+      },
+      proveedoresSeleccionados: { ...(def.cotizacion.proveedoresSeleccionados || {}) },
+      mesas: Array.from({ length: 10 }, (_, i) => ({
+        id: `m-${i + 1}`,
+        numero: i + 1,
+        nombre: i === 0 ? 'Mesa Principal / Honor' : `Mesa ${i + 1}`,
+        capacidad: 10,
+        tipo: (i === 0 ? 'presidencial' : 'redonda') as Mesa['tipo'],
+        zona: 'Salón Principal'
+      })),
+      decoracionId: def.cotizacion.decoracionId || 'rustico-chic',
+      margenGanancia: def.cotizacion.margenGanancia || 35,
+      aplicaIva: false,
+      observaciones: '',
+      porcentajeAnticipo: 40,
+      esquemaPago: 'dos_pagos',
+      diasSaldo: 7,
+      validezDias: 15,
+      gastoLuzMensual: def.cotizacion.gastoLuzMensual || 85000,
+      gastoGasMensual: def.cotizacion.gastoGasMensual || 45000,
+      otrosGastosFijos: def.cotizacion.otrosGastosFijos || [],
+      eventosAlMes: def.cotizacion.eventosAlMes || 4,
+      gastosFijosMensuales: def.cotizacion.gastosFijosMensuales || 130000,
+      usarPrecioManual: false,
+      precioVentaManual: 0,
+      bebestibles: [
+        { id: 'beb-sug-gaseosas', nombre: 'Bebidas, Gaseosas y Aguas Minerales (350cc)', cantidadPorPersona: 2, unidad: 'lata / vaso', costoUnitario: 900, categoria: 'bebestible' },
+        { id: 'beb-sug-vinos', nombre: 'Vinos Reserva & Espumante de Brindis', cantidadPorPersona: 1.5, unidad: 'copa', costoUnitario: 1800, categoria: 'bebestible' },
+        { id: 'beb-sug-barra', nombre: 'Barra Libre / Coctelería de Autor', cantidadPorPersona: 2, unidad: 'copa / vaso', costoUnitario: 2500, categoria: 'bebestible' }
+      ]
+    };
+
+    setCotizacion(cotizacionLimpia);
+    mostrarToast('✓ Cotizador preparado en blanco: Listo para ingresar nueva cotización');
+  };
+
+  const handleUpdateBebestibles = (nuevos: any[]) => {
+    setCotizacion(prev => ({
+      ...prev,
+      bebestibles: nuevos
+    }));
   };
 
   // ── Handlers de actualización de tarifas desde Catálogo General ──
@@ -986,7 +1064,8 @@ export default function App() {
         clienteActivoId={clienteActivoId}
         onCambiarCliente={handleCambiarCliente}
         onAbrirFicha={() => setModalFichaOpen(true)}
-        onNuevaCotizacion={handleNuevaCotizacion}
+        onNuevaCotizacion={handleNuevaCotizacionLimpia}
+        onGuardarCotizacion={handleGuardarCotizacionActual}
         onAbrirGestionEmpresas={() => setModalEmpresasOpen(true)}
         onAbrirComercial={() => setModalComercialOpen(true)}
         onAbrirRespaldo={() => setModalRespaldoOpen(true)}
@@ -1156,6 +1235,29 @@ export default function App() {
                     </select>
                   </div>
                 </div>
+
+                {/* Acciones directas de la Ficha: Guardar y Nueva en Blanco */}
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleGuardarCotizacionActual}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                    title="Guardar esta cotización en el historial y calendario"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Guardar Ficha</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNuevaCotizacionLimpia}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
+                    title="Iniciar cotización limpia en blanco lista para un nuevo cliente"
+                  >
+                    <FilePlus className="w-3.5 h-3.5 text-slate-600" />
+                    <span>En Blanco</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1236,8 +1338,10 @@ export default function App() {
                     onIrARecetas={() => setVistaActual('recetas')}
                     onAddMenu={handleAddMenu}
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
-                    recetasDisponibles={recetas}
-                    insumosDisponibles={insumos}
+                    recetas={recetas}
+                    insumos={insumos}
+                    bebestibles={cotizacion.bebestibles}
+                    onUpdateBebestibles={handleUpdateBebestibles}
                   />
                 )}
 
@@ -1283,6 +1387,7 @@ export default function App() {
                   onAbrirFichaCliente={() => setModalFichaOpen(true)}
                   onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
                   onGuardarEnCalendario={handleGuardarEnCalendario}
+                  onGuardarCotizacion={handleGuardarCotizacionActual}
                   onToggleIva={handleToggleIva}
                   onToggleUsarPrecioManual={handleToggleUsarPrecioManual}
                   onChangePrecioManual={handleChangePrecioManual}
@@ -1370,6 +1475,79 @@ export default function App() {
                 precioVentaManual={cotizacion.precioVentaManual ?? 0}
                 onChangePrecioManual={handleChangePrecioManual}
               />
+            </div>
+
+            {/* Zona de Respaldos Libres & Descargas Directas */}
+            <div className="max-w-4xl mx-auto bg-gradient-to-r from-slate-900 to-indigo-950 p-5 rounded-2xl text-white border border-indigo-500/40 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <HardDrive className="w-4 h-4 text-emerald-400" />
+                  <h3 className="font-extrabold text-sm text-white">Respaldos de Datos Libres (Sin Bloqueos)</h3>
+                </div>
+                <p className="text-xs text-indigo-200 mt-0.5">
+                  Descarga inmediata de tus recetas ({recetas.length}), insumos ({insumos.length}) y cotizaciones a tu disco duro.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    descargarRespaldoJSON({
+                      version: '1.2.0',
+                      fechaExportacion: new Date().toISOString(),
+                      autor: 'SOLVI Flow',
+                      empresaActivaId: empresaActiva.id,
+                      empresas,
+                      insumos,
+                      recetas,
+                      menus,
+                      tarifasStaff,
+                      proveedores,
+                      estilosDecoracion,
+                      reservas,
+                      cotizacionActual: cotizacion
+                    }, empresaActiva.nombre);
+                    mostrarToast('✓ Respaldo JSON descargado con éxito');
+                  }}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <FileCode2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Descargar JSON</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    descargarRespaldoSQL({
+                      version: '1.2.0',
+                      fechaExportacion: new Date().toISOString(),
+                      autor: 'SOLVI Flow',
+                      empresaActivaId: empresaActiva.id,
+                      empresas,
+                      insumos,
+                      recetas,
+                      menus,
+                      tarifasStaff,
+                      proveedores,
+                      estilosDecoracion,
+                      reservas,
+                      cotizacionActual: cotizacion
+                    }, empresaActiva.nombre);
+                    mostrarToast('✓ Script SQL descargado');
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Database className="w-3.5 h-3.5 text-blue-200" />
+                  <span>Descargar SQL</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalRespaldoOpen(true)}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-white" />
+                  <span>Ver Todos los Respaldos</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1474,6 +1652,7 @@ export default function App() {
             setModalWhatsAppOpen(true);
           }}
           modoAdmin={modoAdmin}
+          onGuardarCotizacion={handleGuardarCotizacionActual}
         />
       )}
 

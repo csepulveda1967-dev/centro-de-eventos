@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   ChevronRight,
   ShieldCheck,
-  Percent
+  Percent,
+  Wine,
+  Save
 } from 'lucide-react';
 
 interface ResumenPropuestaComercialProps {
@@ -32,6 +34,7 @@ interface ResumenPropuestaComercialProps {
   onAbrirFichaCliente: () => void;
   onAbrirWhatsAppPropuesta: () => void;
   onGuardarEnCalendario: () => void;
+  onGuardarCotizacion?: () => void;
   onToggleIva: (aplica: boolean) => void;
   onToggleUsarPrecioManual: (usar: boolean) => void;
   onChangePrecioManual: (precio: number) => void;
@@ -49,6 +52,7 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
   onAbrirFichaCliente,
   onAbrirWhatsAppPropuesta,
   onGuardarEnCalendario,
+  onGuardarCotizacion,
   onToggleIva,
   onToggleUsarPrecioManual,
   onChangePrecioManual,
@@ -196,6 +200,21 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
                 {invitados} porciones
               </span>
             </div>
+
+            {/* Bebestibles & Barra por Persona */}
+            {((cotizacion.bebestibles && cotizacion.bebestibles.length > 0) || (menuActual?.bebestiblesPorPersona && menuActual.bebestiblesPorPersona.length > 0)) && (
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <div className="flex items-center gap-2 truncate">
+                  <Wine className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                  <span className="font-semibold text-slate-800 truncate">
+                    Bebestibles & Barra por Persona
+                  </span>
+                </div>
+                <span className="font-bold text-purple-900 tabular-nums shrink-0 ml-2">
+                  {(cotizacion.bebestibles || menuActual?.bebestiblesPorPersona || []).length} variedades
+                </span>
+              </div>
+            )}
 
             {/* Brigada */}
             <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
@@ -367,11 +386,12 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
             </button>
             <button
               type="button"
-              onClick={onGuardarEnCalendario}
-              className="py-2 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              onClick={onGuardarCotizacion || onGuardarEnCalendario}
+              className="py-2 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              title="Guardar cotización en tu historial y calendario"
             >
-              <CalendarPlus className="w-3.5 h-3.5 text-emerald-600" />
-              <span>A Calendario</span>
+              <Save className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Guardar Ficha</span>
             </button>
           </div>
         </div>

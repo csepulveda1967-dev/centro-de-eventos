@@ -532,7 +532,11 @@ const crearDatosIsidoraEventos = (): DatosPerfilCliente => {
     eventosAlMes: 4,
     mesActivoCostosFijos: 'Noviembre 2024',
     usarPrecioManual: false,
-    precioVentaManual: 0
+    precioVentaManual: 0,
+    bebestibles: [
+      { id: 'beb-isidora-1', nombre: 'Bebidas, Gaseosas y Aguas Minerales', cantidadPorPersona: 2, unidad: 'lata / vaso', costoUnitario: 900, categoria: 'bebestible' },
+      { id: 'beb-isidora-2', nombre: 'Vinos Reserva & Espumante de Brindis', cantidadPorPersona: 1.5, unidad: 'copa', costoUnitario: 1800, categoria: 'bebestible' }
+    ]
   };
 
   const reservas: ReservaCalendario[] = [
@@ -629,10 +633,13 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
       const rawProveedores = parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores;
       const proveedoresLimpios = rawProveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'));
 
-      // Verificar que los menús correspondan a este perfil o contengan los menús por defecto
-      const menusFinales = parsed.menus && parsed.menus.length > 0 && parsed.menus.some(m => def.menus.some(dm => dm.id === m.id))
-        ? parsed.menus
-        : def.menus;
+      // Combinar menús para NUNCA perder menús creados por el usuario
+      const mapaMenus = new Map<string, MenuOption>();
+      def.menus.forEach(m => mapaMenus.set(m.id, m));
+      if (parsed.menus && Array.isArray(parsed.menus)) {
+        parsed.menus.forEach(m => mapaMenus.set(m.id, m));
+      }
+      const menusFinales = Array.from(mapaMenus.values());
       
       const cotizacionLimpia = parsed.cotizacion || def.cotizacion;
       if (cotizacionLimpia.proveedoresSeleccionados) {
@@ -640,6 +647,10 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
       }
       if (!menusFinales.some(m => m.id === cotizacionLimpia.menuId)) {
         cotizacionLimpia.menuId = menusFinales[0].id;
+      }
+      // Asegurar array de bebestibles
+      if (!cotizacionLimpia.bebestibles) {
+        cotizacionLimpia.bebestibles = def.cotizacion.bebestibles || [];
       }
 
       // Asegurar que insumos creados en el maestro o BD se conserven siempre
@@ -660,6 +671,14 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
         }
       } catch (err) {}
 
+      // Combinar recetas para NUNCA perder recetas técnicas creadas
+      const mapaRecetas = new Map<string, RecetaFichaTecnica>();
+      def.recetas.forEach(r => mapaRecetas.set(r.id, r));
+      if (parsed.recetas && Array.isArray(parsed.recetas)) {
+        migrarRecetasAGramos(parsed.recetas).forEach(r => mapaRecetas.set(r.id, r));
+      }
+      const recetasFinales = Array.from(mapaRecetas.values());
+
       return {
         cotizacion: cotizacionLimpia,
         menus: menusFinales,
@@ -667,7 +686,7 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
         proveedores: proveedoresLimpios,
         estilosDecoracion: parsed.estilosDecoracion && parsed.estilosDecoracion.length > 0 ? parsed.estilosDecoracion : def.estilosDecoracion,
         insumos: insumosFinales,
-        recetas: parsed.recetas && parsed.recetas.length > 0 ? migrarRecetasAGramos(parsed.recetas) : def.recetas,
+        recetas: recetasFinales,
         reservas: parsed.reservas || def.reservas,
         empresa: empresaFinal
       };

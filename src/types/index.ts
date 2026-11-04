@@ -1,13 +1,13 @@
 export interface MenuItemRatio {
   id: string;
   nombre: string;
-  cantidadPorPersona: number; // Ej: 2 para "2 pp", 1.5, etc.
+  cantidadPorPersona: number; // Ej: 1, 2 para "2 pp", 1.5, etc.
   unidad: string; // 'unidad' | 'porción' | 'vaso' | 'botella' | 'lata' | 'taza' | 'copa' | 'L' | 'g' | 'kg'
   tiempo?: string; // 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche' | 'bebidas' | libre
   insumoId?: string; // Vinculación opcional a un insumo para compras exactas
+  recetaId?: string; // Vinculación automática a una receta técnica para costo dinámico
   costoUnitario?: number; // Costo por unidad si no está vinculado
-  recetaId?: string; // Vinculación a una receta costeada (el costo unitario viene de la ficha técnica)
-  recetaNombre?: string; // Nombre de la receta vinculada (para mostrarlo en la tabla de ítems)
+  categoria?: 'comida' | 'bebestible' | 'cocteleria' | 'servicio';
 }
 
 export interface MenuOption {
@@ -29,6 +29,7 @@ export interface MenuOption {
   costoCalculadoDesdeRecetas?: boolean;
   // Cantidad de ítems por persona (p.p.) para calcular consumos exactos y compras
   itemsPorPersona?: MenuItemRatio[];
+  bebestiblesPorPersona?: MenuItemRatio[];
 }
 
 export interface InsumoMaestro {
@@ -174,6 +175,8 @@ export interface CotizacionState {
   // Criterio libre del emprendedor (sugerido vs libre elección)
   usarPrecioManual?: boolean; // True si el emprendedor decide ingresar su propio precio final
   precioVentaManual?: number; // Valor final fijado a criterio libre del cliente
+  // Servicio de Bebestibles y Barra por persona (p.p.)
+  bebestibles?: MenuItemRatio[];
 }
 
 export interface ItemGastoFijo {
@@ -196,6 +199,7 @@ export interface RegistroCostoFijoMensual {
 
 export interface ResumenFinanciero {
   costoMenu: number;
+  costoBebestibles: number; // Costo exacto de bebestibles por persona x comensales
   costoPersonal: number;
   costoProveedores: number;
   costoDecoracion: number;

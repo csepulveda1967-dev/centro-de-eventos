@@ -15,7 +15,9 @@ import {
   MessageCircle,
   FolderGit2,
   Lock,
-  Unlock
+  Unlock,
+  FilePlus,
+  Save
 } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 
@@ -35,6 +37,7 @@ interface HeaderProps {
   onAbrirWhatsAppPropuesta: () => void;
   modoAdmin?: boolean;
   onToggleModoAdmin?: () => void;
+  onGuardarCotizacion?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -52,7 +55,8 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirRespaldo,
   onAbrirWhatsAppPropuesta,
   modoAdmin = false,
-  onToggleModoAdmin
+  onToggleModoAdmin,
+  onGuardarCotizacion
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -233,6 +237,32 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
             </div>
 
+            {/* Botón Nueva Cotización (Limpia) */}
+            <button
+              type="button"
+              onClick={onNuevaCotizacion}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 active:scale-95 rounded-lg border border-slate-300 transition-all shadow-2xs cursor-pointer"
+              title="Iniciar una cotización limpia en blanco lista para ingresar datos sin errores"
+            >
+              <FilePlus className="w-3.5 h-3.5 text-slate-700" />
+              <span className="hidden md:inline">Nueva Ficha</span>
+              <span className="md:hidden">Nueva</span>
+            </button>
+
+            {/* Botón Guardar Cotización Actual */}
+            {onGuardarCotizacion && (
+              <button
+                type="button"
+                onClick={onGuardarCotizacion}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-lg border border-emerald-700 transition-all shadow-xs cursor-pointer"
+                title="Guardar esta cotización en el historial y calendario"
+              >
+                <Save className="w-3.5 h-3.5 text-white" />
+                <span className="hidden md:inline">Guardar Cotización</span>
+                <span className="md:hidden">Guardar</span>
+              </button>
+            )}
+
             {/* Botón WhatsApp Propuesta 1 Clic */}
             <button
               type="button"
@@ -245,49 +275,45 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden">WhatsApp</span>
             </button>
 
+            {/* Botón de Respaldo & GitHub: Siempre disponible y libre para descargar sin bloqueos */}
+            <button
+              type="button"
+              onClick={onAbrirRespaldo}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-lg border border-indigo-700 transition-all shadow-xs cursor-pointer"
+              title="Respaldos libres: Descargar JSON, SQL, código y GitHub sin bloqueos"
+            >
+              <FolderGit2 className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline">Respaldo & GitHub</span>
+              <span className="sm:hidden">Respaldo</span>
+            </button>
+
             {/* Selector interactivo de Modo Demo (Cliente) vs Modo Administrador */}
             {onToggleModoAdmin && (
               <button
                 type="button"
                 onClick={onToggleModoAdmin}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2 py-2 text-xs font-bold rounded-lg border transition-all active:scale-95 cursor-pointer ${
                   modoAdmin
-                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300 shadow-xs ring-2 ring-amber-400/40'
+                    ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border-amber-300 shadow-xs'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
                 }`}
                 title={
                   modoAdmin
-                    ? 'Modo Administrador ACTIVO: Los botones de GitHub y Respaldo están visibles. Haz clic aquí para volver a Modo Demo (ocultar herramientas técnicas para clientes).'
-                    : 'Modo Demo para Clientes (herramientas técnicas ocultas). Haz clic aquí para activar el Modo Administrador.'
+                    ? 'Modo Administrador Activo'
+                    : 'Modo Demo para Clientes'
                 }
               >
                 {modoAdmin ? (
                   <>
                     <Unlock className="w-3.5 h-3.5 text-amber-700" />
-                    <span className="hidden sm:inline">Admin ON</span>
-                    <span className="sm:hidden">Admin</span>
+                    <span className="hidden xl:inline">Admin ON</span>
                   </>
                 ) : (
                   <>
                     <Lock className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="hidden sm:inline">Modo Demo</span>
-                    <span className="sm:hidden">Demo</span>
+                    <span className="hidden xl:inline">Demo</span>
                   </>
                 )}
-              </button>
-            )}
-
-            {/* Botón de Respaldo & GitHub (Visible de inmediato al activar Modo Administrador) */}
-            {modoAdmin && (
-              <button
-                type="button"
-                onClick={onAbrirRespaldo}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 rounded-lg border border-indigo-700 transition-all shadow-xs cursor-pointer animate-in fade-in zoom-in-95 duration-150"
-                title="Herramientas de Administrador: GitHub, Base de Datos y Respaldos"
-              >
-                <FolderGit2 className="w-4 h-4 text-white" />
-                <span className="hidden sm:inline">GitHub & Respaldo</span>
-                <span className="sm:hidden">GitHub</span>
               </button>
             )}
 

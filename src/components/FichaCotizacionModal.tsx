@@ -15,7 +15,10 @@ import {
   FileText,
   Utensils,
   Users,
-  Layers
+  Layers,
+  Wine,
+  GlassWater,
+  Save
 } from 'lucide-react';
 
 interface FichaCotizacionModalProps {
@@ -31,6 +34,7 @@ interface FichaCotizacionModalProps {
   onClose: () => void;
   onAbrirWhatsAppPropuesta?: () => void;
   modoAdmin?: boolean;
+  onGuardarCotizacion?: () => void;
 }
 
 export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
@@ -45,9 +49,15 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   empresaActiva,
   onClose,
   onAbrirWhatsAppPropuesta,
-  modoAdmin = false
+  modoAdmin = false,
+  onGuardarCotizacion
 }) => {
   const [copiado, setCopiado] = useState(false);
+
+  // Bebestibles por persona (p.p.) considerados en la cotización o en el menú
+  const bebestiblesLista = (cotizacion.bebestibles && cotizacion.bebestibles.length > 0)
+    ? cotizacion.bebestibles
+    : (menu?.bebestiblesPorPersona || []);
 
   // Filtrar únicamente proveedores activos con valor positivo contratado (nada en $0)
   const proveedoresActivos = proveedores.filter(p => {
@@ -221,6 +231,33 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     ` : ''}
   </div>
 
+  ${bebestiblesLista.length > 0 ? `
+    <div class="section-title">${htmlSec++}. Servicio de Bebestibles & Barra por Persona (p.p.)</div>
+    <div class="card">
+      <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
+        <thead>
+          <tr style="border-bottom: 2px solid #cbd5e1; text-align: left; color: #475569;">
+            <th style="padding: 6px 4px;">Ítem Bebestible / Trago</th>
+            <th style="padding: 6px 4px; text-align: center;">Consumo Estimado por Persona</th>
+            <th style="padding: 6px 4px; text-align: right;">Total para ${cotizacion.invitados} Pax</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${bebestiblesLista.map(b => {
+            const total = Math.ceil(b.cantidadPorPersona * cotizacion.invitados);
+            return `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 6px 4px; font-weight: bold; color: #0f172a;">${b.nombre}</td>
+                <td style="padding: 6px 4px; text-align: center; color: #7e22ce; font-weight: bold;">${b.cantidadPorPersona} ${b.unidad} p.p.</td>
+                <td style="padding: 6px 4px; text-align: right; font-weight: bold; color: #047857;">${total} ${b.unidad}s</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  ` : ''}
+
   <div class="section-title">${htmlSec++}. Brigada de Operaciones & Personal de Servicio</div>
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px;">
     <div class="card"><strong>Garzones:</strong><br>${cotizacion.personal.garzones} profesionales</div>
@@ -332,6 +369,18 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {onGuardarCotizacion && (
+              <button
+                type="button"
+                onClick={onGuardarCotizacion}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-xs cursor-pointer"
+                title="Guardar esta cotización en tu historial y calendario"
+              >
+                <Save className="w-4 h-4 text-white shrink-0" />
+                <span>Guardar Ficha</span>
+              </button>
+            )}
+
             {onAbrirWhatsAppPropuesta && (
               <button
                 type="button"
@@ -530,6 +579,56 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* 1.5. Servicio de Bebestibles & Barra por Persona (p.p.) */}
+          {bebestiblesLista.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Wine className="w-4 h-4 text-purple-600" />
+                  <span>{getNextNum()}. Servicio de Bebestibles & Barra por Persona (p.p.)</span>
+                </h3>
+                <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                  {bebestiblesLista.length} ítems considerados
+                </span>
+              </div>
+
+              <div className="p-4 rounded-xl bg-purple-50/40 border border-purple-200/80 space-y-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-purple-200 text-left text-slate-500 text-[10px] uppercase tracking-wider">
+                        <th className="pb-2 font-bold">Bebestible / Coctelería</th>
+                        <th className="pb-2 text-center font-bold">Consumo Estimado p.p.</th>
+                        <th className="pb-2 text-right font-bold">Total para {cotizacion.invitados} Comensales</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-purple-100">
+                      {bebestiblesLista.map((it) => {
+                        const totalCalculado = Math.ceil(it.cantidadPorPersona * cotizacion.invitados);
+                        return (
+                          <tr key={it.id} className="py-2">
+                            <td className="py-2 font-bold text-slate-800">
+                              {it.nombre}
+                            </td>
+                            <td className="py-2 text-center text-purple-900 font-extrabold tabular-nums">
+                              {it.cantidadPorPersona} {it.unidad} p.p.
+                            </td>
+                            <td className="py-2 text-right font-extrabold text-emerald-800 tabular-nums">
+                              {totalCalculado} {it.unidad}s
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[11px] text-purple-950/80 italic">
+                  * Provisión calculada para los {cotizacion.invitados} invitados del evento. Incluye barra, cristalería adecuada, hielo purificado y atención continua.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* 2. Personal & Brigada de Servicio Incluida */}
           <div className="space-y-2">

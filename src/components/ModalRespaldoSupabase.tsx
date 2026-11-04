@@ -85,7 +85,7 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
   onRestaurarDatos,
   onNotificar
 }) => {
-  const [tabActiva, setTabActiva] = useState<'github' | 'disco' | 'supabase' | 'produccion'>('github');
+  const [tabActiva, setTabActiva] = useState<'github' | 'disco' | 'supabase' | 'produccion'>('disco');
   const [modoRepo, setModoRepo] = useState<'nuevo' | 'sobrescribir'>('sobrescribir');
   const [copiadoComando, setCopiadoComando] = useState<string | null>(null);
   const [repoUsuario, setRepoUsuario] = useState('');
@@ -124,6 +124,12 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
   const handleDescargarSQL = () => {
     descargarRespaldoSQL(paqueteActual, empresa.nombre);
     onNotificar('¡Script SQL para Supabase/PostgreSQL generado y descargado!');
+  };
+
+  const handleDescargarZIP = async () => {
+    onNotificar('Generando paquete completo en tu navegador...');
+    await descargarPaqueteCompletoZip(paqueteActual, empresa.nombre.replace(/[^a-zA-Z0-9]/g, '_'));
+    onNotificar('¡Descarga de paquete ZIP completada!');
   };
 
   const handleSubirArchivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,13 +186,13 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black tracking-tight text-white">SOLVI Flow · Subir a GitHub & Respaldos</h3>
-                <span className="text-[10px] font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Código Limpio
+                <h3 className="text-lg font-black tracking-tight text-white">SOLVI Flow · Administración & Respaldos Libres</h3>
+                <span className="text-[10px] font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Descarga Libre
                 </span>
               </div>
               <p className="text-xs text-indigo-200/80">
-                «Todo fluye. Todo conecta». Proyecto limpio, sin archivos mezclados y con Git listo.
+                Descarga tus recetas, cotizaciones, insumos y código sin restricciones ni bloqueos.
               </p>
             </div>
           </div>
@@ -197,6 +203,48 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Barra Rápida de Descarga Inmediata en 1 Clic (Siempre Visible y Desbloqueada) */}
+        <div className="bg-amber-50/90 border-b border-amber-200/80 px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Download className="w-4 h-4 text-amber-700 shrink-0" />
+            <span className="text-xs font-bold text-amber-950">
+              Descargas Inmediatas a tu PC (Sin Límites de Servidor):
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleDescargarJSON}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Descargar copia exacta de recetas, cotizaciones e insumos en formato JSON"
+            >
+              <FileCode2 className="w-3.5 h-3.5 text-amber-400" />
+              <span>Descargar JSON</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDescargarSQL}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Descargar sentencias SQL para Supabase o PostgreSQL"
+            >
+              <Database className="w-3.5 h-3.5 text-blue-200" />
+              <span>Descargar SQL</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDescargarZIP}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Descargar paquete completo en ZIP"
+            >
+              <HardDrive className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Descargar Paquete ZIP</span>
+            </button>
+          </div>
         </div>
 
         {/* Selector de Pestañas */}
