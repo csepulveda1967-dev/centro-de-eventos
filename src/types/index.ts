@@ -6,6 +6,7 @@ export interface MenuItemRatio {
   tiempo?: string; // 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche' | 'bebidas' | libre
   insumoId?: string; // Vinculación opcional a un insumo para compras exactas
   recetaId?: string; // Vinculación automática a una receta técnica para costo dinámico
+  recetaNombre?: string; // Nombre de la receta vinculada (mostrado como badge "Desde receta")
   costoUnitario?: number; // Costo por unidad si no está vinculado
   categoria?: 'comida' | 'bebestible' | 'cocteleria' | 'servicio';
   tipoOrigen?: 'insumo' | 'receta' | 'libre';
