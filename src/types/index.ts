@@ -64,7 +64,8 @@ export interface RecetaFichaTecnica {
   margenSugerido: number; // Margen gastronómico (sugerido 33% estándar de la industria)
   costoAdicionalElaboracion?: number; // Costo indirecto / gas / condimentos menores
   descripcionProcedimiento?: string;
-  menuAsociadoId?: string; // Menú al cual tributa este plato (opcional para banquetes)
+  menuAsociadoId?: string; // Menú principal al cual tributa este plato (compatibilidad: primer menú de la lista)
+  menusAsociadosIds?: string[]; // Vinculación múltiple: TODOS los menús donde aparece esta ficha (creados o por crear)
   servicioAsociadoId?: string; // Servicio destino en Tarifas Generales (ej: 'coffee-break-cocteleria')
 }
 
