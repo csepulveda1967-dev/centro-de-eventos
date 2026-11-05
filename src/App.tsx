@@ -1652,6 +1652,9 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
+            menuSeleccionadoId={cotizacion.menuId}
+            onSelectMenu={handleSelectMenu}
+            onIrACotizador={() => setVistaActual('cotizador')}
           />
         )}
 
@@ -1753,13 +1756,6 @@ export default function App() {
           }}
           modoAdmin={modoAdmin}
           onGuardarCotizacion={handleGuardarCotizacionActual}
-          recetas={recetas}
-          insumos={insumos}
-          onUpdateEmpresaActiva={(empActualizada) => {
-            setEmpresaActiva(empActualizada);
-            setEmpresas(prev => prev.map(e => (e.id === empActualizada.id ? empActualizada : e)));
-            mostrarToast(`✓ Datos bancarios de "${empActualizada.nombre}" guardados en el perfil`);
-          }}
         />
       )}
 
@@ -1775,8 +1771,6 @@ export default function App() {
           precioVentaTotal={resumenFinanciero.precioCobradoFinal}
           empresaActiva={empresaActiva}
           onClose={() => setModalWhatsAppOpen(false)}
-          recetas={recetas}
-          insumos={insumos}
         />
       )}
 
