@@ -649,14 +649,25 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                         {/* Minuta con tiempos + fichas vinculadas */}
                         {(() => {
                           const tiempos = construirMinutaConFichas(menu, recetas, insumos);
-                          const visibles = ocultarTiemposVacios
-                            ? tiempos.filter(t => t.tieneContenido)
-                            : tiempos;
+                          // Filtrar: si el usuario ocultó manualmente el tiempo → NO se muestra nunca
+                          // Si no lo ocultó manualmente y tiene contenido → se muestra
+                          // Si "ocultarTiemposVacios" está ON → los sin contenido tampoco se muestran
+                          const visibles = tiempos
+                            .filter(t => !t.ocultoManual)
+                            .filter(t => !ocultarTiemposVacios || t.tieneContenido);
 
                           if (visibles.length === 0) {
+                            const ocultosManual = tiempos.filter(t => t.ocultoManual);
                             return (
                               <div className="text-center text-slate-400 py-3 italic">
-                                Este menú no tiene tiempos cargados todavía. Agrega fichas desde la Calculadora de Recetas o escribe los platos en "Editar este menú".
+                                {ocultosManual.length > 0 ? (
+                                  <>
+                                    Este menú tiene {ocultosManual.length} tiempo(s) oculto(s) manualmente
+                                    ({ocultosManual.map(t => t.tiempoLabel).join(', ')}).{ocultarTiemposVacios ? '' : ' Los demás tiempos están vacíos.'}
+                                  </>
+                                ) : (
+                                  <>Este menú no tiene tiempos cargados todavía. Agrega fichas desde la Calculadora de Recetas o escribe los platos en "Editar este menú".</>
+                                )}
                               </div>
                             );
                           }
