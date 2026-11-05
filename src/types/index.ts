@@ -260,6 +260,16 @@ export interface EmpresaCliente {
   tituloCabecera?: string;
   infraestructura?: string;
   tarifaBaseArriendo?: number;
+  // Datos bancarios editables por el cliente/casa de eventos (no se llenan por defecto)
+  datosBancarios?: {
+    razonSocial?: string;
+    banco?: string;
+    tipoCuenta?: string;     // 'Cta Cte', 'Cta RUT', 'Cta Vista', 'Cta Ahorro'
+    numeroCuenta?: string;
+    rut?: string;
+    titular?: string;
+    emailTransferencia?: string;
+  };
 }
 
 export interface ReservaCalendario {
