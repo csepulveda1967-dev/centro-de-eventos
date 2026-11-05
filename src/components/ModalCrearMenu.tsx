@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { MenuOption, MenuItemRatio, InsumoMaestro, RecetaFichaTecnica } from '../types';
-import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat } from 'lucide-react';
+import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat, Eye, EyeOff } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 import { calcularCostoReceta } from '../config/insumosYRecetas';
 
@@ -84,6 +84,17 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
 
   const [mostrarTiemposDetallados, setMostrarTiemposDetallados] = useState(!!tiempoInicial);
 
+  // Tiempos ocultos manualmente por el usuario (no se muestran en cotizador/PDF/WhatsApp)
+  const [tiemposOcultos, setTiemposOcultos] = useState<{
+    coctel: boolean;
+    entrada: boolean;
+    fondo: boolean;
+    postre: boolean;
+    trasnoche: boolean;
+  }>({ coctel: false, entrada: false, fondo: false, postre: false, trasnoche: false });
+  const toggleTiempoOculto = (k: 'coctel' | 'entrada' | 'fondo' | 'postre' | 'trasnoche') =>
+    setTiemposOcultos(prev => ({ ...prev, [k]: !prev[k] }));
+
   // ── Ítems por Persona (p.p.) para calcular consumos exactos y comprar ──
   // Ejemplo: "1 sandwich pp 2", "bebidas pp 2"
   // Se inicia vacío: cada menú nuevo parte de cero, sin ítems de ejemplo precargados.
@@ -114,6 +125,13 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     setFondo(menuAEditar.tiempos?.fondo || '');
     setPostre(menuAEditar.tiempos?.postre || '');
     setTrasnoche(menuAEditar.tiempos?.trasnoche || '');
+    setTiemposOcultos({
+      coctel: !!menuAEditar.tiemposOcultos?.coctel,
+      entrada: !!menuAEditar.tiemposOcultos?.entrada,
+      fondo: !!menuAEditar.tiemposOcultos?.fondo,
+      postre: !!menuAEditar.tiemposOcultos?.postre,
+      trasnoche: !!menuAEditar.tiemposOcultos?.trasnoche
+    });
     setItemsPorPersona(
       menuAEditar.itemsPorPersona ? JSON.parse(JSON.stringify(menuAEditar.itemsPorPersona)) : []
     );
@@ -248,6 +266,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
         postre: postre.trim(),
         trasnoche: trasnoche.trim()
       },
+      tiemposOcultos: tiemposOcultos,
       destacado,
       recetasIds: recetasVinculadas.length > 0 ? recetasVinculadas : undefined,
       costoCalculadoDesdeRecetas: recetasVinculadas.length > 0,
@@ -274,6 +293,7 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
     setFondo('');
     setPostre('');
     setTrasnoche('');
+    setTiemposOcultos({ coctel: false, entrada: false, fondo: false, postre: false, trasnoche: false });
     setEsCategoriaLibre(false);
     setCategoriaLibreInput('');
   };
@@ -744,71 +764,53 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
                 <div className="text-[10px] text-slate-500 italic bg-amber-50/60 border border-amber-200 rounded-lg px-2 py-1.5">
                   💡 Déjalo en blanco si tu menú NO tiene ese tiempo y se ocultará solo en el cotizador (sin verse "vacío").
                   Las fichas técnicas vinculadas aparecerán aquí automáticamente cuando las agregues desde la Calculadora de Recetas.
+                  También puedes usar el botón <strong>ocultar 👁</strong> al lado de cada tiempo para que NO se muestre aunque tenga contenido.
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
-                    1. Cóctel de Bienvenida / Aperitivo
-                  </label>
-                  <input
-                    type="text"
-                    value={coctel}
-                    onChange={(e) => setCoctel(e.target.value)}
-                    placeholder="Ej: Bocados fríos y calientes, canapés tibios y ceviche"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
-                    2. Entrada
-                  </label>
-                  <input
-                    type="text"
-                    value={entrada}
-                    onChange={(e) => setEntrada(e.target.value)}
-                    placeholder="Ej: Carpaccio de salmón del sur o pastelera de choclo en greda"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
-                    3. Plato de Fondo
-                  </label>
-                  <input
-                    type="text"
-                    value={fondo}
-                    onChange={(e) => setFondo(e.target.value)}
-                    placeholder="Ej: Lomo vetado Angus con papas rústicas al romero"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
-                    4. Postre
-                  </label>
-                  <input
-                    type="text"
-                    value={postre}
-                    onChange={(e) => setPostre(e.target.value)}
-                    placeholder="Ej: Trilogía dulce artesanal o buffet de postres chilenos"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
-                    5. Trasnoche / Bajón
-                  </label>
-                  <input
-                    type="text"
-                    value={trasnoche}
-                    onChange={(e) => setTrasnoche(e.target.value)}
-                    placeholder="Ej: Mini hamburguesas brioche caseras y consomé caliente"
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs"
-                  />
-                </div>
+                {([
+                  { k: 'coctel' as const, n: 1, label: '1. Cóctel de Bienvenida / Aperitivo', placeholder: 'Ej: Bocados fríos y calientes, canapés tibios y ceviche', val: coctel, set: setCoctel },
+                  { k: 'entrada' as const, n: 2, label: '2. Entrada', placeholder: 'Ej: Carpaccio de salmón del sur o pastelera de choclo en greda', val: entrada, set: setEntrada },
+                  { k: 'fondo' as const, n: 3, label: '3. Plato de Fondo', placeholder: 'Ej: Lomo vetado Angus con papas rústicas al romero', val: fondo, set: setFondo },
+                  { k: 'postre' as const, n: 4, label: '4. Postre', placeholder: 'Ej: Trilogía dulce artesanal o buffet de postres chilenos', val: postre, set: setPostre },
+                  { k: 'trasnoche' as const, n: 5, label: '5. Trasnoche / Bajón', placeholder: 'Ej: Mini hamburguesas brioche caseras y consomé caliente', val: trasnoche, set: setTrasnoche }
+                ]).map(t => {
+                  const oculto = tiemposOcultos[t.k];
+                  return (
+                    <div key={t.k} className={oculto ? 'opacity-60' : ''}>
+                      <div className="flex items-center justify-between mb-0.5 gap-2">
+                        <label className="block text-[11px] font-semibold text-slate-600">
+                          {t.label}
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => toggleTiempoOculto(t.k)}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border transition-colors cursor-pointer flex items-center gap-1 ${
+                            oculto
+                              ? 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                          }`}
+                          title={oculto ? 'Mostrar este tiempo en el cotizador / PDF / WhatsApp' : 'Ocultar este tiempo en el cotizador / PDF / WhatsApp'}
+                        >
+                          {oculto ? <><EyeOff className="w-3 h-3" /> Oculto</> : <><Eye className="w-3 h-3" /> Visible</>}
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={t.val}
+                        onChange={(e) => t.set(e.target.value)}
+                        placeholder={t.placeholder}
+                        disabled={oculto}
+                        className={`w-full px-2.5 py-1.5 bg-white border rounded-lg text-slate-800 text-xs focus:outline-hidden ${
+                          oculto ? 'border-rose-200 bg-rose-50/40 cursor-not-allowed' : 'border-slate-300'
+                        }`}
+                      />
+                      {oculto && (
+                        <div className="text-[9px] text-rose-600 italic mt-0.5">
+                          🔒 Este tiempo NO se mostrará en el cotizador ni en PDF/WhatsApp aunque tenga texto o fichas.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
