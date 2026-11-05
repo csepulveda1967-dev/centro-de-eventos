@@ -686,6 +686,10 @@ export default function App() {
     mostrarToast(`✓ Menú "${menuActualizado.nombre}" actualizado correctamente`);
   };
 
+  const handleUpdateMenu = (menuActualizado: MenuOption) => {
+    setMenus(prev => prev.map(m => m.id === menuActualizado.id ? menuActualizado : m));
+  };
+
   const handleDeleteMenu = (menuId: string) => {
     if (menus.length <= 1) {
       mostrarToast('⚠️ Debe existir al menos un menú en la carta gastronómica');
@@ -1652,6 +1656,10 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
+            menuSeleccionadoId={cotizacion.menuId}
+            onSelectMenu={handleSelectMenu}
+            onUpdateMenu={handleUpdateMenu}
+            onIrACotizador={() => setVistaActual('cotizador')}
           />
         )}
 

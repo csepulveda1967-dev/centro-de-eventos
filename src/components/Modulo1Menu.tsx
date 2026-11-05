@@ -754,13 +754,13 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
             💡 Tip: los valores de estos botones son referenciales. Para usar los valores reales, márcalos como "bebestible" en la ficha del menú y pulsa "Cargar bebestibles del menú", o edita la cantidad y costo en la tabla de abajo.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {BEBESTIBLES_SUGERIDOS_PRESET.map((b) => {
+            {presetsDinamicos.map((b) => {
               const estaActivo = bebestibles.some(it => it.nombre.toLowerCase().includes(b.nombre.toLowerCase().slice(0, 10)));
               return (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={() => handleToggleBebestibleSugerido(b)}
+                  onClick={() => handleTogglePresetDinamico(b)}
                   className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
                     estaActivo
                       ? 'bg-purple-600 text-white border-purple-700 shadow-xs ring-1 ring-purple-400'
