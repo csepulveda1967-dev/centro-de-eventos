@@ -1669,6 +1669,8 @@ export default function App() {
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
             onIrACotizador={() => setVistaActual('cotizador')}
+            onAddInsumo={handleAddInsumo}
+            onIrAMaestroInsumos={() => setVistaActual('insumos')}
           />
         )}
 
@@ -1838,4 +1840,23 @@ export default function App() {
         <p className="text-[11px] text-slate-500">
           Software de gestión integral de centros de eventos y productoras · Desarrollado por <strong className="text-slate-800">CS Consultoría</strong>
         </p>
-        <div className="flex items-center justify-center gap-2 text-[11px] text-s
+        <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
+          <span>Empresa: {empresaActiva.nombre}</span>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={toggleModoAdmin}
+            className="hover:text-indigo-600 transition-colors inline-flex items-center gap-1 cursor-pointer font-semibold px-2 py-0.5 rounded-md hover:bg-slate-100 text-slate-600"
+            title={modoAdmin ? "Modo Administrador Activo. Clic para volver a Modo Demo para Clientes" : "Hacer clic para activar Modo Administrador"}
+          >
+            {modoAdmin ? '🔓 Admin Activo (Clic para Modo Demo)' : '🔒 Cambiar a Modo Administrador'}
+          </button>
+        </div>
+      </footer>
+
+      {/* Botón Flotante Permanente de WhatsApp con Demo */}
+      <BotonFlotanteWhatsApp empresa={empresaActiva} />
+
+    </div>
+  );
+}
