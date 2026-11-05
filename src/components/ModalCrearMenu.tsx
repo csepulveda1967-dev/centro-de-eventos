@@ -741,6 +741,10 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
 
             {mostrarTiemposDetallados && (
               <div className="space-y-2 pt-1 animate-in fade-in duration-150">
+                <div className="text-[10px] text-slate-500 italic bg-amber-50/60 border border-amber-200 rounded-lg px-2 py-1.5">
+                  💡 Déjalo en blanco si tu menú NO tiene ese tiempo y se ocultará solo en el cotizador (sin verse "vacío").
+                  Las fichas técnicas vinculadas aparecerán aquí automáticamente cuando las agregues desde la Calculadora de Recetas.
+                </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">
                     1. Cóctel de Bienvenida / Aperitivo
