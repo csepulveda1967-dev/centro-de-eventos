@@ -1755,6 +1755,11 @@ export default function App() {
           onGuardarCotizacion={handleGuardarCotizacionActual}
           recetas={recetas}
           insumos={insumos}
+          onUpdateEmpresaActiva={(empActualizada) => {
+            setEmpresaActiva(empActualizada);
+            setEmpresas(prev => prev.map(e => (e.id === empActualizada.id ? empActualizada : e)));
+            mostrarToast(`✓ Datos bancarios de "${empActualizada.nombre}" guardados en el perfil`);
+          }}
         />
       )}
 
