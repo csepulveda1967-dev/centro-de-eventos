@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { CotizacionState, MenuOption, ProveedorServicio, EstiloDecoracion, StaffTarifas, EmpresaCliente } from '../types';
+import { CotizacionState, MenuOption, ProveedorServicio, EstiloDecoracion, StaffTarifas, EmpresaCliente, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { formatMoneda, formatFechaEsp } from '../utils/formatters';
+import { minutaATexto, construirMinutaConFichas } from '../utils/minutaHelper';
+import { calcularCostoReceta } from '../config/insumosYRecetas';
 import {
   Printer,
   X,
@@ -35,6 +37,8 @@ interface FichaCotizacionModalProps {
   onAbrirWhatsAppPropuesta?: () => void;
   modoAdmin?: boolean;
   onGuardarCotizacion?: () => void;
+  recetas?: RecetaFichaTecnica[];
+  insumos?: InsumoMaestro[];
 }
 
 export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
@@ -50,7 +54,9 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   onClose,
   onAbrirWhatsAppPropuesta,
   modoAdmin = false,
-  onGuardarCotizacion
+  onGuardarCotizacion,
+  recetas = [],
+  insumos = []
 }) => {
   const [copiado, setCopiado] = useState(false);
 
@@ -102,23 +108,33 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const tieneItemsPorPersona = Array.isArray(menu?.itemsPorPersona) && menu.itemsPorPersona.length > 0;
 
   // Filtrar solo los tiempos que el usuario realmente redactó y que no sean relleno
+  // INCLUYE fichas técnicas vinculadas a este menú (sin doble digitación)
   const tiemposReales: Array<{ etiqueta: string; valor: string }> = [];
   if (menu?.tiempos) {
-    if (menu.tiempos.coctel && (!esTextoRellenoBoda(menu.tiempos.coctel) || !tieneItemsPorPersona)) {
-      tiemposReales.push({ etiqueta: 'Cóctel de Bienvenida', valor: menu.tiempos.coctel });
-    }
-    if (menu.tiempos.entrada && (!esTextoRellenoBoda(menu.tiempos.entrada) || !tieneItemsPorPersona)) {
-      tiemposReales.push({ etiqueta: 'Entrada Gourmet', valor: menu.tiempos.entrada });
-    }
-    if (menu.tiempos.fondo && (!esTextoRellenoBoda(menu.tiempos.fondo) || !tieneItemsPorPersona)) {
-      tiemposReales.push({ etiqueta: 'Plato Principal / Fondo', valor: menu.tiempos.fondo });
-    }
-    if (menu.tiempos.postre && (!esTextoRellenoBoda(menu.tiempos.postre) || !tieneItemsPorPersona)) {
-      tiemposReales.push({ etiqueta: 'Mesa de Postres', valor: menu.tiempos.postre });
-    }
-    if (menu.tiempos.trasnoche && (!esTextoRellenoBoda(menu.tiempos.trasnoche) || !tieneItemsPorPersona)) {
-      tiemposReales.push({ etiqueta: 'Trasnoche / Fin de Fiesta', valor: menu.tiempos.trasnoche });
-    }
+    const minuta = construirMinutaConFichas(menu, recetas, insumos);
+    const etiquetaTiempo: Record<string, string> = {
+      coctel: 'Cóctel de Bienvenida',
+      entrada: 'Entrada Gourmet',
+      fondo: 'Plato Principal / Fondo',
+      postre: 'Mesa de Postres',
+      trasnoche: 'Trasnoche / Fin de Fiesta'
+    };
+    minuta.forEach(t => {
+      if (!t.tieneContenido) return; // oculta tiempos vacíos
+      const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
+      const partes: string[] = [];
+      if (t.textoManual) partes.push(t.textoManual);
+      if (t.fichas.length > 0) {
+        const fichasTxt = t.fichas.map(f => {
+          const calc = calcularCostoReceta(f, insumos);
+          return `${f.nombre} (${formatMoneda(calc.costoPorPorcion)}/porción)`;
+        }).join(', ');
+        partes.push(`Fichas: ${fichasTxt}`);
+      }
+      if (partes.length > 0) {
+        tiemposReales.push({ etiqueta, valor: partes.join(' · ') });
+      }
+    });
   }
 
   // Contador dinámico y secuencial de secciones para evitar saltos (ej: 1, 2, 3...)
