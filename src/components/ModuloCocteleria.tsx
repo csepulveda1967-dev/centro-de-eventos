@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { RecetaFichaTecnica, IngredienteReceta, InsumoMaestro, MenuItemRatio } from '../types';
 import { calcularCostoReceta, calcularCostoIngrediente } from '../config/insumosYRecetas';
 import { formatMoneda } from '../utils/formatters';
+import { CATEGORIAS_INSUMOS_DEFAULT } from '../config/insumosYRecetas';
 import {
   Martini,
   Plus,
@@ -14,7 +15,9 @@ import {
   ChefHat,
   Wine,
   FlaskConical,
-  Info
+  Info,
+  Boxes,
+  PackagePlus
 } from 'lucide-react';
 
 interface ModuloCocteleriaProps {
@@ -27,6 +30,8 @@ interface ModuloCocteleriaProps {
   bebestibles?: MenuItemRatio[];
   onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
   onIrACotizador?: () => void;
+  onAddInsumo?: (nuevo: InsumoMaestro) => void;
+  onIrAMaestroInsumos?: () => void;
 }
 
 // Categorías de tragos sugeridas (el usuario puede escribir la suya)
@@ -52,7 +57,9 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
   onDeleteReceta,
   bebestibles = [],
   onUpdateBebestibles,
-  onIrACotizador
+  onIrACotizador,
+  onAddInsumo,
+  onIrAMaestroInsumos
 }) => {
   const tragos = useMemo(
     () => recetas.filter(r => r.tiempoMenu === TIEMPO_TRAGO),
@@ -72,6 +79,53 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
   const [nuevaCantidad, setNuevaCantidad] = useState<number | string>(60);
   const [nuevaUnidad, setNuevaUnidad] = useState<'ml' | 'L' | 'g' | 'kg' | 'unidad'>('ml');
 
+  // ── Creación rápida de insumo SIN salir del modal de trago ──
+  const [panelNuevoInsumo, setPanelNuevoInsumo] = useState(false);
+  const [qiNombre, setQiNombre] = useState('');
+  const [qiCategoria, setQiCategoria] = useState('licores_bebidas');
+  const [qiUnidad, setQiUnidad] = useState<InsumoMaestro['unidadMedida']>('ml');
+  const [qiPrecio, setQiPrecio] = useState<number | string>('');
+  const [qiProveedor, setQiProveedor] = useState('');
+  const [qiMensaje, setQiMensaje] = useState('');
+
+  const abrirPanelNuevoInsumo = () => {
+    setPanelNuevoInsumo(true);
+    setQiNombre('');
+    setQiCategoria('licores_bebidas');
+    setQiUnidad('ml');
+    setQiPrecio('');
+    setQiProveedor('');
+    setQiMensaje('');
+  };
+
+  const handleCrearInsumoRapido = () => {
+    if (!onAddInsumo) return;
+    if (!qiNombre.trim()) {
+      setQiMensaje('⚠️ Escribe el nombre del insumo (ej: Pisco Alto del Carmen 35°)');
+      return;
+    }
+    const precioNum = typeof qiPrecio === 'number' ? qiPrecio : parseFloat(String(qiPrecio).replace(/\./g, '').replace(',', '.')) || parseFloat(String(qiPrecio)) || 0;
+    if (precioNum <= 0) {
+      setQiMensaje('⚠️ Escribe el precio de compra (ej: 6500)');
+      return;
+    }
+    const nuevo: InsumoMaestro = {
+      id: 'ins-' + Date.now(),
+      nombre: qiNombre.trim(),
+      categoria: qiCategoria,
+      unidadMedida: qiUnidad,
+      precioCompra: precioNum,
+      mermaPorcentaje: 0,
+      proveedor: qiProveedor.trim() || 'Proveedor Local',
+      ultimoCambio: new Date().toISOString().slice(0, 10)
+    };
+    onAddInsumo(nuevo);
+    setQiMensaje('');
+    setPanelNuevoInsumo(false);
+    // Auto-seleccionar el insumo recién creado en el dropdown de ingredientes
+    setNuevoInsumoId(nuevo.id);
+  };
+
   // ── Estado de vinculación al cotizador ──
   const [copasPorPersona, setCopasPorPersona] = useState<Record<string, number | string>>({});
 
@@ -84,6 +138,11 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
   );
 
   const listaInsumos = insumosBebida.length > 0 ? insumosBebida : insumos;
+  // Resto de insumos del Maestro (para que NADA quede oculto: garnizas, condimentos, etc.)
+  const otrosInsumos = useMemo(
+    () => insumos.filter(i => !listaInsumos.some(l => l.id === i.id)),
+    [insumos, listaInsumos]
+  );
 
   const abrirNuevo = () => {
     setTragoAEditar(null);
@@ -95,6 +154,7 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
     setNuevoInsumoId('');
     setNuevaCantidad(60);
     setNuevaUnidad('ml');
+    setPanelNuevoInsumo(false);
     setModalOpen(true);
   };
 
@@ -105,6 +165,9 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
     setMargenSugerido(trago.margenSugerido || 33);
     setCostoAdicional(trago.costoAdicionalElaboracion || 0);
     setIngredientes(JSON.parse(JSON.stringify(trago.ingredientes || [])));
+    setNuevoInsumoId('');
+    setNuevaCantidad(60);
+    setPanelNuevoInsumo(false);
     setModalOpen(true);
   };
 
@@ -250,6 +313,17 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
                 {formatMoneda(costoTotalTragosEvento)}
               </div>
             </div>
+            {onIrAMaestroInsumos && (
+              <button
+                type="button"
+                onClick={onIrAMaestroInsumos}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-blue-50 text-blue-800 font-bold text-xs rounded-xl border border-blue-300 shadow-xs transition-colors cursor-pointer"
+                title="Abrir el Maestro de Insumos para crear o editar insumos (licores, frutas, hielo...) con sus precios reales"
+              >
+                <Boxes className="w-4 h-4 text-blue-600" />
+                <span>Maestro de Insumos</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={abrirNuevo}
@@ -288,6 +362,15 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
           <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
             Crea tu primera ficha: elige los insumos (pisco, limón, azúcar, hielo...), las cantidades en ml y el sistema calcula el costo real por copa y el precio sugerido.
           </p>
+          {onIrAMaestroInsumos && (
+            <p className="text-[11px] text-slate-400 max-w-md mx-auto mb-4">
+              ¿No encuentras un insumo? Créalo en el{' '}
+              <button type="button" onClick={onIrAMaestroInsumos} className="font-bold text-blue-700 underline cursor-pointer">
+                Maestro de Insumos
+              </button>{' '}
+o con el botón "+ Nuevo Insumo" dentro de la ficha.
+            </p>
+          )}
           <button
             type="button"
             onClick={abrirNuevo}
@@ -600,11 +683,22 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
                         className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden bg-white"
                       >
                         <option value="">— Elegir insumo (licor, fruta, hielo...) —</option>
-                        {listaInsumos.map(ins => (
-                          <option key={ins.id} value={ins.id}>
-                            {ins.nombre} ({formatMoneda(ins.precioCompra)} / {ins.unidadMedida})
-                          </option>
-                        ))}
+                        <optgroup label="🥃 Licores y Bebidas">
+                          {listaInsumos.map(ins => (
+                            <option key={ins.id} value={ins.id}>
+                              {ins.nombre} ({formatMoneda(ins.precioCompra)} / {ins.unidadMedida})
+                            </option>
+                          ))}
+                        </optgroup>
+                        {otrosInsumos.length > 0 && (
+                          <optgroup label="🧺 Todos los demás insumos del Maestro">
+                            {otrosInsumos.map(ins => (
+                              <option key={ins.id} value={ins.id}>
+                                {ins.nombre} ({formatMoneda(ins.precioCompra)} / {ins.unidadMedida})
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
                     <div className="sm:col-span-2">
@@ -644,6 +738,132 @@ export const ModuloCocteleria: React.FC<ModuloCocteleriaProps> = ({
                       </button>
                     </div>
                   </div>
+
+                  {/* Acceso al Maestro de Insumos + creación rápida SIN salir de la ficha */}
+                  <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+                    {onIrAMaestroInsumos && (
+                      <button
+                        type="button"
+                        onClick={onIrAMaestroInsumos}
+                        className="text-[11px] font-bold text-blue-700 hover:text-blue-900 underline cursor-pointer flex items-center gap-1"
+                        title="Abrir el Maestro de Insumos (tabla completa con precios)"
+                      >
+                        <Boxes className="w-3.5 h-3.5" />
+                        Abrir Maestro de Insumos →
+                      </button>
+                    )}
+                    {onAddInsumo && (
+                      <button
+                        type="button"
+                        onClick={abrirPanelNuevoInsumo}
+                        className="text-[11px] font-bold text-purple-700 hover:text-purple-900 underline cursor-pointer flex items-center gap-1"
+                        title="Crear un insumo nuevo ahora mismo y usarlo en esta receta"
+                      >
+                        <PackagePlus className="w-3.5 h-3.5" />
+                        + Nuevo Insumo
+                      </button>
+                    )}
+                  </div>
+
+                  {panelNuevoInsumo && onAddInsumo && (
+                    <div className="mt-2 p-3 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold text-blue-900 uppercase tracking-wide flex items-center gap-1">
+                          <PackagePlus className="w-3.5 h-3.5" />
+                          Crear Insumo para esta Receta
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPanelNuevoInsumo(false)}
+                          className="text-slate-400 hover:text-slate-700 cursor-pointer"
+                          title="Cerrar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                        <div className="sm:col-span-5">
+                          <input
+                            type="text"
+                            value={qiNombre}
+                            onChange={(e) => setQiNombre(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCrearInsumoRapido(); } }}
+                            placeholder="Nombre (ej: Pisco Alto del Carmen 35°)"
+                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <select
+                            value={qiCategoria}
+                            onChange={(e) => setQiCategoria(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden bg-white"
+                            title="Categoría del insumo"
+                          >
+                            {CATEGORIAS_INSUMOS_DEFAULT.map(c => (
+                              <option key={c.id} value={c.id}>{c.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <select
+                            value={qiUnidad}
+                            onChange={(e) => setQiUnidad(e.target.value as InsumoMaestro['unidadMedida'])}
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden bg-white"
+                            title="Unidad de compra"
+                          >
+                            <option value="ml">ml</option>
+                            <option value="L">L</option>
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="unidad">unidad</option>
+                            <option value="paquete">paquete</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={qiPrecio}
+                            onChange={(e) => setQiPrecio(e.target.value === '' ? '' : Number(e.target.value))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCrearInsumoRapido(); } }}
+                            placeholder="Precio $"
+                            className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-hidden"
+                            title="Precio de compra por unidad"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                        <div className="sm:col-span-7">
+                          <input
+                            type="text"
+                            value={qiProveedor}
+                            onChange={(e) => setQiProveedor(e.target.value)}
+                            placeholder="Proveedor (opcional)"
+                            className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-slate-700 focus:outline-hidden"
+                          />
+                        </div>
+                        <div className="sm:col-span-5 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={handleCrearInsumoRapido}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            Crear y usar en la receta
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-500">
+                        Queda guardado en el Maestro de Insumos y queda seleccionado arriba, listo para agregar con su cantidad.
+                      </p>
+                      {qiMensaje && (
+                        <p className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                          {qiMensaje}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Costo adicional */}
