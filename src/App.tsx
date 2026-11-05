@@ -686,10 +686,6 @@ export default function App() {
     mostrarToast(`✓ Menú "${menuActualizado.nombre}" actualizado correctamente`);
   };
 
-  const handleUpdateMenu = (menuActualizado: MenuOption) => {
-    setMenus(prev => prev.map(m => m.id === menuActualizado.id ? menuActualizado : m));
-  };
-
   const handleDeleteMenu = (menuId: string) => {
     if (menus.length <= 1) {
       mostrarToast('⚠️ Debe existir al menos un menú en la carta gastronómica');
@@ -1656,10 +1652,6 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
-            menuSeleccionadoId={cotizacion.menuId}
-            onSelectMenu={handleSelectMenu}
-            onUpdateMenu={handleUpdateMenu}
-            onIrACotizador={() => setVistaActual('cotizador')}
           />
         )}
 
@@ -1761,6 +1753,8 @@ export default function App() {
           }}
           modoAdmin={modoAdmin}
           onGuardarCotizacion={handleGuardarCotizacionActual}
+          recetas={recetas}
+          insumos={insumos}
         />
       )}
 
@@ -1776,6 +1770,8 @@ export default function App() {
           precioVentaTotal={resumenFinanciero.precioCobradoFinal}
           empresaActiva={empresaActiva}
           onClose={() => setModalWhatsAppOpen(false)}
+          recetas={recetas}
+          insumos={insumos}
         />
       )}
 
