@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { CotizacionState, MenuOption, ProveedorServicio, EstiloDecoracion, EmpresaCliente } from '../types';
+import { CotizacionState, MenuOption, ProveedorServicio, EstiloDecoracion, EmpresaCliente, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { formatMoneda, formatFechaEsp } from '../utils/formatters';
+import { minutaATexto, construirMinutaConFichas } from '../utils/minutaHelper';
 import { MessageCircle, Copy, Check, ExternalLink, X, Settings2, Sparkles, Send, PhoneCall } from 'lucide-react';
 
 interface ModalPropuestaWhatsAppProps {
@@ -13,6 +14,8 @@ interface ModalPropuestaWhatsAppProps {
   precioVentaTotal: number;
   empresaActiva: EmpresaCliente;
   onClose: () => void;
+  recetas?: RecetaFichaTecnica[];
+  insumos?: InsumoMaestro[];
 }
 
 export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
@@ -24,7 +27,9 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   ivaMonto,
   precioVentaTotal,
   empresaActiva,
-  onClose
+  onClose,
+  recetas = [],
+  insumos = []
 }) => {
   // Opciones de personalización del mensaje
   const [incluirTiemposMenu, setIncluirTiemposMenu] = useState(true);
@@ -91,13 +96,29 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
       });
       msg += `\n`;
     } else if (incluirTiemposMenu) {
-      const esRelleno = (t?: string) => !t || t.includes('selección de bocados') || t.includes('entrada fresca de temporada') || t.includes('plato de fondo noble');
-      if (menu.tiempos && !esRelleno(menu.tiempos.fondo)) {
-        if (menu.tiempos.coctel) msg += `• *Cóctel de Entrada:* ${menu.tiempos.coctel}\n`;
-        if (menu.tiempos.entrada) msg += `• *Entrada Gourmet:* ${menu.tiempos.entrada}\n`;
-        if (menu.tiempos.fondo) msg += `• *Plato Principal:* ${menu.tiempos.fondo}\n`;
-        if (menu.tiempos.postre) msg += `• *Mesa de Postres:* ${menu.tiempos.postre}\n`;
-        if (menu.tiempos.trasnoche) msg += `• *Trasnoche:* ${menu.tiempos.trasnoche}\n`;
+      // Minuta con tiempos + fichas vinculadas (sin doble digitación)
+      const minuta = construirMinutaConFichas(menu, recetas, insumos);
+      const conContenido = minuta.filter(t => t.tieneContenido);
+      if (conContenido.length > 0) {
+        const etiquetaTiempo: Record<string, string> = {
+          coctel: 'Cóctel de Entrada',
+          entrada: 'Entrada Gourmet',
+          fondo: 'Plato Principal',
+          postre: 'Mesa de Postres',
+          trasnoche: 'Trasnoche'
+        };
+        conContenido.forEach(t => {
+          const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
+          const partes: string[] = [];
+          if (t.textoManual) partes.push(t.textoManual);
+          if (t.fichas.length > 0) {
+            const fichasTxt = t.fichas.map(f => f.nombre).join(', ');
+            partes.push(`Fichas: ${fichasTxt}`);
+          }
+          if (partes.length > 0) {
+            msg += `• *${etiqueta}:* ${partes.join(' · ')}\n`;
+          }
+        });
         msg += `\n`;
       } else {
         msg += `_${menu.descripcion}_\n\n`;
