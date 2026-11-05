@@ -97,9 +97,10 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
       msg += `\n`;
     } else if (incluirTiemposMenu) {
       // Minuta con tiempos + fichas vinculadas (sin doble digitación)
+      // Respeta tiempos ocultos manualmente por el usuario
       const minuta = construirMinutaConFichas(menu, recetas, insumos);
-      const conContenido = minuta.filter(t => t.tieneContenido);
-      if (conContenido.length > 0) {
+      const visibles = minuta.filter(t => !t.ocultoManual && t.tieneContenido);
+      if (visibles.length > 0) {
         const etiquetaTiempo: Record<string, string> = {
           coctel: 'Cóctel de Entrada',
           entrada: 'Entrada Gourmet',
@@ -107,7 +108,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
           postre: 'Mesa de Postres',
           trasnoche: 'Trasnoche'
         };
-        conContenido.forEach(t => {
+        visibles.forEach(t => {
           const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
           const partes: string[] = [];
           if (t.textoManual) partes.push(t.textoManual);
