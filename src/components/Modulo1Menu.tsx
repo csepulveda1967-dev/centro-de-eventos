@@ -3,6 +3,7 @@ import { MenuOption, MenuItemRatio, RecetaFichaTecnica, InsumoMaestro } from '..
 import { formatMoneda } from '../utils/formatters';
 import { ModalCrearMenu } from './ModalCrearMenu';
 import { calcularCostoReceta } from '../config/insumosYRecetas';
+import { construirMinutaConFichas } from '../utils/minutaHelper';
 import {
   Utensils,
   Users,
@@ -67,6 +68,7 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   insumos = []
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
+  const [ocultarTiemposVacios, setOcultarTiemposVacios] = useState(true); // por defecto, oculta los tiempos sin contenido
   const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
   const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
   const [nuevoBebNombre, setNuevoBebNombre] = useState('');
@@ -625,26 +627,76 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
 
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-200/60 text-xs space-y-2 bg-slate-50/70 -mx-4 -mb-4 p-4 rounded-b-xl">
-                        <div>
-                          <span className="font-bold text-slate-700">Cóctel de Bienvenida:</span>{' '}
-                          <span className="text-slate-600">{menu.tiempos.coctel}</span>
+                        {/* Toggle: ocultar/mostrar tiempos vacíos */}
+                        <div className="flex items-center justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOcultarTiemposVacios(!ocultarTiemposVacios);
+                            }}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                              ocultarTiemposVacios
+                                ? 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200'
+                                : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                            }`}
+                            title="Ocultar/mostrar los tiempos que no tienen contenido en este menú"
+                          >
+                            {ocultarTiemposVacios ? '🔲 Tiempos vacíos ocultos · Mostrar' : '✓ Mostrando todos los tiempos · Ocultar vacíos'}
+                          </button>
                         </div>
-                        <div>
-                          <span className="font-bold text-slate-700">Entrada:</span>{' '}
-                          <span className="text-slate-600">{menu.tiempos.entrada}</span>
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-700">Plato de Fondo:</span>{' '}
-                          <span className="text-slate-600">{menu.tiempos.fondo}</span>
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-700">Postre:</span>{' '}
-                          <span className="text-slate-600">{menu.tiempos.postre}</span>
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-700">Bajonativo / Trasnoche:</span>{' '}
-                          <span className="text-slate-600">{menu.tiempos.trasnoche}</span>
-                        </div>
+
+                        {/* Minuta con tiempos + fichas vinculadas */}
+                        {(() => {
+                          const tiempos = construirMinutaConFichas(menu, recetas, insumos);
+                          const visibles = ocultarTiemposVacios
+                            ? tiempos.filter(t => t.tieneContenido)
+                            : tiempos;
+
+                          if (visibles.length === 0) {
+                            return (
+                              <div className="text-center text-slate-400 py-3 italic">
+                                Este menú no tiene tiempos cargados todavía. Agrega fichas desde la Calculadora de Recetas o escribe los platos en "Editar este menú".
+                              </div>
+                            );
+                          }
+
+                          return visibles.map(t => {
+                            const fichasConCosto = t.fichas.map(f => ({
+                              ficha: f,
+                              costo: calcularCostoReceta(f, insumos).costoPorPorcion
+                            }));
+                            return (
+                              <div key={t.tiempoId}>
+                                <div className="flex items-baseline gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-700">{t.tiempoLabel}:</span>
+                                  {t.textoManual ? (
+                                    <span className="text-slate-600">{t.textoManual}</span>
+                                  ) : fichasConCosto.length === 0 ? (
+                                    <span className="text-slate-300 italic text-[11px]">(no incluido en este menú)</span>
+                                  ) : null}
+                                </div>
+                                {fichasConCosto.length > 0 && (
+                                  <div className="ml-4 mt-1 space-y-0.5">
+                                    {fichasConCosto.map(({ ficha, costo }) => (
+                                      <div key={ficha.id} className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                                          📋 Ficha
+                                        </span>
+                                        <span className="text-slate-800 font-semibold">{ficha.nombre}</span>
+                                        <span className="text-slate-400">·</span>
+                                        <span className="text-emerald-700 font-bold tabular-nums text-[11px]">{formatMoneda(costo)}/pax</span>
+                                        {ficha.tiempoMenu === 'cocteleria' && (
+                                          <span className="text-[9px] font-bold uppercase px-1 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">🍸 Trago</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()}
 
                         {/* Consumos por persona (p.p.) */}
                         {menu.itemsPorPersona && menu.itemsPorPersona.length > 0 && (
@@ -754,13 +806,13 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
             💡 Tip: los valores de estos botones son referenciales. Para usar los valores reales, márcalos como "bebestible" en la ficha del menú y pulsa "Cargar bebestibles del menú", o edita la cantidad y costo en la tabla de abajo.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {presetsDinamicos.map((b) => {
+            {BEBESTIBLES_SUGERIDOS_PRESET.map((b) => {
               const estaActivo = bebestibles.some(it => it.nombre.toLowerCase().includes(b.nombre.toLowerCase().slice(0, 10)));
               return (
                 <button
                   key={b.id}
                   type="button"
-                  onClick={() => handleTogglePresetDinamico(b)}
+                  onClick={() => handleToggleBebestibleSugerido(b)}
                   className={`p-2.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${
                     estaActivo
                       ? 'bg-purple-600 text-white border-purple-700 shadow-xs ring-1 ring-purple-400'
