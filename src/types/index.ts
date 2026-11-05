@@ -27,6 +27,15 @@ export interface MenuOption {
     postre: string;
     trasnoche: string;
   };
+  // Marca qué tiempos NO deben mostrarse en el cotizador / PDF / WhatsApp
+  // aunque tengan texto o fichas. Lo define el usuario con el botón "ocultar" en Editar Menú.
+  tiemposOcultos?: {
+    coctel?: boolean;
+    entrada?: boolean;
+    fondo?: boolean;
+    postre?: boolean;
+    trasnoche?: boolean;
+  };
   destacado?: boolean;
   recetasIds?: string[]; // IDs de las recetas vinculadas que componen este menú
   costoCalculadoDesdeRecetas?: boolean;
