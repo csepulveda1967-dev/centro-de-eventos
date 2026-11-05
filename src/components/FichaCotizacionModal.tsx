@@ -120,6 +120,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
       trasnoche: 'Trasnoche / Fin de Fiesta'
     };
     minuta.forEach(t => {
+      if (t.ocultoManual) return; // El usuario marcó este tiempo como oculto → no se muestra en el PDF
       if (!t.tieneContenido) return; // oculta tiempos vacíos
       const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
       const partes: string[] = [];
