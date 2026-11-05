@@ -5,6 +5,7 @@ import {
   calcularCostoIngrediente,
   calcularCostoMenuDesdeRecetas,
   calcularDesglosePorCategoria,
+  recetaPerteneceAMenu,
   formatearNombreCategoria,
   obtenerColorCategoria,
   TIEMPOS_MENU_DEFAULT,
@@ -31,12 +32,10 @@ import {
   Filter,
   PieChart,
   FolderPlus,
-  Wine,
-  GlassWater,
-  Beer,
-  Check,
-  CheckSquare,
-  Square
+  Pencil,
+  ListPlus,
+  X,
+  Check
 } from 'lucide-react';
 import { Modulo2Personal } from './Modulo2Personal';
 import { StaffTarifas } from '../types';
@@ -53,6 +52,7 @@ interface CalculadoraRecetasProps {
   onVincularCoffeeBreak?: (receta: RecetaFichaTecnica, costoPorPorcion: number, precioSugerido: number) => void;
   onAddMenu?: (nuevoMenu: MenuOption) => void;
   onDeleteMenu?: (menuId: string) => void;
+  onUpdateMenu?: (menuActualizado: MenuOption) => void;
   // Brigada de Servicio & Personal de Operaciones
   tarifasStaff?: StaffTarifas;
   personal?: {
@@ -67,14 +67,9 @@ interface CalculadoraRecetasProps {
     aseo: number;
     maitre: number;
   }) => void;
-  // Servicio de Bebestibles, Vinos & Barra por Persona
+  // Bebestibles gestionados en el Módulo 1 (Menús); se reciben por compatibilidad
   bebestibles?: MenuItemRatio[];
   onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
-  // Vinculación e incorporación automática al Cotizador (Pantalla Principal)
-  menuSeleccionadoId?: string;
-  onSelectMenu?: (menuId: string) => void;
-  onUpdateMenu?: (menuActualizado: MenuOption) => void;
-  onIrACotizador?: () => void;
 }
 
 interface InputNumeroCeldaRecetasProps {
@@ -158,160 +153,13 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onVincularCoffeeBreak,
   onAddMenu,
   onDeleteMenu,
+  onUpdateMenu,
   tarifasStaff,
   personal,
-  onChangePersonal,
-  bebestibles = [],
-  onUpdateBebestibles,
-  menuSeleccionadoId,
-  onSelectMenu,
-  onUpdateMenu,
-  onIrACotizador
+  onChangePersonal
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
-
-  // Modal para Incorporar Receta al Cotizador (Pantalla Principal)
-  const [recetaAIncorporar, setRecetaAIncorporar] = useState<RecetaFichaTecnica | null>(null);
-  const [metodoIncorporar, setMetodoIncorporar] = useState<'nuevo-menu' | 'menu-existente'>('nuevo-menu');
-  const [menuDestinoId, setMenuDestinoId] = useState<string>(menus[0]?.id || '');
-  const [nombreNuevoMenuReceta, setNombreNuevoMenuReceta] = useState<string>('');
-  const [categoriaNuevoMenuReceta, setCategoriaNuevoMenuReceta] = useState<'formal' | 'campestre' | 'cocktail' | 'premium'>('premium');
-  const [tiempoAsignado, setTiempoAsignado] = useState<string>('fondo');
-  const [establecerComoActivo, setEstablecerComoActivo] = useState<boolean>(true);
-  const [irACotizadorAlTerminar, setIrACotizadorAlTerminar] = useState<boolean>(false);
-
-  const abrirModalIncorporarReceta = (r: RecetaFichaTecnica) => {
-    setRecetaAIncorporar(r);
-    setNombreNuevoMenuReceta(r.nombre);
-
-    const catRec = (r.categoria || '').toLowerCase();
-    let catSugerida: 'formal' | 'campestre' | 'cocktail' | 'premium' = 'premium';
-    if (catRec.includes('campestre')) catSugerida = 'campestre';
-    else if (catRec.includes('cocktail') || catRec.includes('coctel')) catSugerida = 'cocktail';
-    else if (catRec.includes('formal')) catSugerida = 'formal';
-    setCategoriaNuevoMenuReceta(catSugerida);
-
-    const tRec = (r.tiempoMenu || '').toLowerCase();
-    if (['coctel', 'entrada', 'fondo', 'postre', 'trasnoche'].includes(tRec)) {
-      setTiempoAsignado(tRec);
-    } else {
-      setTiempoAsignado('fondo');
-    }
-
-    setMenuDestinoId(menuSeleccionadoId || menus[0]?.id || '');
-    setMetodoIncorporar('nuevo-menu');
-  };
-
-  const getMenusDeReceta = (rec: RecetaFichaTecnica) => {
-    return menus.filter(m =>
-      m.id === rec.menuAsociadoId || (m.recetasIds && m.recetasIds.includes(rec.id))
-    );
-  };
-
-  const handleConfirmarIncorporacion = () => {
-    if (!recetaAIncorporar) return;
-    const r = recetaAIncorporar;
-    const calc = calcularCostoReceta(r, insumos);
-
-    if (metodoIncorporar === 'nuevo-menu') {
-      const nombreFinal = nombreNuevoMenuReceta.trim() || r.nombre;
-      const nuevoId = 'menu-' + Date.now();
-
-      const tiemposFinales = {
-        coctel: tiempoAsignado === 'coctel' ? r.nombre : 'Cóctel de bienvenida artesanal en jardín',
-        entrada: tiempoAsignado === 'entrada' ? r.nombre : 'Entrada fresca de temporada según minuta',
-        fondo: (tiempoAsignado === 'fondo' || (!['coctel', 'entrada', 'postre', 'trasnoche'].includes(tiempoAsignado))) ? r.nombre : 'Plato principal de autor con guarnición noble',
-        postre: tiempoAsignado === 'postre' ? r.nombre : 'Postre artesanal de autor',
-        trasnoche: tiempoAsignado === 'trasnoche' ? r.nombre : 'Estación de trasnoche'
-      };
-
-      const nuevoMenu: MenuOption = {
-        id: nuevoId,
-        nombre: nombreFinal,
-        categoria: categoriaNuevoMenuReceta,
-        costoPersona: calc.costoPorPorcion,
-        precioSugeridoPersona: calc.precioSugeridoVenta,
-        descripcion: `Propuesta gastronómica con la receta técnica "${r.nombre}"`,
-        tiempos: tiemposFinales,
-        destacado: categoriaNuevoMenuReceta === 'premium',
-        recetasIds: [r.id],
-        costoCalculadoDesdeRecetas: true
-      };
-
-      if (onAddMenu) {
-        onAddMenu(nuevoMenu);
-      }
-
-      const recetaActualizada: RecetaFichaTecnica = {
-        ...r,
-        menuAsociadoId: nuevoId
-      };
-      onUpdateReceta(recetaActualizada);
-
-      if (establecerComoActivo && onSelectMenu) {
-        onSelectMenu(nuevoId);
-      }
-
-      notificar(`✓ Menú "${nombreFinal}" creado e incorporado al Cotizador (${formatMoneda(calc.costoPorPorcion)}/pax)`);
-    } else {
-      const menuTarget = menus.find(m => m.id === menuDestinoId);
-      if (!menuTarget) return;
-
-      const recetaActualizada: RecetaFichaTecnica = {
-        ...r,
-        menuAsociadoId: menuTarget.id
-      };
-      onUpdateReceta(recetaActualizada);
-
-      const nuevasRecetasIds = Array.from(new Set([...(menuTarget.recetasIds || []), r.id]));
-
-      const nuevosTiempos = { ...menuTarget.tiempos };
-      if (tiempoAsignado === 'coctel') nuevosTiempos.coctel = r.nombre;
-      else if (tiempoAsignado === 'entrada') nuevosTiempos.entrada = r.nombre;
-      else if (tiempoAsignado === 'fondo') nuevosTiempos.fondo = r.nombre;
-      else if (tiempoAsignado === 'postre') nuevosTiempos.postre = r.nombre;
-      else if (tiempoAsignado === 'trasnoche') nuevosTiempos.trasnoche = r.nombre;
-
-      const recetasDelMenu = recetas
-        .map(rec => rec.id === r.id ? recetaActualizada : rec)
-        .filter(rec => (rec.menuAsociadoId === menuTarget.id || nuevasRecetasIds.includes(rec.id)) && rec.tiempoMenu !== 'coffee-break');
-
-      const nuevoCostoMenu = recetasDelMenu.reduce((sum, rec) => {
-        const c = calcularCostoReceta(rec, insumos);
-        return sum + c.costoPorPorcion;
-      }, 0);
-
-      const nuevoPrecioSugerido = Math.round(nuevoCostoMenu / 0.33);
-
-      const menuActualizado: MenuOption = {
-        ...menuTarget,
-        costoPersona: nuevoCostoMenu > 0 ? nuevoCostoMenu : calc.costoPorPorcion,
-        precioSugeridoPersona: nuevoPrecioSugerido > 0 ? nuevoPrecioSugerido : calc.precioSugeridoVenta,
-        recetasIds: nuevasRecetasIds,
-        tiempos: nuevosTiempos,
-        costoCalculadoDesdeRecetas: true
-      };
-
-      if (onUpdateMenu) {
-        onUpdateMenu(menuActualizado);
-      } else if (onSincronizarCostosMenu) {
-        onSincronizarCostosMenu(menuTarget.id, menuActualizado.costoPersona);
-      }
-
-      if (establecerComoActivo && onSelectMenu) {
-        onSelectMenu(menuTarget.id);
-      }
-
-      notificar(`✓ Receta "${r.nombre}" vinculada a "${menuTarget.nombre}" en el Cotizador`);
-    }
-
-    setRecetaAIncorporar(null);
-
-    if (irACotizadorAlTerminar && onIrACotizador) {
-      onIrACotizador();
-    }
-  };
 
   // Insumo a añadir en la receta activa
   const insumosMap = new Map<string, InsumoMaestro>(insumos.map(i => [i.id, i]));
@@ -457,6 +305,18 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   // Filtro de recetas por menú
   const [menuFiltroRecetas, setMenuFiltroRecetas] = useState<string>('todos');
 
+  // Menú que se está editando en el ModalCrearMenu (modo edición)
+  const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
+
+  // ── MODAL: AGREGAR FICHA TÉCNICA A MENÚS (creados o por crear) ──
+  const [modalAgregarMenuOpen, setModalAgregarMenuOpen] = useState(false);
+  const [fichaParaMenus, setFichaParaMenus] = useState<RecetaFichaTecnica | null>(null);
+  const [menusElegidosModal, setMenusElegidosModal] = useState<string[]>([]);
+  const [crearMenuDesdeModal, setCrearMenuDesdeModal] = useState(false);
+  const [nombreMenuModal, setNombreMenuModal] = useState('');
+  const [categoriaMenuModal, setCategoriaMenuModal] = useState<'formal' | 'campestre' | 'cocktail' | 'premium'>('formal');
+  const [descripcionMenuModal, setDescripcionMenuModal] = useState('');
+
   const recetaActiva = recetas.find(r => r.id === recetaSeleccionadaId) || recetas[0];
 
   const calculosReceta = recetaActiva
@@ -470,11 +330,17 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         utilidadPorPorcion: 0
       };
 
-  // Menú vinculado a la receta activa
+  // Menú vinculado a la receta activa (menú principal)
   const menuVinculado = menus.find(m => m.id === recetaActiva?.menuAsociadoId);
   const calculoMenuCompleto = menuVinculado
     ? calcularCostoMenuDesdeRecetas(menuVinculado.id, recetas, insumos)
     : { costoMenuCalculado: 0, recetasEncontradas: 0 };
+
+  // TODOS los menús donde la ficha activa está vinculada (vinculación múltiple)
+  const menusDeFichaActiva = useMemo(() => {
+    if (!recetaActiva) return [];
+    return menus.filter(m => recetaPerteneceAMenu(recetaActiva, m.id));
+  }, [recetaActiva, menus]);
 
   // Filtro de categorías para añadir ingredientes desde el maestro
   const [categoriaFiltroIngrediente, setCategoriaFiltroIngrediente] = useState<string>('todas');
@@ -725,7 +591,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       rendimientoPorciones: 1,
       margenSugerido: 33, // 33% estándar de la industria
       costoAdicionalElaboracion: costoElaboracion,
-      menuAsociadoId: esCoffeeBreak ? undefined : menuFinalId,
+      menuAsociadoId: esCoffeeBreak ? undefined : (menuFinalId || undefined),
+      menusAsociadosIds: esCoffeeBreak ? undefined : (menuFinalId ? [menuFinalId] : undefined),
       servicioAsociadoId: esCoffeeBreak ? 'coffee-break-cocteleria' : undefined,
       ingredientes: ingredientesIniciales,
       descripcionProcedimiento: esCoffeeBreak
@@ -772,6 +639,12 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   };
 
   const handleGuardarMenuDirecto = (nuevoMenu: MenuOption) => {
+    if (menuAEditar && onUpdateMenu) {
+      onUpdateMenu(nuevoMenu);
+      notificar(`✓ Menú "${nuevoMenu.nombre}" actualizado correctamente`);
+      setMenuAEditar(null);
+      return;
+    }
     if (onAddMenu) {
       onAddMenu(nuevoMenu);
       setNuevoMenuAsociadoId(nuevoMenu.id);
@@ -794,200 +667,109 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     }
   };
 
-  const presetsMargen = [25, 30, 33, 35, 40, 45, 50];
-
-  // ── ESTADO & LÓGICA: SERVICIO DE BEBESTIBLES, VINOS & BARRA POR PERSONA ──
-  const [tabAgregarBebestible, setTabAgregarBebestible] = useState<'insumo' | 'receta' | 'libre'>('insumo');
-
-  // Filtrar insumos específicos de bar / bebidas o todos los disponibles
-  const insumosBebidas = useMemo(() => {
-    const list = insumos.filter(i => {
-      const cat = (i.categoria || '').toLowerCase();
-      return cat.includes('licor') || cat.includes('bebida') || cat.includes('vino') || cat.includes('bar');
-    });
-    return list.length > 0 ? list : insumos;
-  }, [insumos]);
-
-  const [selectedInsumoBebId, setSelectedInsumoBebId] = useState<string>(insumosBebidas[0]?.id || insumos[0]?.id || '');
-  const [insumoBebRatio, setInsumoBebRatio] = useState<number | string>(1);
-  const [insumoBebUnidad, setInsumoBebUnidad] = useState<string>('botella');
-
-  // Filtrar recetas específicas de cócteles / bar o todas las fichas técnicas
-  const recetasCocteleria = useMemo(() => {
-    const list = recetas.filter(r => {
-      const t = (r.tiempoMenu || '').toLowerCase();
-      const c = (r.categoria || '').toLowerCase();
-      return t === 'coctel' || c.includes('bar') || c.includes('coctel') || c.includes('bebida');
-    });
-    return list.length > 0 ? list : recetas;
-  }, [recetas]);
-
-  const [selectedRecetaBebId, setSelectedRecetaBebId] = useState<string>(recetasCocteleria[0]?.id || recetas[0]?.id || '');
-  const [recetaBebRatio, setRecetaBebRatio] = useState<number | string>(2);
-  const [recetaBebUnidad, setRecetaBebUnidad] = useState<string>('trago');
-
-  // Opción Libre
-  const [libreBebNombre, setLibreBebNombre] = useState<string>('');
-  const [libreBebRatio, setLibreBebRatio] = useState<number | string>(1);
-  const [libreBebUnidad, setLibreBebUnidad] = useState<string>('copa / vaso');
-  const [libreBebCosto, setLibreBebCosto] = useState<number | string>(1500);
-
-  // Handlers para Bebestibles
-  const handleToggleBebestible = (id: string) => {
-    if (!onUpdateBebestibles) return;
-    const actualizados = bebestibles.map(it =>
-      it.id === id ? { ...it, incluido: it.incluido === false ? true : false } : it
-    );
-    onUpdateBebestibles(actualizados);
-  };
-
-  const handleUpdateRatioBebestible = (id: string, nuevoRatio: number) => {
-    if (!onUpdateBebestibles) return;
-    const actualizados = bebestibles.map(it =>
-      it.id === id ? { ...it, cantidadPorPersona: nuevoRatio } : it
-    );
-    onUpdateBebestibles(actualizados);
-  };
-
-  const handleRemoveBebestible = (id: string) => {
-    if (!onUpdateBebestibles) return;
-    const actualizados = bebestibles.filter(it => it.id !== id);
-    onUpdateBebestibles(actualizados);
-  };
-
-  const handleAddBebestibleDesdeInsumo = (insumoIdParam?: string) => {
-    if (!onUpdateBebestibles) return;
-    const targetId = insumoIdParam || selectedInsumoBebId;
-    const insumo = insumos.find(i => i.id === targetId);
-    if (!insumo) return;
-
-    // Si ya existe, activarlo o informar
-    const existente = bebestibles.find(it => it.insumoId === insumo.id);
-    if (existente) {
-      if (existente.incluido === false) {
-        handleToggleBebestible(existente.id);
-      }
-      notificar(`✓ Bebestible "${insumo.nombre}" ya está en la barra`);
+  // ── VINCULACIÓN FICHA → MENÚS (creados o por crear) ──
+  const abrirModalAgregarMenu = (receta: RecetaFichaTecnica) => {
+    // Las fichas de Coffee Break tributan a Tarifas Generales, no a los menús de banquetes
+    if (receta.tiempoMenu === 'coffee-break') {
+      notificar('ℹ️ Las fichas de Coffee Break se vinculan automáticamente a Tarifas Generales (no a los menús)');
       return;
     }
-
-    const nuevoItem: MenuItemRatio = {
-      id: 'beb-ins-' + Date.now(),
-      nombre: insumo.nombre,
-      cantidadPorPersona: Number(insumoBebRatio) || 1,
-      unidad: insumoBebUnidad,
-      insumoId: insumo.id,
-      costoUnitario: insumo.precioCompra,
-      categoria: 'bebestible',
-      tipoOrigen: 'insumo',
-      incluido: true
-    };
-    onUpdateBebestibles([...bebestibles, nuevoItem]);
-    notificar(`✓ Insumo "${insumo.nombre}" vinculado a la barra`);
-  };
-
-  const handleAddBebestibleDesdeReceta = (recetaIdParam?: string) => {
-    if (!onUpdateBebestibles) return;
-    const targetId = recetaIdParam || selectedRecetaBebId;
-    const receta = recetas.find(r => r.id === targetId);
-    if (!receta) return;
-
-    const existente = bebestibles.find(it => it.recetaId === receta.id);
-    if (existente) {
-      if (existente.incluido === false) {
-        handleToggleBebestible(existente.id);
-      }
-      notificar(`✓ Cóctel "${receta.nombre}" ya está en la barra`);
-      return;
+    setFichaParaMenus(receta);
+    // Solo precargar vinculaciones que apuntan a menús que EXISTEN hoy en la carta.
+    // (Limpia enlaces "fantasma" a menús eliminados o de otra plantilla: es la causa
+    //  de que las fichas aparecieran desvinculadas y los menús con 0 fichas.)
+    const iniciales = new Set<string>(
+      (receta.menusAsociadosIds || []).filter(id => menus.some(m => m.id === id))
+    );
+    if (receta.menuAsociadoId && menus.some(m => m.id === receta.menuAsociadoId)) {
+      iniciales.add(receta.menuAsociadoId);
     }
-
-    const { costoPorPorcion } = calcularCostoReceta(receta, insumos);
-    const nuevoItem: MenuItemRatio = {
-      id: 'beb-rec-' + Date.now(),
-      nombre: receta.nombre,
-      cantidadPorPersona: Number(recetaBebRatio) || 1,
-      unidad: recetaBebUnidad,
-      recetaId: receta.id,
-      costoUnitario: costoPorPorcion,
-      categoria: 'cocteleria',
-      tipoOrigen: 'receta',
-      incluido: true
-    };
-    onUpdateBebestibles([...bebestibles, nuevoItem]);
-    notificar(`✓ Cóctel "${receta.nombre}" vinculado desde Ficha Técnica`);
+    setMenusElegidosModal(Array.from(iniciales));
+    setCrearMenuDesdeModal(false);
+    setNombreMenuModal('');
+    setDescripcionMenuModal('');
+    setCategoriaMenuModal('formal');
+    setModalAgregarMenuOpen(true);
   };
 
-  const handleAddBebestibleLibre = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!onUpdateBebestibles || !libreBebNombre.trim()) return;
-
-    const nuevoItem: MenuItemRatio = {
-      id: 'beb-lib-' + Date.now(),
-      nombre: libreBebNombre.trim(),
-      cantidadPorPersona: Number(libreBebRatio) || 1,
-      unidad: libreBebUnidad,
-      costoUnitario: Number(libreBebCosto) || 0,
-      categoria: 'bebestible',
-      tipoOrigen: 'libre',
-      incluido: true
-    };
-    onUpdateBebestibles([...bebestibles, nuevoItem]);
-    setLibreBebNombre('');
-    notificar(`✓ Bebestible personalizado "${nuevoItem.nombre}" agregado`);
+  const toggleMenuEnModal = (menuId: string) => {
+    setMenusElegidosModal(prev =>
+      prev.includes(menuId)
+        ? prev.filter(id => id !== menuId)
+        : [...prev, menuId]
+    );
   };
 
-  // Cálculo en vivo y sincronizado de cada bebestible (resolviendo dinámicamente costos de insumo o receta)
-  const bebestiblesConCostoDinamico = useMemo(() => {
-    return bebestibles.map(it => {
-      let costoUnitarioCalculado = it.costoUnitario || 0;
-      let detalleOrigen = 'Opción Libre';
-      let tagColor = 'bg-amber-100 text-amber-800 border-amber-300';
-      let iconoTipo = 'libre';
+  const handleConfirmarAgregarMenus = () => {
+    if (!fichaParaMenus) return;
 
-      if (it.insumoId) {
-        const ins = insumosMap.get(it.insumoId);
-        if (ins) {
-          costoUnitarioCalculado = ins.precioCompra;
-          detalleOrigen = `Insumo Maestro: ${ins.proveedor || 'Sin proveedor'}`;
-          tagColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-          iconoTipo = 'insumo';
-        }
-      } else if (it.recetaId) {
-        const rec = recetas.find(r => r.id === it.recetaId);
-        if (rec) {
-          const calc = calcularCostoReceta(rec, insumos);
-          costoUnitarioCalculado = calc.costoPorPorcion;
-          detalleOrigen = `Ficha Técnica (${rec.tiempoMenu || 'coctel'})`;
-          tagColor = 'bg-purple-100 text-purple-800 border-purple-300';
-          iconoTipo = 'receta';
-        }
-      }
+    const idsFinales = [...menusElegidosModal];
+    let menuNuevoCreado: MenuOption | null = null;
 
-      const ratio = Number(it.cantidadPorPersona) || 0;
-      const subtotalPP = ratio * costoUnitarioCalculado;
-      const totalComprarEvento = Math.round(ratio * invitados * 10) / 10;
-      const totalCostoEvento = subtotalPP * invitados;
-
-      return {
-        ...it,
-        costoReal: costoUnitarioCalculado,
-        detalleOrigen,
-        tagColor,
-        iconoTipo,
-        subtotalPP,
-        totalComprarEvento,
-        totalCostoEvento
+    // Crear un menú nuevo al instante con esta ficha como primer plato
+    if (crearMenuDesdeModal && nombreMenuModal.trim()) {
+      const nuevoId = 'menu-' + Date.now();
+      menuNuevoCreado = {
+        id: nuevoId,
+        nombre: nombreMenuModal.trim(),
+        categoria: categoriaMenuModal,
+        costoPersona: 0,
+        precioSugeridoPersona: 0,
+        descripcion: descripcionMenuModal.trim() || `Propuesta gastronómica con la ficha "${fichaParaMenus.nombre}"`,
+        tiempos: {
+          coctel: fichaParaMenus.tiempoMenu === 'coctel' ? fichaParaMenus.nombre : 'Selección de bocados gourmet en jardín',
+          entrada: fichaParaMenus.tiempoMenu === 'entrada' ? fichaParaMenus.nombre : 'Entrada fresca de temporada según minuta del chef',
+          fondo: fichaParaMenus.tiempoMenu === 'fondo' ? fichaParaMenus.nombre : 'Plato de fondo noble con guarnición rústica',
+          postre: fichaParaMenus.tiempoMenu === 'postre' ? fichaParaMenus.nombre : 'Trilogía dulce artesanal de autor',
+          trasnoche: fichaParaMenus.tiempoMenu === 'trasnoche' ? fichaParaMenus.nombre : 'Estación de trasnoche: mini hamburguesas y consomé'
+        },
+        destacado: false,
+        costoCalculadoDesdeRecetas: true
       };
+      if (onAddMenu) {
+        onAddMenu(menuNuevoCreado);
+      }
+      idsFinales.push(nuevoId);
+    }
+
+    const recetaActualizada: RecetaFichaTecnica = {
+      ...fichaParaMenus,
+      menusAsociadosIds: idsFinales.length > 0 ? idsFinales : undefined,
+      // Compatibilidad con explosión de compras y cotizador: menú principal = primero elegido
+      menuAsociadoId: idsFinales[0],
+      servicioAsociadoId: undefined
+    };
+
+    // onUpdateReceta dispara la sincronización automática del costo de TODOS los menús afectados
+    onUpdateReceta(recetaActualizada);
+    setModalAgregarMenuOpen(false);
+    setFichaParaMenus(null);
+
+    if (menuNuevoCreado) {
+      notificar(`✓ ¡Menú "${menuNuevoCreado.nombre}" creado con "${fichaParaMenus.nombre}" y activado en el cotizador!`);
+    } else if (idsFinales.length > 0) {
+      notificar(`✓ "${fichaParaMenus.nombre}" vinculada a ${idsFinales.length} ${idsFinales.length === 1 ? 'menú' : 'menús'} · costos actualizados en el cotizador`);
+    } else {
+      notificar(`✓ "${fichaParaMenus.nombre}" desvinculada de todos los menús`);
+    }
+  };
+
+  // Sincronizar manualmente los costos de todos los menús donde participa la ficha activa
+  const handleSincronizarTodosLosMenus = () => {
+    if (!recetaActiva) return;
+    const menusObjetivo = menus.filter(m => recetaPerteneceAMenu(recetaActiva, m.id));
+    let sincronizados = 0;
+    menusObjetivo.forEach(m => {
+      const { costoMenuCalculado, recetasEncontradas } = calcularCostoMenuDesdeRecetas(m.id, recetas, insumos);
+      if (recetasEncontradas > 0) {
+        onSincronizarCostosMenu(m.id, costoMenuCalculado);
+        sincronizados++;
+      }
     });
-  }, [bebestibles, insumos, recetas, invitados]);
+    notificar(`✓ Costos actualizados en ${sincronizados} ${sincronizados === 1 ? 'menú' : 'menús'} del cotizador`);
+  };
 
-  const costoTotalBebestiblesPP = useMemo(() => {
-    return bebestiblesConCostoDinamico
-      .filter(it => it.incluido !== false)
-      .reduce((s, it) => s + it.subtotalPP, 0);
-  }, [bebestiblesConCostoDinamico]);
-
-  const costoTotalBebestiblesEvento = costoTotalBebestiblesPP * invitados;
+  const presetsMargen = [25, 30, 33, 35, 40, 45, 50];
 
   return (
     <div className="space-y-6">
@@ -1065,7 +847,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {menus.map((m) => {
-            const numRecetas = recetas.filter(r => r.menuAsociadoId === m.id).length;
+            const numRecetas = recetas.filter(r => recetaPerteneceAMenu(r, m.id)).length;
             const esActivoFiltro = menuFiltroRecetas === m.id;
 
             return (
@@ -1087,6 +869,22 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         {numRecetas} recetas asociadas
                       </span>
                     </div>
+
+                    {/* Botón Editar Menú */}
+                    {onUpdateMenu && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuAEditar(m);
+                          setModalNuevoMenuOpen(true);
+                        }}
+                        className="text-slate-400 hover:text-amber-600 p-1 rounded-md hover:bg-amber-50 transition-colors cursor-pointer"
+                        title={`Editar menú "${m.nombre}"`}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
 
                     {/* Botón Eliminar Menú */}
                     {onDeleteMenu && (
@@ -1194,7 +992,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             Todos ({recetas.length})
           </button>
           {menus.map(m => {
-            const count = recetas.filter(r => r.menuAsociadoId === m.id).length;
+            const count = recetas.filter(r => recetaPerteneceAMenu(r, m.id)).length;
             return (
               <button
                 key={m.id}
@@ -1233,7 +1031,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               ? recetas
               : menuFiltroRecetas === 'coffee-break'
                 ? recetas.filter(r => r.tiempoMenu === 'coffee-break')
-                : recetas.filter(r => r.menuAsociadoId === menuFiltroRecetas);
+                : recetas.filter(r => recetaPerteneceAMenu(r, menuFiltroRecetas));
 
             if (lista.length === 0) {
               return (
@@ -1257,97 +1055,83 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             }
 
             return lista.map((r) => {
-              const isSelected = r.id === recetaSeleccionadaId;
-              const calculo = calcularCostoReceta(r, insumos);
-              const menusConEstaReceta = getMenusDeReceta(r);
+            const isSelected = r.id === recetaSeleccionadaId;
+            const calculo = calcularCostoReceta(r, insumos);
+            const menusDeFicha = menus.filter(m => recetaPerteneceAMenu(r, m.id));
 
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => setRecetaSeleccionadaId(r.id)}
-                  className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
-                    isSelected
-                      ? 'border-amber-500 bg-amber-50/20 ring-2 ring-amber-400 shadow-xs'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                  }`}
-                >
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
-                      {r.tiempoMenu === 'coffee-break' ? (
-                        <span className="inline-flex items-center gap-1 text-amber-900 font-extrabold">
-                          <Coffee className="w-3 h-3 text-amber-700" />
-                          Coffee Break / Coctelería
-                        </span>
-                      ) : (
-                        formatearNombreTiempoMenu(r.tiempoMenu)
-                      )}
-                    </span>
-                    <span className="font-bold text-xs text-slate-900 line-clamp-2 mt-0.5">
-                      {r.nombre}
-                    </span>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-[11px] mb-2">
-                      <span className="text-slate-400 font-medium">Costo/pax:</span>
-                      <span className="font-extrabold text-slate-800 tabular-nums">
-                        {formatMoneda(calculo.costoPorPorcion)}
-                      </span>
-                    </div>
-
-                    {/* Botón de Acción de Incorporación Automática (Coincidente con la interfaz deseada) */}
+            return (
+              <div
+                key={r.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setRecetaSeleccionadaId(r.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setRecetaSeleccionadaId(r.id);
+                  }
+                }}
+                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                  isSelected
+                    ? 'border-amber-500 bg-amber-50/30 ring-2 ring-amber-400 shadow-xs'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div>
+                  <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
                     {r.tiempoMenu === 'coffee-break' ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRecetaSeleccionadaId(r.id);
-                          if (onVincularCoffeeBreak) {
-                            onVincularCoffeeBreak(r, calculo.costoPorPorcion, calculo.precioSugeridoVenta);
-                            notificar(`✓ "${r.nombre}" vinculada a Tarifas Generales (${formatMoneda(calculo.costoPorPorcion)}/pax)`);
-                          }
-                        }}
-                        className="w-full py-1.5 px-2 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-lg text-amber-900 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        title="Vinculada directamente a Tarifas Generales en el cotizador"
-                      >
-                        <Coffee className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                        <span className="truncate">Vinculada a Tarifas Generales</span>
-                      </button>
-                    ) : menusConEstaReceta.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRecetaSeleccionadaId(r.id);
-                          abrirModalIncorporarReceta(r);
-                        }}
-                        className="w-full py-1.5 px-2 bg-blue-50/80 hover:bg-blue-100/90 border border-blue-200 rounded-lg text-blue-900 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        title={`Receta vinculada a: ${menusConEstaReceta.map(m => m.nombre).join(', ')}. Haz clic para agregar a más o gestionar.`}
-                      >
-                        <Check className="w-3.5 h-3.5 text-blue-600 stroke-[2.5] shrink-0" />
-                        <span className="truncate">
-                          En {menusConEstaReceta.length} {menusConEstaReceta.length === 1 ? 'menú' : 'menús'} · Agregar a más
-                        </span>
-                      </button>
+                      <span className="inline-flex items-center gap-1 text-amber-900 font-extrabold">
+                        <Coffee className="w-3 h-3 text-amber-700" />
+                        Coffee Break / Coctelería
+                      </span>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRecetaSeleccionadaId(r.id);
-                          abrirModalIncorporarReceta(r);
-                        }}
-                        className="w-full py-1.5 px-2 bg-amber-50/60 hover:bg-amber-100/80 border border-amber-300 rounded-lg text-amber-900 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        title="Incorporar automáticamente esta receta al cotizador"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                        <span className="truncate">+ Agregar a Menú</span>
-                      </button>
+                      formatearNombreTiempoMenu(r.tiempoMenu)
                     )}
-                  </div>
+                  </span>
+                  <span className="font-bold text-xs text-slate-900 line-clamp-2 mt-0.5">
+                    {r.nombre}
+                  </span>
                 </div>
-              );
-            });
+
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-slate-400">Costo/pax:</span>
+                  <span className="font-extrabold text-slate-800 tabular-nums">
+                    {formatMoneda(calculo.costoPorPorcion)}
+                  </span>
+                </div>
+
+                {/* VINCULACIÓN A MENÚS: agregar la ficha a los menús creados o crear uno nuevo */}
+                {r.tiempoMenu === 'coffee-break' ? (
+                  <div className="mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center gap-1">
+                    <Coffee className="w-3 h-3" />
+                    <span>Vinculada a Tarifas Generales</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRecetaSeleccionadaId(r.id);
+                      abrirModalAgregarMenu(r);
+                    }}
+                    className={`mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer ${
+                      menusDeFicha.length > 0
+                        ? 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
+                        : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                    }`}
+                    title="Agregar esta ficha a los menús que estimes, o crear un menú nuevo con ella"
+                  >
+                    <ListPlus className="w-3 h-3" />
+                    <span>
+                      {menusDeFicha.length > 0
+                        ? `✓ En ${menusDeFicha.length} ${menusDeFicha.length === 1 ? 'menú' : 'menús'} · Agregar a más`
+                        : '＋ Agregar a Menú'}
+                    </span>
+                  </button>
+                )}
+              </div>
+            );
+          });
         })()}
       </div>
     </div>
@@ -1422,13 +1206,87 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   )}
                 </div>
 
-                <h2 className="text-lg font-extrabold text-slate-900 mt-1">
-                  {recetaActiva.nombre}
-                </h2>
-                {recetaActiva.descripcionProcedimiento && (
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    {recetaActiva.descripcionProcedimiento}
-                  </p>
+                <input
+                  type="text"
+                  value={recetaActiva.nombre}
+                  onChange={(e) => {
+                    const nuevoNombre = e.target.value;
+                    onUpdateReceta({
+                      ...recetaActiva,
+                      nombre: nuevoNombre
+                    });
+                  }}
+                  className="text-lg font-extrabold text-slate-900 mt-1 w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-amber-400 focus:bg-amber-50/40 rounded-lg px-1.5 -mx-1.5 py-0.5 focus:outline-hidden transition-colors"
+                  title="Haz clic para editar el nombre de la ficha"
+                />
+
+                <textarea
+                  value={recetaActiva.descripcionProcedimiento || ''}
+                  onChange={(e) => {
+                    const nuevaDesc = e.target.value;
+                    onUpdateReceta({
+                      ...recetaActiva,
+                      descripcionProcedimiento: nuevaDesc || undefined
+                    });
+                  }}
+                  placeholder="Describe el procedimiento de esta receta (opcional)..."
+                  rows={2}
+                  className="text-xs text-slate-600 mt-1 w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-amber-400 focus:bg-amber-50/40 rounded-lg px-1.5 -mx-1.5 py-0.5 focus:outline-hidden transition-colors resize-y leading-relaxed italic"
+                  title="Haz clic para editar la descripción del procedimiento"
+                />
+
+                {recetaActiva.tiempoMenu !== 'coffee-break' && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      <LinkIcon className="w-3 h-3 text-blue-500" />
+                      Menús vinculados:
+                    </span>
+                    <select
+                      value={recetaActiva.menuAsociadoId || ''}
+                      onChange={(e) => {
+                        const nuevoMenuId = e.target.value || undefined;
+                        // Mantener el resto de vinculaciones múltiples intactas (solo si existen en carta);
+                        // el select define el menú PRINCIPAL de la ficha
+                        const otrosIds = (recetaActiva.menusAsociadosIds || []).filter(
+                          id =>
+                            id !== recetaActiva.menuAsociadoId &&
+                            id !== nuevoMenuId &&
+                            menus.some(m => m.id === id)
+                        );
+                        const idsFinales = nuevoMenuId ? [nuevoMenuId, ...otrosIds] : otrosIds;
+                        onUpdateReceta({
+                          ...recetaActiva,
+                          menuAsociadoId: nuevoMenuId,
+                          menusAsociadosIds: idsFinales.length > 0 ? idsFinales : undefined,
+                          servicioAsociadoId: undefined
+                        });
+                        notificar(nuevoMenuId ? '✓ Menú principal de la ficha actualizado · costo sincronizado' : '✓ Ficha sin menú principal');
+                      }}
+                      className="px-2 py-0.5 text-[11px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-md focus:outline-none focus:border-blue-400 cursor-pointer transition-colors"
+                      title="Cambiar el menú principal al que pertenece esta receta"
+                    >
+                      <option value="">— Sin menú vinculado —</option>
+                      {menus.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.nombre} ({m.categoria})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => abrirModalAgregarMenu(recetaActiva)}
+                      className="px-2 py-0.5 text-[11px] font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Agregar o quitar esta ficha en los menús que estimes"
+                    >
+                      <ListPlus className="w-3 h-3" />
+                      <span>Agregar / Quitar Menús…</span>
+                    </button>
+                    {menusDeFichaActiva.length > 1 && (
+                      <span className="text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full">
+                        Presente en {menusDeFichaActiva.length} menús
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -1907,7 +1765,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   <span>Sincronizar Costo a Tarifas Generales</span>
                 </button>
               </div>
-            ) : menuVinculado ? (
+            ) : (
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <Utensils className="w-4 h-4 text-amber-600" />
@@ -1916,95 +1774,80 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   </span>
                 </div>
 
-                <div className="text-xs text-slate-600 space-y-1.5">
-                  <div className="flex justify-between">
-                    <span>Menú vinculado:</span>
-                    <strong className="text-slate-900">{menuVinculado.nombre}</strong>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Platos costeados en este menú:</span>
-                    <span className="font-bold text-slate-900">{calculoMenuCompleto.recetasEncontradas} recetas</span>
-                  </div>
-                  <div className="flex justify-between pt-1 border-t border-slate-100">
-                    <span>Costo Sumado de Recetas:</span>
-                    <span className="font-extrabold text-blue-900 text-sm tabular-nums">
-                      {formatMoneda(calculoMenuCompleto.costoMenuCalculado)}/pax
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-400 text-[11px]">
-                    <span>Costo actual en cotizador:</span>
-                    <span className="tabular-nums">{formatMoneda(menuVinculado.costoPersona)}/pax</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSincronizarAlCotizador}
-                    className="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowRight className="w-4 h-4 text-amber-400" />
-                    <span>Actualizar Costo al Menú en Cotizador</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => abrirModalIncorporarReceta(recetaActiva)}
-                    className="w-full py-2 px-3 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-amber-700" />
-                    <span>+ Vincular a Otro Menú del Cotizador</span>
-                  </button>
-
-                  {onIrACotizador && (
+                {menusDeFichaActiva.length === 0 ? (
+                  <div className="space-y-2.5">
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Esta ficha todavía <strong className="text-slate-800">no está vinculada a ningún menú</strong>.
+                      Agrégala a los menús que ya tengas en carta, o crea un menú nuevo al instante con ella adentro.
+                    </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (onSelectMenu && menuVinculado) {
-                          onSelectMenu(menuVinculado.id);
-                        }
-                        onIrACotizador();
-                      }}
-                      className="w-full py-2 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      onClick={() => abrirModalAgregarMenu(recetaActiva)}
+                      className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <Check className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Ver en Pantalla Principal (Cotizador) →</span>
+                      <ListPlus className="w-4 h-4" />
+                      <span>Agregar a un Menú (creado o nuevo)</span>
                     </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-300 p-5 shadow-xs space-y-3.5">
-                <div className="flex items-center gap-2 pb-2 border-b border-amber-200">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span className="text-xs font-black text-amber-950 uppercase tracking-wider">
-                    Incorporar al Cotizador
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Esta receta aún no está vinculada al cotizador. Incorpórala para que su costo aparezca automáticamente en la pantalla principal para tus clientes.
-                </p>
-
-                <div className="p-3 bg-white/80 border border-amber-200 rounded-xl text-xs space-y-1">
-                  <div className="flex justify-between text-slate-600">
-                    <span>Costo de Producción:</span>
-                    <strong className="text-slate-900 font-bold tabular-nums">{formatMoneda(calculosReceta.costoPorPorcion)}/pax</strong>
                   </div>
-                  <div className="flex justify-between text-amber-950">
-                    <span>Venta Sugerida ({recetaActiva.margenSugerido}%):</span>
-                    <strong className="text-amber-900 font-bold tabular-nums">{formatMoneda(calculosReceta.precioSugeridoVenta)}/pax</strong>
-                  </div>
-                </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                      Menús donde aparece esta ficha ({menusDeFichaActiva.length}):
+                    </span>
 
-                <button
-                  type="button"
-                  onClick={() => abrirModalIncorporarReceta(recetaActiva)}
-                  className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Incorporar al Cotizador (Pantalla Principal)</span>
-                </button>
+                    {menusDeFichaActiva.map(m => {
+                      const calcMenu = calcularCostoMenuDesdeRecetas(m.id, recetas, insumos);
+                      return (
+                        <div
+                          key={m.id}
+                          className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <span className="block text-xs font-bold text-slate-900 truncate">
+                              {m.nombre}
+                              {m.id === recetaActiva.menuAsociadoId && (
+                                <span className="ml-1.5 text-[9px] font-black uppercase text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full align-middle">
+                                  Principal
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              {calcMenu.recetasEncontradas} fichas sumadas · {m.categoria}
+                            </span>
+                          </div>
+                          <span className="text-xs font-extrabold text-blue-900 tabular-nums shrink-0">
+                            {formatMoneda(calcMenu.costoMenuCalculado)}/pax
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {menuVinculado && (
+                      <div className="flex justify-between text-[11px] text-slate-400">
+                        <span>Costo actual del menú principal en cotizador:</span>
+                        <span className="tabular-nums">{formatMoneda(menuVinculado.costoPersona)}/pax</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleSincronizarTodosLosMenus}
+                      className="w-full mt-1 py-2.5 px-3 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4 text-amber-400" />
+                      <span>Actualizar Costos de {menusDeFichaActiva.length} {menusDeFichaActiva.length === 1 ? 'Menú' : 'Menús'} al Cotizador</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => abrirModalAgregarMenu(recetaActiva)}
+                      className="w-full py-1.5 text-[11px] font-bold text-blue-700 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                      <span>Agregar o quitar menús…</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2012,230 +1855,145 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         </div>
       )}
 
-      {/* Modal para Incorporar Receta al Cotizador (Pantalla Principal) */}
-      {recetaAIncorporar && (
+      {/* ── MODAL: AGREGAR FICHA A MENÚS (CREADOS O POR CREAR) ── */}
+      {modalAgregarMenuOpen && fichaParaMenus && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold text-amber-700 uppercase tracking-widest bg-amber-100 px-2 py-0.5 rounded-md">
-                    {formatearNombreTiempoMenu(recetaAIncorporar.tiempoMenu)}
-                  </span>
-                  <span className="text-xs text-slate-400 font-medium">Vinculación Automática al Cotizador</span>
-                </div>
-                <h2 className="text-lg font-extrabold text-slate-900 mt-1">
-                  Incorporar Receta al Cotizador
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Vincula <strong>&quot;{recetaAIncorporar.nombre}&quot;</strong> a la pantalla principal para cotizar automáticamente.
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <ListPlus className="w-5 h-5 text-blue-600" />
+                Agregar a Menús
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalAgregarMenuOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Elige en qué menús aparecerá <strong className="text-slate-800">"{fichaParaMenus.nombre}"</strong>{' '}
+              (costo {formatMoneda(calcularCostoReceta(fichaParaMenus, insumos).costoPorPorcion)}/pax).
+              Puedes marcar varios menús o crear uno nuevo al instante.
+            </p>
+
+            {/* 1 · Menús existentes */}
+            <div className="space-y-2 mb-4">
+              <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                1 · Menús en carta (marca todos los que estimes)
+              </span>
+
+              {menus.length === 0 && (
+                <p className="text-xs text-slate-400 p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  Aún no tienes menús en carta. Crea el primero con la opción de abajo 👇
                 </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRecetaAIncorporar(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg text-sm cursor-pointer"
-              >
-                ✕
-              </button>
+              )}
+
+              {menus.map(m => {
+                const marcado = menusElegidosModal.includes(m.id);
+                const numFichas = recetas.filter(r => recetaPerteneceAMenu(r, m.id)).length;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => toggleMenuEnModal(m.id)}
+                    className={`w-full p-3 rounded-xl border text-left transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                      marcado
+                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-400'
+                        : 'border-slate-200 bg-white hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          marcado ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white text-transparent'
+                        }`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold text-slate-900 truncate">
+                          {m.nombre}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {m.categoria} · {numFichas} {numFichas === 1 ? 'ficha' : 'fichas'} · {formatMoneda(m.costoPersona)}/pax
+                        </span>
+                      </div>
+                    </div>
+                    {marcado && (
+                      <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded-full shrink-0">
+                        Incluida
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Resumen del Costo de la Ficha Técnica */}
-            {(() => {
-              const calc = calcularCostoReceta(recetaAIncorporar, insumos);
-              return (
-                <div className="my-4 p-3.5 bg-slate-900 text-white rounded-2xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] text-slate-400 block font-medium">Costo de Insumos (Food Cost)</span>
-                    <strong className="text-xl font-black text-amber-400 tabular-nums">
-                      {formatMoneda(calc.costoPorPorcion)} <span className="text-xs text-slate-300 font-normal">/pax</span>
-                    </strong>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[11px] text-slate-400 block font-medium">Precio Venta Sugerido ({recetaAIncorporar.margenSugerido}%)</span>
-                    <strong className="text-xl font-black text-emerald-400 tabular-nums">
-                      {formatMoneda(calc.precioSugeridoVenta)} <span className="text-xs text-slate-300 font-normal">/pax</span>
-                    </strong>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Tabs de Selección: ¿Crear Nuevo Menú o Agregar a Existente? */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4 text-xs font-bold">
+            {/* 2 · Crear un menú nuevo con esta ficha */}
+            <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-2xl space-y-2.5">
               <button
                 type="button"
-                onClick={() => setMetodoIncorporar('nuevo-menu')}
-                className={`py-2 px-3 rounded-lg transition-all text-center cursor-pointer ${
-                  metodoIncorporar === 'nuevo-menu'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                onClick={() => setCrearMenuDesdeModal(!crearMenuDesdeModal)}
+                className="text-xs font-bold text-amber-900 flex items-center gap-1.5 cursor-pointer hover:text-amber-950"
               >
-                + Crear Nuevo Menú
+                <FolderPlus className="w-4 h-4 text-amber-700" />
+                {crearMenuDesdeModal ? '− No crear menú nuevo' : '＋ Crear un menú nuevo con esta ficha'}
               </button>
-              <button
-                type="button"
-                onClick={() => setMetodoIncorporar('menu-existente')}
-                className={`py-2 px-3 rounded-lg transition-all text-center cursor-pointer ${
-                  metodoIncorporar === 'menu-existente'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Agregar a Menú Existente ({menus.length})
-              </button>
-            </div>
 
-            {metodoIncorporar === 'nuevo-menu' ? (
-              <div className="space-y-3.5 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Nombre del Menú en el Cotizador (Pantalla Principal)
-                  </label>
+              {crearMenuDesdeModal && (
+                <div className="space-y-2 animate-in fade-in duration-150">
                   <input
                     type="text"
-                    value={nombreNuevoMenuReceta}
-                    onChange={(e) => setNombreNuevoMenuReceta(e.target.value)}
-                    placeholder="Ej: Menú Filete de Res Gourmet o Lomo a lo pobre Premium"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-hidden focus:border-amber-500"
+                    autoFocus
+                    value={nombreMenuModal}
+                    onChange={(e) => setNombreMenuModal(e.target.value)}
+                    placeholder="Nombre del nuevo menú (Ej: Boda Gala 3 Tiempos)"
+                    className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-xs font-semibold text-slate-900 focus:border-amber-500 focus:outline-hidden"
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Categoría</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <select
-                      value={categoriaNuevoMenuReceta}
-                      onChange={(e) => setCategoriaNuevoMenuReceta(e.target.value as any)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 bg-white focus:outline-hidden"
+                      value={categoriaMenuModal}
+                      onChange={(e) => setCategoriaMenuModal(e.target.value as any)}
+                      className="px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] text-slate-800 focus:outline-hidden"
                     >
-                      <option value="premium">Premium ★</option>
-                      <option value="formal">Formal</option>
-                      <option value="campestre">Campestre</option>
-                      <option value="cocktail">Cocktail</option>
+                      <option value="formal">Banquete Formal</option>
+                      <option value="campestre">Asado Campestre</option>
+                      <option value="cocktail">Cóctel Dinámico</option>
+                      <option value="premium">Menú Premium</option>
                     </select>
+                    <input
+                      type="text"
+                      value={descripcionMenuModal}
+                      onChange={(e) => setDescripcionMenuModal(e.target.value)}
+                      placeholder="Descripción breve (opcional)"
+                      className="px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-[11px] text-slate-800 focus:outline-hidden"
+                    />
                   </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Tiempo que ocupa</label>
-                    <select
-                      value={tiempoAsignado}
-                      onChange={(e) => setTiempoAsignado(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 bg-white focus:outline-hidden"
-                    >
-                      <option value="fondo">Plato de Fondo</option>
-                      <option value="entrada">Entrada</option>
-                      <option value="postre">Postre</option>
-                      <option value="coctel">Cóctel de Bienvenida</option>
-                      <option value="trasnoche">Bajonativo / Trasnoche</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-slate-600 space-y-1">
-                  <span className="font-bold text-amber-950 block text-[11px]">
-                    ✓ Visualización en la Pantalla Principal:
+                  <span className="text-[10px] text-amber-800 block leading-tight">
+                    ✓ El menú se creará con esta ficha como primer plato, quedará seleccionado en el cotizador y su costo se calculará solo.
                   </span>
-                  <p className="text-[11px]">
-                    Aparecerá una nueva tarjeta gastronómica en el Cotizador con costo de <strong>{formatMoneda(calcularCostoReceta(recetaAIncorporar, insumos).costoPorPorcion)}/pax</strong> y precio de venta sugerido de <strong>{formatMoneda(calcularCostoReceta(recetaAIncorporar, insumos).precioSugeridoVenta)}/pax</strong>.
-                  </p>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3.5 text-xs">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Selecciona el Menú del Cotizador al que se Incorpora
-                  </label>
-                  <select
-                    value={menuDestinoId}
-                    onChange={(e) => setMenuDestinoId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-bold text-slate-900 bg-white focus:outline-hidden focus:border-amber-500"
-                  >
-                    {menus.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.nombre} [{m.categoria.toUpperCase()}] · Costo actual: {formatMoneda(m.costoPersona)}/pax
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Tiempo a asignar o complementar en este menú
-                  </label>
-                  <select
-                    value={tiempoAsignado}
-                    onChange={(e) => setTiempoAsignado(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-slate-800 bg-white focus:outline-hidden"
-                  >
-                    <option value="fondo">Plato de Fondo</option>
-                    <option value="entrada">Entrada</option>
-                    <option value="postre">Postre</option>
-                    <option value="coctel">Cóctel de Bienvenida</option>
-                    <option value="trasnoche">Bajonativo / Trasnoche</option>
-                  </select>
-                </div>
-
-                {(() => {
-                  const m = menus.find(menu => menu.id === menuDestinoId);
-                  const calc = calcularCostoReceta(recetaAIncorporar, insumos);
-                  const costoEstimado = (m?.costoPersona || 0) + calc.costoPorPorcion;
-                  return (
-                    <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-slate-600 space-y-1">
-                      <span className="font-bold text-blue-950 block text-[11px]">
-                        ✓ Actualización de Costo en Pantalla Principal:
-                      </span>
-                      <p className="text-[11px]">
-                        El costo de <strong>{m?.nombre}</strong> en el cotizador se actualizará automáticamente a <strong>{formatMoneda(costoEstimado)}/pax</strong> integrando esta receta técnica.
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* Opciones Adicionales de Sincronización */}
-            <div className="mt-4 pt-3 border-t border-slate-100 space-y-2 text-xs">
-              <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-semibold select-none">
-                <input
-                  type="checkbox"
-                  checked={establecerComoActivo}
-                  onChange={(e) => setEstablecerComoActivo(e.target.checked)}
-                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
-                />
-                <span>Fijar inmediatamente como el Menú Activo en la Pantalla Principal (Cotizador)</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer text-slate-700 font-semibold select-none">
-                <input
-                  type="checkbox"
-                  checked={irACotizadorAlTerminar}
-                  onChange={(e) => setIrACotizadorAlTerminar(e.target.checked)}
-                  className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600 cursor-pointer"
-                />
-                <span>Ir directamente a la Pantalla Principal para ver la cotización al terminar</span>
-              </label>
+              )}
             </div>
 
-            {/* Botones de Acción */}
-            <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setRecetaAIncorporar(null)}
-                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                onClick={() => setModalAgregarMenuOpen(false)}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold text-xs cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
-
               <button
                 type="button"
-                onClick={handleConfirmarIncorporacion}
-                className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+                onClick={handleConfirmarAgregarMenus}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all text-xs cursor-pointer flex items-center gap-1.5"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>✓ Confirmar e Incorporar al Cotizador</span>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Guardar vinculación</span>
               </button>
             </div>
           </div>
@@ -2536,564 +2294,6 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         </div>
       )}
 
-      {/* ── SECCIÓN: SERVICIO DE BEBESTIBLES, VINOS & BARRA POR PERSONA (CONSUMOS EXACTOS P.P.) ── */}
-      <div className="bg-white rounded-2xl border border-purple-200/80 p-5 sm:p-6 shadow-xs space-y-5">
-        {/* Cabecera de la sección */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-purple-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
-                Consumos Exactos p.p.
-              </span>
-              <span className="text-xs text-purple-700 font-semibold">
-                Fichas Técnicas & Maestro de Insumos
-              </span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight mt-1 flex items-center gap-2">
-              <Wine className="w-5 h-5 text-purple-600" />
-              <span>Servicio de Bebestibles, Vinos & Barra por Persona</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Botellas y gaseosas vinculadas al Maestro de Insumos (precio de compra y proveedor). Cócteles y tragos vinculados a Fichas Técnicas (costeo exacto en ml/g).
-            </p>
-          </div>
-
-          {/* Badges de totales */}
-          <div className="flex items-center gap-3 shrink-0 self-start md:self-auto">
-            <div className="bg-purple-50 border border-purple-200 rounded-xl px-3.5 py-2 text-right">
-              <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">
-                Total Barra / Comensal
-              </span>
-              <div className="text-base font-black text-purple-950 tabular-nums">
-                {formatMoneda(costoTotalBebestiblesPP)} <span className="text-xs font-semibold text-purple-700">p.p.</span>
-              </div>
-            </div>
-
-            <div className="bg-purple-900 text-white rounded-xl px-4 py-2 text-right shadow-xs">
-              <span className="text-[10px] font-bold text-purple-200 uppercase tracking-wider block">
-                Total Evento ({invitados} Pax)
-              </span>
-              <div className="text-base font-black text-white tabular-nums">
-                {formatMoneda(costoTotalBebestiblesEvento)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Atajos Rápidos Vinculados Directamente a Insumos y Recetas */}
-        <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider block">
-              ⚡ Catálogo Rápido: Activar bebestibles vinculados en 1 clic
-            </span>
-            <span className="text-[10px] text-slate-500 font-medium">
-              Vinculados a Insumos y Recetas reales
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {/* 1. Vino Tinto Cabernet */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeInsumo('ins-vino-reserva-tinto')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.insumoId === 'ins-vino-reserva-tinto' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Vino Reserva 750cc</span>
-                <span className="text-[9px] opacity-80">Insumo: $4.600/bot</span>
-              </div>
-              <Wine className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 2. Cerveza Artesanal */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeInsumo('ins-cerveza-lager')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.insumoId === 'ins-cerveza-lager' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Cerveza 330cc</span>
-                <span className="text-[9px] opacity-80">Insumo: $990/un</span>
-              </div>
-              <Beer className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 3. Bebidas Gaseosas 1.5L */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeInsumo('ins-gaseosa-15')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.insumoId === 'ins-gaseosa-15' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Gaseosas 1.5L</span>
-                <span className="text-[9px] opacity-80">Insumo: $1.650/un</span>
-              </div>
-              <GlassWater className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 4. Pisco Sour Catedral */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeReceta('rec-pisco-sour-catedral')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.recetaId === 'rec-pisco-sour-catedral' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Pisco Sour Catedral</span>
-                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
-              </div>
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 5. Mojito Cubano */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeReceta('rec-mojito-cubano')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.recetaId === 'rec-mojito-cubano' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Mojito Cubano</span>
-                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
-              </div>
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 6. Aperol Spritz */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeReceta('rec-aperol-spritz')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.recetaId === 'rec-aperol-spritz' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Aperol Spritz</span>
-                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
-              </div>
-              <Wine className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 7. Gin Tonic Botánico */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeReceta('rec-gin-tonic-botanico')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.recetaId === 'rec-gin-tonic-botanico' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Gin Tonic Autor</span>
-                <span className="text-[9px] opacity-80">Ficha: Costeo porción</span>
-              </div>
-              <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            </button>
-
-            {/* 8. Agua Mineral */}
-            <button
-              type="button"
-              onClick={() => handleAddBebestibleDesdeInsumo('ins-agua-mineral')}
-              className={`p-2 rounded-lg border text-left transition-all cursor-pointer flex items-center justify-between text-xs ${
-                bebestibles.some(it => it.insumoId === 'ins-agua-mineral' && it.incluido !== false)
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-xs'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'
-              }`}
-            >
-              <div className="truncate pr-1">
-                <span className="font-bold block truncate text-[11px]">Agua Mineral 1.5L</span>
-                <span className="text-[9px] opacity-80">Insumo: $890/un</span>
-              </div>
-              <GlassWater className="w-3.5 h-3.5 shrink-0" />
-            </button>
-          </div>
-        </div>
-
-        {/* Formulario con 3 Pestañas para Vincular Bebestible */}
-        <div className="bg-purple-50/50 border border-purple-200 rounded-xl p-4 space-y-3">
-          <div className="flex items-center gap-2 border-b border-purple-200/70 pb-2 text-xs font-bold flex-wrap">
-            <span className="text-purple-950 mr-1">Vincular Nuevo Ítem:</span>
-            <button
-              type="button"
-              onClick={() => setTabAgregarBebestible('insumo')}
-              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                tabAgregarBebestible === 'insumo'
-                  ? 'bg-emerald-600 text-white shadow-2xs'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              1. Desde Maestro de Insumos (Botellas, Vinos, Gaseosas)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTabAgregarBebestible('receta')}
-              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                tabAgregarBebestible === 'receta'
-                  ? 'bg-purple-600 text-white shadow-2xs'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              2. Desde Fichas de Recetas (Cócteles & Tragos)
-            </button>
-            <button
-              type="button"
-              onClick={() => setTabAgregarBebestible('libre')}
-              className={`px-3 py-1 rounded-lg transition-colors cursor-pointer ${
-                tabAgregarBebestible === 'libre'
-                  ? 'bg-amber-600 text-white shadow-2xs'
-                  : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              3. Opción Libre
-            </button>
-          </div>
-
-          {/* Modo 1: Insumos */}
-          {tabAgregarBebestible === 'insumo' && (
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
-              <div className="sm:col-span-5">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Insumo Maestro (Toma costo real de compra)
-                </label>
-                <select
-                  value={selectedInsumoBebId}
-                  onChange={(e) => setSelectedInsumoBebId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
-                >
-                  {insumosBebidas.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.nombre} — {formatMoneda(i.precioCompra)}/{i.unidadMedida} ({i.proveedor || 'Sin proveedor'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Ratio p.p. (Entero/Dec)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={insumoBebRatio}
-                  onChange={(e) => setInsumoBebRatio(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
-                  placeholder="Ej: 0.5 o 2"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Unidad
-                </label>
-                <select
-                  value={insumoBebUnidad}
-                  onChange={(e) => setInsumoBebUnidad(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
-                >
-                  <option value="botella">botella</option>
-                  <option value="lata">lata</option>
-                  <option value="vaso">vaso</option>
-                  <option value="copa">copa</option>
-                  <option value="L">L</option>
-                  <option value="unidad">unidad</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-3">
-                <button
-                  type="button"
-                  onClick={() => handleAddBebestibleDesdeInsumo()}
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Vincular Insumo a Barra</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Modo 2: Recetas */}
-          {tabAgregarBebestible === 'receta' && (
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
-              <div className="sm:col-span-5">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Ficha Técnica de Cóctel (Costo calculado de ingredientes)
-                </label>
-                <select
-                  value={selectedRecetaBebId}
-                  onChange={(e) => setSelectedRecetaBebId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
-                >
-                  {recetasCocteleria.map((r) => {
-                    const c = calcularCostoReceta(r, insumos);
-                    return (
-                      <option key={r.id} value={r.id}>
-                        {r.nombre} — {formatMoneda(c.costoPorPorcion)}/porción ({r.ingredientes.length} ingredientes)
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Ratio p.p. (Entero/Dec)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={recetaBebRatio}
-                  onChange={(e) => setRecetaBebRatio(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
-                  placeholder="Ej: 2"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Unidad
-                </label>
-                <select
-                  value={recetaBebUnidad}
-                  onChange={(e) => setRecetaBebUnidad(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
-                >
-                  <option value="trago">trago</option>
-                  <option value="copa">copa</option>
-                  <option value="vaso">vaso</option>
-                  <option value="porción">porción</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-3">
-                <button
-                  type="button"
-                  onClick={() => handleAddBebestibleDesdeReceta()}
-                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Vincular Receta a Barra</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Modo 3: Libre */}
-          {tabAgregarBebestible === 'libre' && (
-            <form onSubmit={handleAddBebestibleLibre} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end text-xs">
-              <div className="sm:col-span-5">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Nombre Personalizado (Opción Libre)
-                </label>
-                <input
-                  type="text"
-                  value={libreBebNombre}
-                  onChange={(e) => setLibreBebNombre(e.target.value)}
-                  placeholder="Ej: Coctelería temática especial, Whisky 12 Años..."
-                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:outline-hidden"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Ratio p.p.
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={libreBebRatio}
-                  onChange={(e) => setLibreBebRatio(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Unidad
-                </label>
-                <select
-                  value={libreBebUnidad}
-                  onChange={(e) => setLibreBebUnidad(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:outline-hidden"
-                >
-                  <option value="copa / vaso">copa / vaso</option>
-                  <option value="botella">botella</option>
-                  <option value="trago">trago</option>
-                  <option value="lata">lata</option>
-                  <option value="unidad">unidad</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold text-slate-700 uppercase mb-1">
-                  Costo Unitario
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  step="any"
-                  value={libreBebCosto}
-                  onChange={(e) => setLibreBebCosto(e.target.value)}
-                  className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg text-right font-bold text-slate-900 focus:outline-hidden tabular-nums"
-                />
-              </div>
-
-              <div className="sm:col-span-1">
-                <button
-                  type="submit"
-                  className="w-full py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-lg transition-colors flex items-center justify-center cursor-pointer shadow-xs"
-                  title="Añadir opción libre"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {/* Tabla de Bebestibles Activos & Ratios */}
-        {bebestiblesConCostoDinamico.length > 0 ? (
-          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
-                <tr>
-                  <th className="py-2.5 px-3 text-center w-10">Activo</th>
-                  <th className="py-2.5 px-3">Bebestible / Líquido</th>
-                  <th className="py-2.5 px-3">Origen / Vinculación</th>
-                  <th className="py-2.5 px-3 text-center">Ratio p.p. (Entero/Dec)</th>
-                  <th className="py-2.5 px-3 text-center">Total Compras ({invitados} Pax)</th>
-                  <th className="py-2.5 px-3 text-right">Costo Unit. Real</th>
-                  <th className="py-2.5 px-3 text-right">Subtotal p.p.</th>
-                  <th className="py-2.5 px-3 text-right">Total Barra</th>
-                  <th className="py-2.5 px-2 text-center w-10"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {bebestiblesConCostoDinamico.map((item) => {
-                  const estaActivo = item.incluido !== false;
-
-                  return (
-                    <tr
-                      key={item.id}
-                      className={`transition-colors ${estaActivo ? 'hover:bg-purple-50/30' : 'bg-slate-50/70 opacity-60'}`}
-                    >
-                      <td className="py-2.5 px-3 text-center">
-                        <input
-                          type="checkbox"
-                          checked={estaActivo}
-                          onChange={() => handleToggleBebestible(item.id)}
-                          className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
-                          title={estaActivo ? 'Desactivar de esta cotización' : 'Activar en esta cotización'}
-                        />
-                      </td>
-
-                      <td className="py-2.5 px-3 font-semibold text-slate-900">
-                        {item.nombre}
-                      </td>
-
-                      <td className="py-2.5 px-3">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${item.tagColor}`}>
-                          {item.iconoTipo === 'insumo' && <Wine className="w-3 h-3 text-emerald-700" />}
-                          {item.iconoTipo === 'receta' && <Sparkles className="w-3 h-3 text-purple-700" />}
-                          {item.iconoTipo === 'libre' && <Tag className="w-3 h-3 text-amber-700" />}
-                          <span>{item.detalleOrigen}</span>
-                        </span>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-center">
-                        <div className="inline-flex items-center justify-center gap-1 font-bold text-purple-900 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
-                          <input
-                            type="number"
-                            min={0}
-                            step="any"
-                            value={item.cantidadPorPersona}
-                            onChange={(e) => {
-                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value.replace(',', '.'));
-                              handleUpdateRatioBebestible(item.id, isNaN(val) ? 0 : val);
-                            }}
-                            className="w-14 text-center bg-white font-black text-slate-900 rounded border border-slate-300 py-0.5 focus:outline-hidden text-xs"
-                          />
-                          <span className="text-[10px] text-slate-600 font-medium">{item.unidad}</span>
-                        </div>
-                      </td>
-
-                      <td className="py-2.5 px-3 text-center font-bold text-emerald-800 tabular-nums">
-                        {item.totalComprarEvento} {item.unidad}s
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right text-slate-700 tabular-nums">
-                        {formatMoneda(item.costoReal)}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
-                        {formatMoneda(item.subtotalPP)}
-                      </td>
-
-                      <td className="py-2.5 px-3 text-right font-bold text-purple-950 tabular-nums">
-                        {formatMoneda(item.totalCostoEvento)}
-                      </td>
-
-                      <td className="py-2.5 px-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveBebestible(item.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 rounded-md transition-colors cursor-pointer"
-                          title="Eliminar bebestible"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-xs">
-                <tr>
-                  <td colSpan={6} className="py-2.5 px-3 text-slate-700 text-right">
-                    Subtotal Activo por Comensal:
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-black text-purple-950 tabular-nums text-sm">
-                    {formatMoneda(costoTotalBebestiblesPP)}/pax
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-black text-purple-950 tabular-nums text-sm">
-                    {formatMoneda(costoTotalBebestiblesEvento)}
-                  </td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        ) : (
-          <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center text-slate-500 text-xs">
-            No has agregado bebestibles para este menú aún. Selecciona cualquiera de las opciones rápidas de arriba o vincula directamente insumos o recetas.
-          </div>
-        )}
-      </div>
-
       {/* ── BRIGADA DE SERVICIO & PERSONAL DE OPERACIONES EN RECETA Y COSTEO ── */}
       {tarifasStaff && personal && onChangePersonal && (
         <div className="pt-4 border-t border-slate-200">
@@ -3117,11 +2317,14 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       {/* Modal independiente para Crear Nuevo Menú Completo */}
       <ModalCrearMenu
         isOpen={modalNuevoMenuOpen}
-        onClose={() => setModalNuevoMenuOpen(false)}
+        onClose={() => {
+          setModalNuevoMenuOpen(false);
+          setMenuAEditar(null);
+        }}
+        menuAEditar={menuAEditar}
         onGuardarMenu={handleGuardarMenuDirecto}
         recetasDisponibles={recetas}
         insumosDisponibles={insumos}
-        invitadosReferencia={invitados}
       />
     </div>
   );

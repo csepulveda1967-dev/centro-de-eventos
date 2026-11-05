@@ -39,6 +39,7 @@ interface FichaCotizacionModalProps {
   onGuardarCotizacion?: () => void;
   recetas?: RecetaFichaTecnica[];
   insumos?: InsumoMaestro[];
+  onUpdateEmpresaActiva?: (emp: EmpresaCliente) => void;
 }
 
 export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
@@ -56,14 +57,56 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   modoAdmin = false,
   onGuardarCotizacion,
   recetas = [],
-  insumos = []
+  insumos = [],
+  onUpdateEmpresaActiva
 }) => {
   const [copiado, setCopiado] = useState(false);
+
+  // Edición inline de datos bancarios (los guarda en el perfil activo)
+  const [editandoBanco, setEditandoBanco] = useState(false);
+  const [dbRazon, setDbRazon] = useState(empresaActiva.datosBancarios?.razonSocial || '');
+  const [dbRut, setDbRut] = useState(empresaActiva.datosBancarios?.rut || '');
+  const [dbBanco, setDbBanco] = useState(empresaActiva.datosBancarios?.banco || '');
+  const [dbTipo, setDbTipo] = useState(empresaActiva.datosBancarios?.tipoCuenta || 'Cuenta Corriente');
+  const [dbNumero, setDbNumero] = useState(empresaActiva.datosBancarios?.numeroCuenta || '');
+  const [dbTitular, setDbTitular] = useState(empresaActiva.datosBancarios?.titular || '');
+  const [dbEmail, setDbEmail] = useState(empresaActiva.datosBancarios?.emailTransferencia || empresaActiva.email);
+
+  const guardarDatosBancarios = () => {
+    if (!onUpdateEmpresaActiva) {
+      alert('Esta función requiere acceso al perfil de la empresa. Cierra y vuelve a abrir la ficha.');
+      return;
+    }
+    onUpdateEmpresaActiva({
+      ...empresaActiva,
+      datosBancarios: {
+        razonSocial: dbRazon.trim() || undefined,
+        rut: dbRut.trim() || undefined,
+        banco: dbBanco.trim() || undefined,
+        tipoCuenta: dbTipo.trim() || undefined,
+        numeroCuenta: dbNumero.trim() || undefined,
+        titular: dbTitular.trim() || undefined,
+        emailTransferencia: dbEmail.trim() || undefined
+      }
+    });
+    setEditandoBanco(false);
+  };
 
   // Bebestibles por persona (p.p.) considerados en la cotización o en el menú
   const bebestiblesLista = (cotizacion.bebestibles && cotizacion.bebestibles.length > 0)
     ? cotizacion.bebestibles
     : (menu?.bebestiblesPorPersona || []);
+
+  // Pluraliza correctamente una unidad (incluidas las que tienen "/" o dos palabras como "lata / vaso")
+  const pluralizarUnidad = (u: string, n: number): string => {
+    if (n === 1) return u;
+    const partes = u.split(' / ');
+    return partes.map(p => {
+      const t = p.trim();
+      if (/s$|x$/i.test(t)) return t;
+      return t + 's';
+    }).join(' / ');
+  };
 
   // Filtrar únicamente proveedores activos con valor positivo contratado (nada en $0)
   const proveedoresActivos = proveedores.filter(p => {
@@ -109,6 +152,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
   // Filtrar solo los tiempos que el usuario realmente redactó y que no sean relleno
   // INCLUYE fichas técnicas vinculadas a este menú (sin doble digitación)
+  // Si el texto manual coincide con el nombre de la ficha → se muestra UNA sola vez
   const tiemposReales: Array<{ etiqueta: string; valor: string }> = [];
   if (menu?.tiempos) {
     const minuta = construirMinutaConFichas(menu, recetas, insumos);
@@ -124,8 +168,32 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
       if (!t.tieneContenido) return; // oculta tiempos vacíos
       const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
       const partes: string[] = [];
+
+      // Detectar fichas cuyo nombre coincide con el texto manual (sin distinción de mayúsculas)
+      const textoNorm = t.textoManual.trim().toLowerCase();
+      const fichasDiferentes = t.fichas.filter(f => f.nombre.trim().toLowerCase() !== textoNorm);
+      const fichasIguales = t.fichas.filter(f => f.nombre.trim().toLowerCase() === textoNorm);
+
+      // Si hay fichas idénticas al texto manual → mostrar UNA sola vez con su costo, sin repetir
+      if (fichasIguales.length > 0 && t.textoManual && fichasDiferentes.length === 0) {
+        const fichasTxt = fichasIguales.map(f => {
+          const calc = calcularCostoReceta(f, insumos);
+          return `${t.textoManual} (${formatMoneda(calc.costoPorPorcion)}/porción)`;
+        }).join(', ');
+        tiemposReales.push({ etiqueta, valor: fichasTxt });
+        return;
+      }
+
+      // Caso normal: mostrar texto manual + fichas distintas
       if (t.textoManual) partes.push(t.textoManual);
-      if (t.fichas.length > 0) {
+      if (fichasDiferentes.length > 0) {
+        const fichasTxt = fichasDiferentes.map(f => {
+          const calc = calcularCostoReceta(f, insumos);
+          return `${f.nombre} (${formatMoneda(calc.costoPorPorcion)}/porción)`;
+        }).join(', ');
+        partes.push(`Fichas: ${fichasTxt}`);
+      } else if (fichasIguales.length > 0 && !t.textoManual) {
+        // No hay texto manual pero hay fichas (mismas o distintas) → mostrar las fichas
         const fichasTxt = t.fichas.map(f => {
           const calc = calcularCostoReceta(f, insumos);
           return `${f.nombre} (${formatMoneda(calc.costoPorPorcion)}/porción)`;
@@ -155,7 +223,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Cotización Formal - ${cotizacion.nombreEvento || 'Evento'} - ${empresaActiva.nombre}</title>
+  <title>Cotización Formal - ${cotizacion.nombreEvento && cotizacion.nombreEvento.trim() ? cotizacion.nombreEvento : 'Evento'} - ${empresaActiva.nombre}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; padding: 40px; max-width: 900px; margin: 0 auto; background: #fff; }
     .header { border-bottom: 3px solid #0f172a; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
@@ -183,11 +251,36 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
       <h1 class="logo-title">${empresaActiva.nombre.toUpperCase()}</h1>
       <div class="subtitle">${empresaActiva.subtitulo} · ${empresaActiva.recintoPrincipal}</div>
       <p style="font-size: 11px; color: #64748b; margin-top: 6px;">
-        ${empresaActiva.direccion}, ${empresaActiva.ciudad} · Tel: ${empresaActiva.telefono} · Email: ${empresaActiva.email}
+        ${(() => {
+          // Si la empresa es itinerante/sin recinto fijo, mostrarlo explícitamente en vez de la dirección fija
+          const esItinerante = (empresaActiva.recintoPrincipal || '').toLowerCase().includes('itinerante') ||
+                                (empresaActiva.recintoPrincipal || '').toLowerCase().includes('sin recinto') ||
+                                (empresaActiva.infraestructura || '').toLowerCase().includes('sin recinto') ||
+                                (empresaActiva.infraestructura || '').toLowerCase().includes('itinerante') ||
+                                (empresaActiva.infraestructura || '').toLowerCase().includes('parcelas privadas');
+          if (esItinerante) {
+            return `${empresaActiva.recintoPrincipal} · ${empresaActiva.ciudad} · Tel: ${empresaActiva.telefono} · Email: ${empresaActiva.email}`;
+          }
+          return `${empresaActiva.direccion}, ${empresaActiva.ciudad} · Tel: ${empresaActiva.telefono} · Email: ${empresaActiva.email}`;
+        })()}
       </p>
     </div>
     <div style="text-align: right; font-size: 12px;">
-      <div style="font-weight: 900; font-size: 16px; color: #0f172a;">COT-2026-${Math.floor(1000 + Math.random() * 9000)}</div>
+      <div style="font-weight: 900; font-size: 16px; color: #0f172a;">${(() => {
+        // COT estable: deriva del id de la cotización guardada. Si no tiene id (cotización nueva), usa timestamp del día.
+        const rawId = (cotizacion.id || '').replace(/^cot-/, '').replace(/^res-/, '');
+        let num = 0;
+        if (rawId && /^\d+$/.test(rawId)) {
+          num = parseInt(rawId.slice(-6)) % 10000;
+        } else if (rawId) {
+          // hash simple
+          for (let i = 0; i < rawId.length; i++) num = (num * 31 + rawId.charCodeAt(i)) % 10000;
+        } else {
+          // fallback: timestamp del día, estable por día
+          num = Math.floor(Date.now() / 86400000) % 10000;
+        }
+        return 'COT-2026-' + String(num).padStart(4, '0');
+      })()}</div>
       <div style="color: #64748b;">Fecha Emisión: ${new Date().toLocaleDateString('es-CL')}</div>
       <div style="color: #047857; font-weight: bold;">Validez: 15 días continuos</div>
     </div>
@@ -196,7 +289,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   <div class="meta-box">
     <div>
       <div class="meta-label">Cliente / Solicitante:</div>
-      <div class="meta-val">${cotizacion.cliente || 'Por definir'}</div>
+      <div class="meta-val">${cotizacion.cliente && cotizacion.cliente.trim() ? cotizacion.cliente : '[CLIENTE]'}</div>
     </div>
     <div>
       <div class="meta-label">Celebración:</div>
@@ -214,7 +307,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
   <div class="section-title">${htmlSec++}. Propuesta Gastronómica: ${menu.nombre}</div>
   <div class="card">
-    <p style="font-style: italic; color: #334155; margin-bottom: 8px;">"${menu.descripcion}"</p>
+    <p style="font-style: italic; color: #334155; margin-bottom: 8px;">&ldquo;${(menu.descripcion || '').replace(/"/g, '&quot;')}&rdquo;</p>
     ${tieneItemsPorPersona ? `
       <div style="margin-top: 10px;">
         <strong>Consumos Exactos e Ítems por Persona (Para ${cotizacion.invitados} Comensales):</strong>
@@ -231,7 +324,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
               <tr>
                 <td><strong>${it.nombre}</strong></td>
                 <td>${it.cantidadPorPersona} ${it.unidad} p.p.</td>
-                <td><strong style="color: #b45309;">${it.cantidadPorPersona * cotizacion.invitados} ${it.unidad}s</strong></td>
+                <td><strong style="color: #b45309;">${it.cantidadPorPersona * cotizacion.invitados} ${pluralizarUnidad(String(it.unidad || ''), it.cantidadPorPersona * cotizacion.invitados)}</strong></td>
               </tr>
             `).join('')}
           </tbody>
@@ -262,11 +355,13 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
         <tbody>
           ${bebestiblesLista.map(b => {
             const total = Math.ceil(b.cantidadPorPersona * cotizacion.invitados);
+            const unidadPlural = pluralizarUnidad(String(b.unidad || ''), total);
+            const unidadPP = String(b.unidad || '');
             return `
               <tr style="border-bottom: 1px solid #f1f5f9;">
                 <td style="padding: 6px 4px; font-weight: bold; color: #0f172a;">${b.nombre}</td>
-                <td style="padding: 6px 4px; text-align: center; color: #7e22ce; font-weight: bold;">${b.cantidadPorPersona} ${b.unidad} p.p.</td>
-                <td style="padding: 6px 4px; text-align: right; font-weight: bold; color: #047857;">${total} ${b.unidad}s</td>
+                <td style="padding: 6px 4px; text-align: center; color: #7e22ce; font-weight: bold;">${b.cantidadPorPersona} ${unidadPP} p.p.</td>
+                <td style="padding: 6px 4px; text-align: right; font-weight: bold; color: #047857;">${total} ${unidadPlural}</td>
               </tr>
             `;
           }).join('')}
@@ -275,13 +370,18 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   ` : ''}
 
+  ${(cotizacion.personal.garzones > 0 || cotizacion.personal.cocineros > 0 || cotizacion.personal.aseo > 0 || cotizacion.personal.maitre > 0) ? `
   <div class="section-title">${htmlSec++}. Brigada de Operaciones & Personal de Servicio</div>
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px;">
-    <div class="card"><strong>Garzones:</strong><br>${cotizacion.personal.garzones} profesionales</div>
-    <div class="card"><strong>Cocineros/Chefs:</strong><br>${cotizacion.personal.cocineros} cocineros</div>
-    <div class="card"><strong>Aseo/Sanitarios:</strong><br>${cotizacion.personal.aseo} personas</div>
-    <div class="card"><strong>Maître de Sala:</strong><br>${cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} coordinador` : 'Supervisión en turno'}</div>
+    <div class="card"><strong>Garzones:</strong><br>${cotizacion.personal.garzones > 0 ? `${cotizacion.personal.garzones} profesionales` : 'No contratado'}</div>
+    <div class="card"><strong>Cocineros/Chefs:</strong><br>${cotizacion.personal.cocineros > 0 ? `${cotizacion.personal.cocineros} cocineros` : 'No contratado'}</div>
+    <div class="card"><strong>Aseo/Sanitarios:</strong><br>${cotizacion.personal.aseo > 0 ? `${cotizacion.personal.aseo} personas` : 'No contratado'}</div>
+    <div class="card"><strong>Maître de Sala:</strong><br>${cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} coordinador` : 'No contratado'}</div>
   </div>
+  ` : `
+  <div class="section-title">${htmlSec++}. Brigada de Operaciones & Personal de Servicio</div>
+  <div class="card" style="text-align:center; color:#64748b; font-style:italic;">Personal no contratado en esta propuesta</div>
+  `}
 
   ${proveedoresActivos.length > 0 ? `
     <div class="section-title">${htmlSec++}. Equipamiento, Técnica & Servicios de Proveedores</div>
@@ -346,7 +446,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     ${esquemaPago === 'tres_pagos' ? `• Segundo Pago 30% (${formatMoneda(hito2Monto)} CLP) tras degustación y prueba de menú.<br>• Saldo Final (${100 - porcentajeAnticipo - 30}% - ${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos al evento.<br>` : esquemaPago === 'corporativo' ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) contra factura a 30 días con Orden de Compra aprobada.<br>` : `• Saldo del ${100 - porcentajeAnticipo}% (${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos a la realización del evento.<br>`}
     • Confirmación final de comensales con un mínimo de 10 días de anticipación.<br>
     ${!incluyeDecoracion ? '• <em>Ambientación & Decoración: No incluida en la tarifa (Aporte directo del cliente o no requerida).</em><br>' : ''}
-    • Datos de Transferencia: Dominga Eventos SpA · Banco de Chile · Cta Cte 00-189-23491-09 · RUT 77.892.410-K.
+    ${(empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta)) ? `• Datos de Transferencia: ${[empresaActiva.datosBancarios.razonSocial, empresaActiva.datosBancarios.banco, empresaActiva.datosBancarios.tipoCuenta, empresaActiva.datosBancarios.numeroCuenta, empresaActiva.datosBancarios.rut].filter(Boolean).join(' · ')}.<br>` : '• <em>Datos de Transferencia: A confirmar por la empresa.</em><br>'}
   </div>
 
   <div class="signatures">
@@ -493,7 +593,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-bold">Cliente / Empresa:</span>
               <span className="font-bold text-slate-900 text-sm mt-0.5 block truncate">
-                {cotizacion.cliente || 'Por definir'}
+                {cotizacion.cliente && cotizacion.cliente.trim() ? cotizacion.cliente : '[CLIENTE]'}
               </span>
             </div>
 
@@ -570,7 +670,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
                                 </span>
                               </td>
                               <td className="py-2 px-3 text-right font-black text-amber-950 tabular-nums">
-                                {total} {it.unidad}s
+                                {total} {pluralizarUnidad(String(it.unidad || ''), total)}
                               </td>
                             </tr>
                           );
@@ -632,7 +732,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
                               {it.cantidadPorPersona} {it.unidad} p.p.
                             </td>
                             <td className="py-2 text-right font-extrabold text-emerald-800 tabular-nums">
-                              {totalCalculado} {it.unidad}s
+                              {totalCalculado} {pluralizarUnidad(String(it.unidad || ''), totalCalculado)}
                             </td>
                           </tr>
                         );
@@ -662,20 +762,20 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Garzones de Salón:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.garzones} persona(s)</span>
+                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.garzones > 0 ? `${cotizacion.personal.garzones} persona(s)` : 'No contratado'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Chefs & Cocineros:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.cocineros} persona(s)</span>
+                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.cocineros > 0 ? `${cotizacion.personal.cocineros} persona(s)` : 'No contratado'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Aseo y Sanitarios:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.aseo} persona(s)</span>
+                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.aseo > 0 ? `${cotizacion.personal.aseo} persona(s)` : 'No contratado'}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-slate-500 block">Maître de Sala:</span>
                 <span className="font-bold text-slate-900 text-sm">
-                  {cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} persona(s)` : 'Supervisión en turno'}
+                  {cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} persona(s)` : 'No contratado'}
                 </span>
               </div>
             </div>
@@ -819,12 +919,51 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
               </ul>
 
               <div className="border-t sm:border-t-0 sm:border-l sm:border-slate-200 sm:pl-4 pt-2 sm:pt-0 space-y-1">
-                <strong className="text-slate-800 block">Datos de Transferencia Bancaria:</strong>
-                <p>• Razón Social: Dominga Eventos SpA</p>
-                <p>• RUT: 77.892.410-K</p>
-                <p>• Banco: Banco de Chile · Cuenta Corriente</p>
-                <p>• N° Cuenta: 00-189-23491-09</p>
-                <p>• Correo: {empresaActiva.email}</p>
+                <div className="flex items-center justify-between">
+                  <strong className="text-slate-800 block">Datos de Transferencia Bancaria:</strong>
+                  {onUpdateEmpresaActiva && (
+                    <button
+                      type="button"
+                      onClick={() => setEditandoBanco(!editandoBanco)}
+                      className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline cursor-pointer"
+                      title="Editar y guardar los datos bancarios de esta empresa (quedan guardados en el perfil)"
+                    >
+                      {editandoBanco ? 'Cancelar' : '✏️ Editar'}
+                    </button>
+                  )}
+                </div>
+
+                {editandoBanco ? (
+                  <div className="space-y-1.5 mt-1 p-2 bg-amber-50/60 border border-amber-200 rounded-lg">
+                    <input type="text" value={dbRazon} onChange={(e) => setDbRazon(e.target.value)} placeholder="Razón Social" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <input type="text" value={dbRut} onChange={(e) => setDbRut(e.target.value)} placeholder="RUT (ej: 77.892.410-K)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <input type="text" value={dbBanco} onChange={(e) => setDbBanco(e.target.value)} placeholder="Banco (ej: Banco de Chile)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <select value={dbTipo} onChange={(e) => setDbTipo(e.target.value)} className="w-full px-2 py-1 border border-slate-300 rounded text-xs bg-white">
+                      <option>Cuenta Corriente</option>
+                      <option>Cuenta Vista</option>
+                      <option>Cuenta RUT</option>
+                      <option>Cuenta de Ahorro</option>
+                    </select>
+                    <input type="text" value={dbNumero} onChange={(e) => setDbNumero(e.target.value)} placeholder="N° Cuenta" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <input type="text" value={dbTitular} onChange={(e) => setDbTitular(e.target.value)} placeholder="Titular (si es distinto a la razón social)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <input type="email" value={dbEmail} onChange={(e) => setDbEmail(e.target.value)} placeholder="Correo para comprobantes" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                    <button type="button" onClick={guardarDatosBancarios} className="w-full py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs mt-1 cursor-pointer">
+                      Guardar datos bancarios
+                    </button>
+                    <p className="text-[10px] text-slate-500 italic">Quedan guardados en el perfil de esta empresa. No vuelven a aparecer los datos ficticios.</p>
+                  </div>
+                ) : empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta) ? (
+                  <>
+                    {empresaActiva.datosBancarios.razonSocial && <p>• Razón Social: {empresaActiva.datosBancarios.razonSocial}</p>}
+                    {empresaActiva.datosBancarios.rut && <p>• RUT: {empresaActiva.datosBancarios.rut}</p>}
+                    {empresaActiva.datosBancarios.banco && <p>• Banco: {empresaActiva.datosBancarios.banco}{empresaActiva.datosBancarios.tipoCuenta ? ` · ${empresaActiva.datosBancarios.tipoCuenta}` : ''}</p>}
+                    {empresaActiva.datosBancarios.numeroCuenta && <p>• N° Cuenta: {empresaActiva.datosBancarios.numeroCuenta}</p>}
+                    {empresaActiva.datosBancarios.titular && <p>• Titular: {empresaActiva.datosBancarios.titular}</p>}
+                    {empresaActiva.datosBancarios.emailTransferencia && <p>• Correo: {empresaActiva.datosBancarios.emailTransferencia}</p>}
+                  </>
+                ) : (
+                  <p className="italic text-slate-500">Datos bancarios a confirmar por la empresa (no configurados todavía). Clic en "Editar" para llenarlos.</p>
+                )}
               </div>
             </div>
 

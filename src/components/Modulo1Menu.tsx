@@ -677,19 +677,32 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                               ficha: f,
                               costo: calcularCostoReceta(f, insumos).costoPorPorcion
                             }));
+                            // Detectar duplicación: si el texto manual = nombre de la(s) ficha(s)
+                            const textoNorm = t.textoManual.trim().toLowerCase();
+                            const fichasIguales = fichasConCosto.filter(fc => fc.ficha.nombre.trim().toLowerCase() === textoNorm);
+                            const fichasDiferentes = fichasConCosto.filter(fc => fc.ficha.nombre.trim().toLowerCase() !== textoNorm);
+
                             return (
                               <div key={t.tiempoId}>
                                 <div className="flex items-baseline gap-1.5 flex-wrap">
                                   <span className="font-bold text-slate-700">{t.tiempoLabel}:</span>
-                                  {t.textoManual ? (
+                                  {t.textoManual && fichasIguales.length > 0 && fichasDiferentes.length === 0 ? (
+                                    // Caso: el texto coincide con la ficha → mostrar UNA sola vez con su costo, sin etiqueta 📋 Ficha
+                                    <>
+                                      <span className="text-slate-600">{t.textoManual}</span>
+                                      <span className="text-slate-400">·</span>
+                                      <span className="text-emerald-700 font-bold tabular-nums text-[11px]">{formatMoneda(fichasIguales[0].costo)}/pax</span>
+                                    </>
+                                  ) : t.textoManual ? (
                                     <span className="text-slate-600">{t.textoManual}</span>
                                   ) : fichasConCosto.length === 0 ? (
                                     <span className="text-slate-300 italic text-[11px]">(no incluido en este menú)</span>
                                   ) : null}
                                 </div>
-                                {fichasConCosto.length > 0 && (
+                                {/* Solo mostrar las fichas distintas al texto manual (si hay) */}
+                                {fichasDiferentes.length > 0 && (
                                   <div className="ml-4 mt-1 space-y-0.5">
-                                    {fichasConCosto.map(({ ficha, costo }) => (
+                                    {fichasDiferentes.map(({ ficha, costo }) => (
                                       <div key={ficha.id} className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
                                           📋 Ficha

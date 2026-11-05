@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CotizacionState, MenuOption, ProveedorServicio, EstiloDecoracion, EmpresaCliente, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { formatMoneda, formatFechaEsp } from '../utils/formatters';
 import { minutaATexto, construirMinutaConFichas } from '../utils/minutaHelper';
+import { calcularCostoReceta } from '../config/insumosYRecetas';
 import { MessageCircle, Copy, Check, ExternalLink, X, Settings2, Sparkles, Send, PhoneCall } from 'lucide-react';
 
 interface ModalPropuestaWhatsAppProps {
@@ -111,8 +112,27 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
         visibles.forEach(t => {
           const etiqueta = etiquetaTiempo[t.tiempoId] || t.tiempoLabel;
           const partes: string[] = [];
+
+          // Evitar duplicación: si el texto manual coincide con el nombre de la ficha, mostrar UNA sola vez
+          const textoNorm = t.textoManual.trim().toLowerCase();
+          const fichasDiferentes = t.fichas.filter(f => f.nombre.trim().toLowerCase() !== textoNorm);
+          const fichasIguales = t.fichas.filter(f => f.nombre.trim().toLowerCase() === textoNorm);
+
+          if (fichasIguales.length > 0 && t.textoManual && fichasDiferentes.length === 0) {
+            // Solo mostrar una vez con su costo
+            const fichasTxt = fichasIguales.map(f => {
+              const calc = calcularCostoReceta(f, insumos);
+              return `${f.nombre} (${formatMoneda(calc.costoPorPorcion)}/porción)`;
+            }).join(', ');
+            msg += `• *${etiqueta}:* ${fichasTxt}\n`;
+            return;
+          }
+
           if (t.textoManual) partes.push(t.textoManual);
-          if (t.fichas.length > 0) {
+          if (fichasDiferentes.length > 0) {
+            const fichasTxt = fichasDiferentes.map(f => f.nombre).join(', ');
+            partes.push(`Fichas: ${fichasTxt}`);
+          } else if (fichasIguales.length > 0 && !t.textoManual) {
             const fichasTxt = t.fichas.map(f => f.nombre).join(', ');
             partes.push(`Fichas: ${fichasTxt}`);
           }
@@ -129,14 +149,17 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     }
 
     if (incluirStaff) {
-      msg += `👨‍🍳 *BRIGADA DE SERVICIO INCLUIDA:*\n`;
-      msg += `• ${cotizacion.personal.garzones} Garzones de salón\n`;
-      msg += `• ${cotizacion.personal.cocineros} Chefs / Cocineros\n`;
-      msg += `• ${cotizacion.personal.aseo} Auxiliares de aseo\n`;
-      if (cotizacion.personal.maitre > 0) {
-        msg += `• ${cotizacion.personal.maitre} Maître de sala y supervisión\n`;
+      const hayPersonal = (cotizacion.personal.garzones + cotizacion.personal.cocineros + cotizacion.personal.aseo + cotizacion.personal.maitre) > 0;
+      if (hayPersonal) {
+        msg += `👨‍🍳 *BRIGADA DE SERVICIO INCLUIDA:*\n`;
+        if (cotizacion.personal.garzones > 0) msg += `• ${cotizacion.personal.garzones} Garzones de salón\n`;
+        if (cotizacion.personal.cocineros > 0) msg += `• ${cotizacion.personal.cocineros} Chefs / Cocineros\n`;
+        if (cotizacion.personal.aseo > 0) msg += `• ${cotizacion.personal.aseo} Auxiliares de aseo\n`;
+        if (cotizacion.personal.maitre > 0) msg += `• ${cotizacion.personal.maitre} Maître de sala y supervisión\n`;
+        msg += `\n`;
+      } else {
+        msg += `👨‍🍳 *BRIGADA DE SERVICIO:* No contratada en esta propuesta\n\n`;
       }
-      msg += `\n`;
     }
 
     if (incluirProveedores && (proveedoresActivos.length > 0 || (estiloDecoracion && estiloDecoracion.id !== 'sin-decoracion' && estiloDecoracion.costoFijo > 0))) {
@@ -175,13 +198,19 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     }
 
     if (incluirDatosBanco) {
-      msg += `🏦 *DATOS DE TRANSFERENCIA BANCARIA:*\n`;
-      msg += `• Razón Social: Dominga Eventos SpA\n`;
-      msg += `• RUT: 77.892.410-K\n`;
-      msg += `• Banco: Banco de Chile\n`;
-      msg += `• Tipo de Cuenta: Cuenta Corriente\n`;
-      msg += `• N° Cuenta: 00-189-23491-09\n`;
-      msg += `• Correo Comprobantes: ${empresaActiva.email}\n\n`;
+      const db = empresaActiva.datosBancarios;
+      if (db && (db.razonSocial || db.numeroCuenta)) {
+        msg += `🏦 *DATOS DE TRANSFERENCIA BANCARIA:*\n`;
+        if (db.razonSocial) msg += `• Razón Social: ${db.razonSocial}\n`;
+        if (db.rut) msg += `• RUT: ${db.rut}\n`;
+        if (db.banco) msg += `• Banco: ${db.banco}\n`;
+        if (db.tipoCuenta) msg += `• Tipo de Cuenta: ${db.tipoCuenta}\n`;
+        if (db.numeroCuenta) msg += `• N° Cuenta: ${db.numeroCuenta}\n`;
+        if (db.titular) msg += `• Titular: ${db.titular}\n`;
+        msg += `• Correo Comprobantes: ${db.emailTransferencia || empresaActiva.email}\n\n`;
+      } else {
+        msg += `🏦 *DATOS DE TRANSFERENCIA:* A confirmar por la empresa.\n\n`;
+      }
     }
 
     msg += `¿Coordinamos una llamada o visita técnica al recinto para degustación?\n`;
