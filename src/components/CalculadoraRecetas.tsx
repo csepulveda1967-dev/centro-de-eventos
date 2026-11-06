@@ -32,6 +32,7 @@ import {
   Filter,
   PieChart,
   FolderPlus,
+  ChevronDown,
   Pencil,
   ListPlus,
   X,
@@ -140,6 +141,20 @@ const InputNumeroCeldaRecetas: React.FC<InputNumeroCeldaRecetasProps> = ({
     />
   );
 };
+
+// ── Fichas Técnicas: etiquetas y utilidades para agrupar por categoría ──
+const SECCIONES_FICHAS_ETIQUETAS: Record<string, string> = {
+  coctel: 'Bebestibles & Cócteles',
+  entrada: 'Entradas',
+  fondo: 'Platos de Fondo',
+  postre: 'Postres',
+  trasnoche: 'Trasnoche / Bajón',
+  'coffee-break': 'Coffee Break / Coctelería',
+  general: 'Sin categoría'
+};
+
+const slugCategoriaFicha = (valor: string) =>
+  (valor || '').trim().toLowerCase().replace(/\s+/g, '_');
 
 export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   recetas,
@@ -304,6 +319,41 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
   // Filtro de recetas por menú
   const [menuFiltroRecetas, setMenuFiltroRecetas] = useState<string>('todos');
+
+  // ── Fichas Técnicas: secciones desplegables por categoría ──
+  const STORAGE_SECCIONES_FICHAS_KEY = 'hlr_fichas_secciones_abiertas';
+  const [seccionesFichasAbiertas, setSeccionesFichasAbiertas] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_SECCIONES_FICHAS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [mostrarNuevaCategoriaFicha, setMostrarNuevaCategoriaFicha] = useState(false);
+  const [nuevaCategoriaFichaInput, setNuevaCategoriaFichaInput] = useState('');
+
+  const guardarSeccionesFichasAbiertas = (nuevas: string[]) => {
+    setSeccionesFichasAbiertas(nuevas);
+    try {
+      localStorage.setItem(STORAGE_SECCIONES_FICHAS_KEY, JSON.stringify(nuevas));
+    } catch (e) {
+      console.error('Error guardando secciones de fichas en localStorage:', e);
+    }
+  };
+
+  const toggleSeccionFicha = (key: string) => {
+    const nuevas = seccionesFichasAbiertas.includes(key)
+      ? seccionesFichasAbiertas.filter(k => k !== key)
+      : [...seccionesFichasAbiertas, key];
+    guardarSeccionesFichasAbiertas(nuevas);
+  };
+
+  const abrirSeccionFicha = (key: string) => {
+    if (!seccionesFichasAbiertas.includes(key)) {
+      guardarSeccionesFichasAbiertas([...seccionesFichasAbiertas, key]);
+    }
+  };
 
   // Menú que se está editando en el ModalCrearMenu (modo edición)
   const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
@@ -771,6 +821,73 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
   const presetsMargen = [25, 30, 33, 35, 40, 45, 50];
 
+  // ── Fichas filtradas por menú y agrupadas por categoría (acordeón) ──
+  const fichasFiltradas = useMemo(() => {
+    if (menuFiltroRecetas === 'todos') return recetas;
+    if (menuFiltroRecetas === 'coffee-break') {
+      return recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break');
+    }
+    return recetas.filter(r => recetaPerteneceAMenu(r, menuFiltroRecetas));
+  }, [recetas, menuFiltroRecetas, menus]);
+
+  const gruposFichas = useMemo(() => {
+    const grupos = new Map<string, RecetaFichaTecnica[]>();
+    for (const r of fichasFiltradas) {
+      const key = slugCategoriaFicha(r.tiempoMenu || 'general') || 'general';
+      const existentes = grupos.get(key);
+      if (existentes) existentes.push(r);
+      else grupos.set(key, [r]);
+    }
+
+    const claves: string[] = [];
+    const agregarClave = (k: string) => {
+      if (k && !claves.includes(k)) claves.push(k);
+    };
+    TIEMPOS_MENU_DEFAULT.forEach(def => agregarClave(def.id.toLowerCase()));
+    tiemposPersonalizados.forEach(t => agregarClave(slugCategoriaFicha(t)));
+    grupos.forEach((_fichas, k) => agregarClave(k));
+
+    return claves
+      .map(key => ({ key, fichas: grupos.get(key) || [] }))
+      .filter(grupo =>
+        grupo.fichas.length > 0 ||
+        !TIEMPOS_MENU_DEFAULT.some(def => def.id.toLowerCase() === grupo.key)
+      );
+  }, [fichasFiltradas, tiemposPersonalizados]);
+
+  const nombreSeccionFicha = (key: string) => {
+    if (SECCIONES_FICHAS_ETIQUETAS[key]) return SECCIONES_FICHAS_ETIQUETAS[key];
+    const personalizada = tiemposPersonalizados.find(t => slugCategoriaFicha(t) === key);
+    if (personalizada) return personalizada.trim();
+    return formatearNombreTiempoMenu(key);
+  };
+
+  const todasSeccionesAbiertas = gruposFichas.length > 0 &&
+    gruposFichas.every(g => seccionesFichasAbiertas.includes(g.key));
+
+  const alternarTodasSeccionesFichas = () => {
+    guardarSeccionesFichasAbiertas(
+      todasSeccionesAbiertas ? [] : gruposFichas.map(g => g.key)
+    );
+  };
+
+  const crearCategoriaFicha = () => {
+    const nombre = nuevaCategoriaFichaInput.trim();
+    if (!nombre) return;
+    const key = slugCategoriaFicha(nombre);
+    const yaExiste =
+      TIEMPOS_MENU_DEFAULT.some(def => def.id.toLowerCase() === key) ||
+      tiemposPersonalizados.some(t => slugCategoriaFicha(t) === key) ||
+      recetas.some(r => slugCategoriaFicha(r.tiempoMenu || '') === key);
+
+    if (!yaExiste) {
+      guardarTiemposPersonalizados([...tiemposPersonalizados, nombre]);
+    }
+    abrirSeccionFicha(key);
+    setNuevaCategoriaFichaInput('');
+    setMostrarNuevaCategoriaFicha(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Toast Notificación */}
@@ -957,184 +1074,279 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         </div>
       </div>
 
-      {/* Selector de Recetas */}
+      {/* Selector de Recetas — Acordeón por categoría */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
           <div className="flex items-center gap-2">
             <span>Fichas Técnicas ({recetas.length})</span>
             <span className="text-[11px] text-slate-400 font-normal">· Haz clic para costearla</span>
           </div>
-          <button
-            type="button"
-            onClick={() => setModalNuevoMenuOpen(true)}
-            className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Añadir nuevo menú a la carta</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMostrarNuevaCategoriaFicha(v => !v)}
+              className="text-[11px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>Nueva categoría</span>
+            </button>
+            {gruposFichas.length > 1 && (
+              <button
+                type="button"
+                onClick={alternarTodasSeccionesFichas}
+                className="text-[11px] font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
+              >
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${todasSeccionesAbiertas ? 'rotate-180' : ''}`} />
+                <span>{todasSeccionesAbiertas ? 'Cerrar todo' : 'Abrir todo'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setModalNuevoMenuOpen(true)}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Añadir nuevo menú a la carta</span>
+            </button>
+          </div>
         </div>
 
-        {/* Filtros por Menú */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+        {/* Campo libre para crear una categoría nueva */}
+        {mostrarNuevaCategoriaFicha && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-blue-50/60 border border-blue-200 rounded-xl">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-900 uppercase tracking-wider shrink-0">
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>Nueva categoría:</span>
+            </div>
+            <input
+              autoFocus
+              type="text"
+              value={nuevaCategoriaFichaInput}
+              onChange={(e) => setNuevaCategoriaFichaInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  crearCategoriaFicha();
+                }
+                if (e.key === 'Escape') {
+                  setMostrarNuevaCategoriaFicha(false);
+                  setNuevaCategoriaFichaInput('');
+                }
+              }}
+              placeholder="Ej: Bebestibles, Entradas, Postres, Coctelería de Autor..."
+              className="flex-1 px-3 py-1.5 text-xs font-semibold border border-blue-200 rounded-lg bg-white focus:outline-hidden focus:border-blue-500"
+            />
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={crearCategoriaFicha}
+                disabled={!nuevaCategoriaFichaInput.trim()}
+                className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Crear categoría</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarNuevaCategoriaFicha(false);
+                  setNuevaCategoriaFichaInput('');
+                }}
+                className="px-2 py-1.5 rounded-lg text-[11px] font-bold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 cursor-pointer"
+                title="Cancelar"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Filtro por Menú (desplegable compacto) */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
             <Filter className="w-3 h-3 text-slate-400" />
             Menú:
           </span>
-          <button
-            type="button"
-            onClick={() => setMenuFiltroRecetas('todos')}
-            className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
-              menuFiltroRecetas === 'todos'
-                ? 'bg-slate-900 text-white shadow-2xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            Todos ({recetas.length})
-          </button>
-          {menus.map(m => {
-            const count = recetas.filter(r => recetaPerteneceAMenu(r, m.id)).length;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMenuFiltroRecetas(m.id)}
-                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
-                  menuFiltroRecetas === m.id
-                    ? 'bg-amber-600 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <span>{m.nombre}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${menuFiltroRecetas === m.id ? 'bg-amber-700 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => setMenuFiltroRecetas('coffee-break')}
-            className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap flex items-center gap-1 cursor-pointer ${
-              menuFiltroRecetas === 'coffee-break'
-                ? 'bg-amber-800 text-white shadow-2xs'
-                : 'bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100'
-            }`}
-          >
-            <Coffee className="w-3 h-3" />
-            <span>Coffee Break</span>
-          </button>
+          <div className="relative">
+            <select
+              value={menuFiltroRecetas}
+              onChange={(e) => setMenuFiltroRecetas(e.target.value)}
+              className="appearance-none min-w-[220px] max-w-full pl-3 pr-8 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer focus:outline-hidden focus:border-amber-500"
+            >
+              <option value="todos">Todos los menús ({recetas.length})</option>
+              {menus.map(m => {
+                const count = recetas.filter(r => recetaPerteneceAMenu(r, m.id)).length;
+                return (
+                  <option key={m.id} value={m.id}>{m.nombre} ({count})</option>
+                );
+              })}
+              <option value="coffee-break">
+                Coffee Break ({recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break').length})
+              </option>
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {menuFiltroRecetas !== 'todos' && (
+            <button
+              type="button"
+              onClick={() => setMenuFiltroRecetas('todos')}
+              className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer flex items-center gap-1"
+            >
+              <X className="w-3 h-3" />
+              Quitar filtro
+            </button>
+          )}
+          <span className="text-[10px] text-slate-400 font-semibold ml-auto">
+            {menus.length} {menus.length === 1 ? 'menú creado' : 'menús creados'}
+          </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
-          {(() => {
-            const lista = menuFiltroRecetas === 'todos'
-              ? recetas
-              : menuFiltroRecetas === 'coffee-break'
-                ? recetas.filter(r => r.tiempoMenu === 'coffee-break')
-                : recetas.filter(r => recetaPerteneceAMenu(r, menuFiltroRecetas));
+        {fichasFiltradas.length === 0 ? (
+          <div className="py-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">
+            No hay recetas creadas para este menú aún.{' '}
+            <button
+              type="button"
+              onClick={() => {
+                if (menuFiltroRecetas !== 'todos' && menuFiltroRecetas !== 'coffee-break') {
+                  setNuevoMenuAsociadoId(menuFiltroRecetas);
+                }
+                setModoMenuReceta('existente');
+                setModalNuevaRecetaOpen(true);
+              }}
+              className="text-amber-700 font-bold underline hover:text-amber-800 ml-1"
+            >
+              Crear primera receta para este menú →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {seccionesFichasAbiertas.length === 0 && (
+              <p className="text-[10px] text-slate-400 font-semibold">
+                Haz clic en una categoría para desplegar sus fichas.
+              </p>
+            )}
 
-            if (lista.length === 0) {
+            {gruposFichas.map(({ key, fichas }) => {
+              const abierta = seccionesFichasAbiertas.includes(key);
               return (
-                <div className="col-span-full py-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs">
-                  No hay recetas creadas para este menú aún.{' '}
+                <div
+                  key={key}
+                  className={`border rounded-xl overflow-hidden transition-colors ${abierta ? 'border-amber-200' : 'border-slate-200'}`}
+                >
                   <button
                     type="button"
-                    onClick={() => {
-                      if (menuFiltroRecetas !== 'todos' && menuFiltroRecetas !== 'coffee-break') {
-                        setNuevoMenuAsociadoId(menuFiltroRecetas);
-                      }
-                      setModoMenuReceta('existente');
-                      setModalNuevaRecetaOpen(true);
-                    }}
-                    className="text-amber-700 font-bold underline hover:text-amber-800 ml-1"
-                  >
-                    Crear primera receta para este menú →
-                  </button>
-                </div>
-              );
-            }
-
-            return lista.map((r) => {
-            const isSelected = r.id === recetaSeleccionadaId;
-            const calculo = calcularCostoReceta(r, insumos);
-            const menusDeFicha = menus.filter(m => recetaPerteneceAMenu(r, m.id));
-
-            return (
-              <div
-                key={r.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setRecetaSeleccionadaId(r.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setRecetaSeleccionadaId(r.id);
-                  }
-                }}
-                className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
-                  isSelected
-                    ? 'border-amber-500 bg-amber-50/30 ring-2 ring-amber-400 shadow-xs'
-                    : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <div>
-                  <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
-                    {r.tiempoMenu === 'coffee-break' ? (
-                      <span className="inline-flex items-center gap-1 text-amber-900 font-extrabold">
-                        <Coffee className="w-3 h-3 text-amber-700" />
-                        Coffee Break / Coctelería
-                      </span>
-                    ) : (
-                      formatearNombreTiempoMenu(r.tiempoMenu)
-                    )}
-                  </span>
-                  <span className="font-bold text-xs text-slate-900 line-clamp-2 mt-0.5">
-                    {r.nombre}
-                  </span>
-                </div>
-
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-400">Costo/pax:</span>
-                  <span className="font-extrabold text-slate-800 tabular-nums">
-                    {formatMoneda(calculo.costoPorPorcion)}
-                  </span>
-                </div>
-
-                {/* VINCULACIÓN A MENÚS: agregar la ficha a los menús creados o crear uno nuevo */}
-                {r.tiempoMenu === 'coffee-break' ? (
-                  <div className="mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center gap-1">
-                    <Coffee className="w-3 h-3" />
-                    <span>Vinculada a Tarifas Generales</span>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRecetaSeleccionadaId(r.id);
-                      abrirModalAgregarMenu(r);
-                    }}
-                    className={`mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer ${
-                      menusDeFicha.length > 0
-                        ? 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
-                        : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                    onClick={() => toggleSeccionFicha(key)}
+                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left cursor-pointer transition-colors ${
+                      abierta ? 'bg-amber-50/70 hover:bg-amber-50' : 'bg-slate-50 hover:bg-slate-100'
                     }`}
-                    title="Agregar esta ficha a los menús que estimes, o crear un menú nuevo con ella"
                   >
-                    <ListPlus className="w-3 h-3" />
-                    <span>
-                      {menusDeFicha.length > 0
-                        ? `✓ En ${menusDeFicha.length} ${menusDeFicha.length === 1 ? 'menú' : 'menús'} · Agregar a más`
-                        : '＋ Agregar a Menú'}
+                    <span className="flex items-center gap-2 text-[11px] font-extrabold text-slate-800 uppercase tracking-wider min-w-0">
+                      <ChevronDown
+                        className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${abierta ? '' : '-rotate-90'}`}
+                      />
+                      {key === 'coffee-break' && <Coffee className="w-3.5 h-3.5 text-amber-700 shrink-0" />}
+                      <span className="truncate">{nombreSeccionFicha(key)}</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold tabular-nums shrink-0 ${
+                          abierta ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fichas.length}
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+                      {abierta ? 'Ocultar' : 'Ver fichas'}
                     </span>
                   </button>
-                )}
-              </div>
-            );
-          });
-        })()}
+
+                  {abierta && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 p-2.5 bg-white">
+                      {fichas.map((r) => {
+                        const isSelected = r.id === recetaSeleccionadaId;
+                        const calculo = calcularCostoReceta(r, insumos);
+                        const menusDeFicha = menus.filter(m => recetaPerteneceAMenu(r, m.id));
+
+                        return (
+                          <div
+                            key={r.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setRecetaSeleccionadaId(r.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setRecetaSeleccionadaId(r.id);
+                              }
+                            }}
+                            className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                              isSelected
+                                ? 'border-amber-500 bg-amber-50/30 ring-2 ring-amber-400 shadow-xs'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <div>
+                              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+                                {r.tiempoMenu === 'coffee-break' ? (
+                                  <span className="inline-flex items-center gap-1 text-amber-900 font-extrabold">
+                                    <Coffee className="w-3 h-3 text-amber-700" />
+                                    Coffee Break / Coctelería
+                                  </span>
+                                ) : (
+                                  formatearNombreTiempoMenu(r.tiempoMenu)
+                                )}
+                              </span>
+                              <span className="font-bold text-xs text-slate-900 line-clamp-2 mt-0.5">
+                                {r.nombre}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                              <span className="text-slate-400">Costo/pax:</span>
+                              <span className="font-extrabold text-slate-800 tabular-nums">
+                                {formatMoneda(calculo.costoPorPorcion)}
+                              </span>
+                            </div>
+
+                            {/* VINCULACIÓN A MENÚS: agregar la ficha a los menús creados o crear uno nuevo */}
+                            {r.tiempoMenu === 'coffee-break' ? (
+                              <div className="mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center gap-1">
+                                <Coffee className="w-3 h-3" />
+                                <span>Vinculada a Tarifas Generales</span>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRecetaSeleccionadaId(r.id);
+                                  abrirModalAgregarMenu(r);
+                                }}
+                                className={`mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer ${
+                                  menusDeFicha.length > 0
+                                    ? 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
+                                    : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                                }`}
+                                title="Agregar esta ficha a los menús que estimes, o crear un menú nuevo con ella"
+                              >
+                                <ListPlus className="w-3 h-3" />
+                                <span>
+                                  {menusDeFicha.length > 0
+                                    ? `✓ En ${menusDeFicha.length} ${menusDeFicha.length === 1 ? 'menú' : 'menús'} · Agregar a más`
+                                    : '＋ Agregar a Menú'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
 
       {/* DETALLE Y COSTEO DE LA RECETA SELECCIONADA */}
       {recetaActiva && (
