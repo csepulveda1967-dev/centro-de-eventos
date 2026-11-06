@@ -43,10 +43,18 @@ interface Modulo6DashboardCostosProps {
   onAbrirWhatsAppPropuesta?: () => void;
   porcentajeAnticipo?: number;
   onChangeAnticipo?: (pct: number) => void;
-  esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
-  onChangeEsquemaPago?: (esquema: 'dos_pagos' | 'tres_pagos' | 'corporativo') => void;
+  esquemaPago?: 'un_pago' | 'dos_pagos' | 'tres_pagos' | 'cuatro_pagos' | 'corporativo' | 'personalizado' | (string & {});
+  onChangeEsquemaPago?: (esquema: 'un_pago' | 'dos_pagos' | 'tres_pagos' | 'cuatro_pagos' | 'corporativo' | 'personalizado' | string) => void;
+  hito2Porcentaje?: number;
+  onChangeHito2Porcentaje?: (pct: number) => void;
+  hito3Porcentaje?: number;
+  onChangeHito3Porcentaje?: (pct: number) => void;
+  condicionesPagoPersonalizadas?: string;
+  onChangeCondicionesPagoPersonalizadas?: (texto: string) => void;
   diasSaldo?: number;
   onChangeDiasSaldo?: (dias: number) => void;
+  validezDias?: number;
+  onChangeValidezDias?: (dias: number) => void;
   // Campos básicos de luz & gas y otros gastos fijos a mano
   gastoLuzMensual?: number;
   onChangeGastoLuz?: (luz: number) => void;
@@ -85,8 +93,16 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   onChangeAnticipo,
   esquemaPago = 'dos_pagos',
   onChangeEsquemaPago,
+  hito2Porcentaje = 30,
+  onChangeHito2Porcentaje,
+  hito3Porcentaje = 20,
+  onChangeHito3Porcentaje,
+  condicionesPagoPersonalizadas = '',
+  onChangeCondicionesPagoPersonalizadas,
   diasSaldo = 7,
   onChangeDiasSaldo,
+  validezDias = 15,
+  onChangeValidezDias,
   gastoLuzMensual = 0,
   onChangeGastoLuz,
   gastoGasMensual = 0,
@@ -1023,113 +1039,340 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════════
-          5. TÉRMINOS DE ANTICIPO & CONDICIONES DE PAGO
+          5. TÉRMINOS DE ANTICIPO & CONDICIONES DE PAGO (LIBERTAD TOTAL DE COBRO)
       ══════════════════════════════════════════════════════════════════════════ */}
-      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-            <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-            Condiciones de Anticipo & Pago
+      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <label className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <span>Condiciones de Anticipo & Pago</span>
           </label>
-          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-            {porcentajeAnticipo}% Pie
+          <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+            {esquemaPago === 'un_pago'
+              ? '100% Contado'
+              : esquemaPago === 'personalizado'
+              ? '⭐ Criterio Libre'
+              : esquemaPago === 'cuatro_pagos'
+              ? '4 Cuotas'
+              : esquemaPago === 'tres_pagos'
+              ? `3 Hitos (${porcentajeAnticipo}% / ${hito2Porcentaje}%)`
+              : `${porcentajeAnticipo}% Pie`}
           </span>
         </div>
 
-        {/* Explicación de política de empresa */}
-        <div className="text-[11px] text-slate-500 bg-white p-2.5 rounded-lg border border-slate-200 leading-snug flex items-start gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+        {/* Explicación de criterio libre */}
+        <div className="text-[11px] text-slate-600 bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200 leading-snug flex items-start gap-2">
+          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
           <span>
-            <strong className="text-slate-800">Criterio Comercial:</strong> El anticipo asegura la fecha y fondea compras mayoristas; tú decides el porcentaje según tu cliente.
+            <strong className="text-emerald-950 font-bold">Criterio Libre del Emprendedor:</strong> Tienes total libertad para definir cómo cobrar a tus clientes: ajusta el porcentaje de anticipo (0 a 100%), elige la cantidad de cuotas o redacta tus propias condiciones contractuales personalizadas.
           </span>
         </div>
 
-        {/* Selector de Porcentaje de Anticipo */}
-        <div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-            Porcentaje de Anticipo para Reserva:
-          </span>
-          <div className="grid grid-cols-3 gap-1.5">
-            {[30, 40, 50].map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                onClick={() => onChangeAnticipo && onChangeAnticipo(pct)}
-                className={`py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
-                  porcentajeAnticipo === pct
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                }`}
-              >
-                {pct}% {pct === 40 ? '(Estándar)' : pct === 50 ? '(Alta Dem.)' : ''}
-              </button>
-            ))}
+        {/* Selector de Porcentaje de Anticipo Libre */}
+        {esquemaPago !== 'un_pago' && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">
+                Porcentaje de Anticipo / Pie de Reserva:
+              </span>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={porcentajeAnticipo}
+                  onChange={(e) => {
+                    const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                    onChangeAnticipo && onChangeAnticipo(val);
+                  }}
+                  className="w-16 px-2 py-0.5 text-xs font-black text-center bg-white border border-slate-300 rounded-md focus:border-emerald-500 focus:outline-hidden"
+                />
+                <span className="text-xs font-bold text-slate-700">%</span>
+              </div>
+            </div>
+
+            {/* Presets rápidos sin bloquear valores manuales */}
+            <div className="grid grid-cols-6 gap-1">
+              {[0, 20, 30, 40, 50, 100].map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => onChangeAnticipo && onChangeAnticipo(pct)}
+                  className={`py-1 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+                    porcentajeAnticipo === pct
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title={pct === 0 ? 'Sin anticipo / Pago total al final' : pct === 100 ? 'Pago 100% contado al inicio' : `${pct}% de pie`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Selector de Modalidad / Esquema */}
+        {/* Selector de Modalidad / Esquemas de Cobro */}
         <div>
-          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-            Modalidad de Pago:
+          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+            Modalidad de Cobro al Cliente:
           </span>
-          <div className="grid grid-cols-1 gap-1 text-xs">
-            <label className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-              esquemaPago === 'dos_pagos' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/60 border-slate-200 hover:bg-white'
+          <div className="grid grid-cols-1 gap-1.5 text-xs">
+            {/* 1 Pago (Contado) */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'un_pago' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/70 border-slate-200 hover:bg-white'
+            }`}>
+              <input
+                type="radio"
+                name="esquemaPago"
+                checked={esquemaPago === 'un_pago'}
+                onChange={() => {
+                  onChangeEsquemaPago && onChangeEsquemaPago('un_pago');
+                  onChangeAnticipo && onChangeAnticipo(100);
+                }}
+                className="accent-emerald-600 cursor-pointer mt-0.5"
+              />
+              <div className="leading-tight">
+                <span className="font-bold text-slate-900 block text-[11px]">1 Solo Pago (100% Contado / Anticipado)</span>
+                <span className="text-[10px] text-slate-500">Un solo abono del 100% al reservar o confirmar la fecha</span>
+              </div>
+            </label>
+
+            {/* 2 Pagos */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'dos_pagos' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/70 border-slate-200 hover:bg-white'
             }`}>
               <input
                 type="radio"
                 name="esquemaPago"
                 checked={esquemaPago === 'dos_pagos'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('dos_pagos')}
-                className="accent-emerald-600 cursor-pointer"
+                className="accent-emerald-600 cursor-pointer mt-0.5"
               />
               <div className="leading-tight">
-                <span className="font-bold text-slate-800 block text-[11px]">2 Pagos (Estándar Banquetería)</span>
-                <span className="text-[10px] text-slate-500">Anticipo {porcentajeAnticipo}% + Saldo hasta {diasSaldo} días antes</span>
+                <span className="font-bold text-slate-900 block text-[11px]">2 Pagos (Anticipo + Saldo Final)</span>
+                <span className="text-[10px] text-slate-500">Anticipo de {porcentajeAnticipo}% + Saldo de {100 - porcentajeAnticipo}% antes del evento</span>
               </div>
             </label>
 
-            <label className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-              esquemaPago === 'tres_pagos' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/60 border-slate-200 hover:bg-white'
+            {/* 3 Pagos / Hitos */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'tres_pagos' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/70 border-slate-200 hover:bg-white'
             }`}>
               <input
                 type="radio"
                 name="esquemaPago"
                 checked={esquemaPago === 'tres_pagos'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('tres_pagos')}
-                className="accent-emerald-600 cursor-pointer"
+                className="accent-emerald-600 cursor-pointer mt-0.5"
               />
               <div className="leading-tight">
-                <span className="font-bold text-slate-800 block text-[11px]">3 Cuotas / Hitos</span>
-                <span className="text-[10px] text-slate-500">Reserva {porcentajeAnticipo}% + Degustación 30% + Saldo final</span>
+                <span className="font-bold text-slate-900 block text-[11px]">3 Pagos / Hitos de Avance</span>
+                <span className="text-[10px] text-slate-500">Reserva {porcentajeAnticipo}% + Degustación/Avance {hito2Porcentaje}% + Saldo final {Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}%</span>
               </div>
             </label>
 
-            <label className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-              esquemaPago === 'corporativo' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/60 border-slate-200 hover:bg-white'
+            {/* 4 Cuotas */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'cuatro_pagos' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/70 border-slate-200 hover:bg-white'
+            }`}>
+              <input
+                type="radio"
+                name="esquemaPago"
+                checked={esquemaPago === 'cuatro_pagos'}
+                onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('cuatro_pagos')}
+                className="accent-emerald-600 cursor-pointer mt-0.5"
+              />
+              <div className="leading-tight">
+                <span className="font-bold text-slate-900 block text-[11px]">4 Cuotas / Facilidades (Matrimonios / Graduaciones)</span>
+                <span className="text-[10px] text-slate-500">4 pagos divididos durante la planificación del evento</span>
+              </div>
+            </label>
+
+            {/* Corporativo */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'corporativo' ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white/70 border-slate-200 hover:bg-white'
             }`}>
               <input
                 type="radio"
                 name="esquemaPago"
                 checked={esquemaPago === 'corporativo'}
                 onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('corporativo')}
-                className="accent-emerald-600 cursor-pointer"
+                className="accent-emerald-600 cursor-pointer mt-0.5"
               />
               <div className="leading-tight">
-                <span className="font-bold text-slate-800 block text-[11px]">Corporativo / Facturación</span>
-                <span className="text-[10px] text-slate-500">Anticipo {porcentajeAnticipo}% + Saldo contra factura 30 días</span>
+                <span className="font-bold text-slate-900 block text-[11px]">Corporativo / Facturación con O.C.</span>
+                <span className="text-[10px] text-slate-500">Anticipo {porcentajeAnticipo}% + Saldo contra factura a 30 días</span>
+              </div>
+            </label>
+
+            {/* 100% Personalizado */}
+            <label className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-colors ${
+              esquemaPago === 'personalizado' ? 'bg-white border-amber-500 ring-1 ring-amber-500' : 'bg-white/70 border-slate-200 hover:bg-white'
+            }`}>
+              <input
+                type="radio"
+                name="esquemaPago"
+                checked={esquemaPago === 'personalizado'}
+                onChange={() => onChangeEsquemaPago && onChangeEsquemaPago('personalizado')}
+                className="accent-amber-600 cursor-pointer mt-0.5"
+              />
+              <div className="leading-tight">
+                <span className="font-bold text-amber-950 block text-[11px]">⭐ Esquema 100% Personalizado (Criterio Libre)</span>
+                <span className="text-[10px] text-slate-500">Redacta tú mismo las condiciones y plazos exactos de cobro</span>
               </div>
             </label>
           </div>
         </div>
 
-        {/* Desglose Matemático de Cuotas en CLP calculado sobre el precio cobrado real */}
+        {/* Parámetros Ajustables Adicionales según Modalidad */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200">
+          {esquemaPago === 'tres_pagos' && (
+            <div>
+              <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                % Segundo Hito (Degustación / Avance):
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={5}
+                  max={Math.max(5, 100 - porcentajeAnticipo - 5)}
+                  value={hito2Porcentaje}
+                  onChange={(e) => onChangeHito2Porcentaje && onChangeHito2Porcentaje(Number(e.target.value) || 0)}
+                  className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+                />
+                <span className="text-xs text-slate-600">%</span>
+                <span className="text-[10px] text-slate-500">
+                  (Saldo final: {Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}%)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {esquemaPago !== 'un_pago' && esquemaPago !== 'corporativo' && (
+            <div>
+              <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                Días de Anticipación para Saldo:
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  max={60}
+                  value={diasSaldo}
+                  onChange={(e) => onChangeDiasSaldo && onChangeDiasSaldo(Number(e.target.value) || 0)}
+                  className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+                />
+                <span className="text-xs text-slate-600">días</span>
+                <span className="text-[10px] text-slate-500">
+                  {diasSaldo === 0 ? '(El mismo día)' : 'antes del evento'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="text-[10px] font-bold text-slate-700 block mb-1">
+              Validez de la Oferta:
+            </label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={validezDias}
+                onChange={(e) => onChangeValidezDias && onChangeValidezDias(Number(e.target.value) || 15)}
+                className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+              />
+              <span className="text-xs text-slate-600">días corridos</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Glosa Contractual Libre (Siempre disponible para escribir condiciones especiales) */}
+        <div>
+          <label className="text-[10px] font-bold text-slate-700 block mb-1 flex items-center justify-between">
+            <span>Glosa de Condiciones Comerciales (Libre Redacción):</span>
+            <span className="text-[9px] text-slate-400 font-normal">Aparece en la Ficha Formal y WhatsApp</span>
+          </label>
+          <textarea
+            rows={2}
+            value={condicionesPagoPersonalizadas}
+            onChange={(e) => onChangeCondicionesPagoPersonalizadas && onChangeCondicionesPagoPersonalizadas(e.target.value)}
+            placeholder="Ej: Confirmación definitiva de comensales hasta 10 días antes. Degustación incluida para 2 personas tras pago de reserva."
+            className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+          />
+        </div>
+
+        {/* Desglose Matemático Reactivo de Cuotas en CLP */}
         <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">
           {(() => {
             const total = precioCobradoFinal;
+
+            if (esquemaPago === 'un_pago') {
+              return (
+                <div className="flex justify-between font-bold text-emerald-900 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                  <span>Pago Único Total (100%):</span>
+                  <span className="tabular-nums text-sm font-black">{formatMoneda(total)}</span>
+                </div>
+              );
+            }
+
+            if (esquemaPago === 'tres_pagos') {
+              const pieMonto = Math.round(total * (porcentajeAnticipo / 100));
+              const hito2Monto = Math.round(total * (hito2Porcentaje / 100));
+              const saldoMonto = Math.max(0, total - pieMonto - hito2Monto);
+
+              return (
+                <>
+                  <div className="flex justify-between font-bold text-emerald-900">
+                    <span>1. Anticipo Reserva ({porcentajeAnticipo}%):</span>
+                    <span className="tabular-nums">{formatMoneda(pieMonto)}</span>
+                  </div>
+                  <div className="flex justify-between text-indigo-900 font-semibold">
+                    <span>2. Hito Degustación / Avance ({hito2Porcentaje}%):</span>
+                    <span className="tabular-nums">{formatMoneda(hito2Monto)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-800 font-semibold">
+                    <span>3. Saldo Final ({Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}%):</span>
+                    <span className="tabular-nums">{formatMoneda(saldoMonto)}</span>
+                  </div>
+                </>
+              );
+            }
+
+            if (esquemaPago === 'cuatro_pagos') {
+              const cuota1 = Math.round(total * (porcentajeAnticipo > 0 ? porcentajeAnticipo / 100 : 0.25));
+              const restante = total - cuota1;
+              const cuota2 = Math.round(restante / 3);
+              const cuota3 = Math.round(restante / 3);
+              const cuota4 = restante - cuota2 - cuota3;
+
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between font-bold text-emerald-900">
+                    <span>1. Cuota Reserva ({porcentajeAnticipo > 0 ? porcentajeAnticipo : 25}%):</span>
+                    <span className="tabular-nums">{formatMoneda(cuota1)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-700">
+                    <span>2. Segunda Cuota:</span>
+                    <span className="tabular-nums font-semibold">{formatMoneda(cuota2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-700">
+                    <span>3. Tercera Cuota:</span>
+                    <span className="tabular-nums font-semibold">{formatMoneda(cuota3)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-700 font-bold">
+                    <span>4. Cuota Final ({diasSaldo} días antes):</span>
+                    <span className="tabular-nums">{formatMoneda(cuota4)}</span>
+                  </div>
+                </div>
+              );
+            }
+
+            // Esquema estándar (2 pagos, corporativo o personalizado)
             const pieMonto = Math.round(total * (porcentajeAnticipo / 100));
-            const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(total * 0.30) : 0;
-            const saldoMonto = total - pieMonto - hito2Monto;
+            const saldoMonto = total - pieMonto;
 
             return (
               <>
@@ -1137,15 +1380,9 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                   <span>1. Anticipo Reserva ({porcentajeAnticipo}%):</span>
                   <span className="tabular-nums">{formatMoneda(pieMonto)}</span>
                 </div>
-                {esquemaPago === 'tres_pagos' && (
-                  <div className="flex justify-between text-slate-700">
-                    <span>2. Hito Degustación (30%):</span>
-                    <span className="tabular-nums font-semibold">{formatMoneda(hito2Monto)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-slate-700">
-                  <span>{esquemaPago === 'tres_pagos' ? '3. Saldo Final' : '2. Saldo Restante'}:</span>
-                  <span className="tabular-nums font-semibold">{formatMoneda(saldoMonto)}</span>
+                <div className="flex justify-between text-slate-800 font-semibold">
+                  <span>2. Saldo {esquemaPago === 'corporativo' ? 'contra factura 30 días' : `(${100 - porcentajeAnticipo}%)`}:</span>
+                  <span className="tabular-nums">{formatMoneda(saldoMonto)}</span>
                 </div>
               </>
             );

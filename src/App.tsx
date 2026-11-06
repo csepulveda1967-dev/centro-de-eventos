@@ -61,6 +61,7 @@ import { BotonFlotanteWhatsApp } from './components/BotonFlotanteWhatsApp';
 import { ModalRespaldoSupabase } from './components/ModalRespaldoSupabase';
 import { ModuloExplosionInsumos } from './components/ModuloExplosionInsumos';
 import { ModalPropuestaWhatsApp } from './components/ModalPropuestaWhatsApp';
+import { ModalFormularioEmpresaContacto } from './components/ModalFormularioEmpresaContacto';
 import {
   guardarInsumoEnSupabase,
   eliminarInsumoEnSupabase,
@@ -143,11 +144,49 @@ export default function App() {
 
   // ── Modales y UI ──
   const [modalEmpresasOpen, setModalEmpresasOpen] = useState(false);
+  const [modalFormularioEmpresaOpen, setModalFormularioEmpresaOpen] = useState(false);
   const [modalFichaOpen, setModalFichaOpen] = useState(false);
   const [modalComercialOpen, setModalComercialOpen] = useState(false);
   const [modalRespaldoOpen, setModalRespaldoOpen] = useState(false);
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
   const [toastMensaje, setToastMensaje] = useState<string | null>(null);
+
+  const handleGuardarEmpresaContacto = (empresaActualizada: EmpresaCliente, crearComoNueva?: boolean) => {
+    if (crearComoNueva) {
+      setEmpresas(prev => [...prev, empresaActualizada]);
+      setEmpresaActiva(empresaActualizada);
+      mostrarToast(`✓ Nueva empresa "${empresaActualizada.nombre}" creada y activada`);
+    } else {
+      setEmpresaActiva(empresaActualizada);
+      setEmpresas(prev => {
+        const existe = prev.some(e => e.id === empresaActualizada.id);
+        if (existe) {
+          return prev.map(e => e.id === empresaActualizada.id ? empresaActualizada : e);
+        }
+        return [...prev, empresaActualizada];
+      });
+      mostrarToast(`✓ Ficha de "${empresaActualizada.nombre}" guardada y actualizada`);
+    }
+
+    // Persistir en el perfil de cliente activo
+    try {
+      const datosActuales: DatosPerfilCliente = {
+        cotizacion,
+        insumos,
+        recetas,
+        menus,
+        tarifasStaff,
+        proveedores,
+        estilosDecoracion,
+        reservas,
+        empresa: empresaActualizada
+      };
+      guardarDatosCliente(clienteActivoId, datosActuales);
+      localStorage.setItem('hlr_empresas_clientes', JSON.stringify(empresas));
+    } catch (e) {
+      console.error('Error guardando empresa en localStorage:', e);
+    }
+  };
 
   // ── Modo Administrador (Libre por defecto para Respaldos y Gestión) ──
   const [modoAdmin, setModoAdmin] = useState<boolean>(() => {
@@ -1130,6 +1169,7 @@ export default function App() {
         onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
         modoAdmin={modoAdmin}
         onToggleModoAdmin={toggleModoAdmin}
+        onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
       />
 
       {/* Contenido Principal */}
@@ -1229,6 +1269,18 @@ export default function App() {
                     <span className="text-[10px] text-slate-400 block">
                       Tablas reactivas en tiempo real
                     </span>
+                  </div>
+
+                  <div className="border-l border-white/10 pl-3 flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setModalFormularioEmpresaOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black text-slate-950 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-amber-300 hover:to-yellow-300 rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+                      title="Llenar o editar datos de empresa, contacto, RUT y datos bancarios"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-slate-950" />
+                      <span>🏢 Llenar Datos Empresa</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1803,6 +1855,16 @@ export default function App() {
           modoAdmin={modoAdmin}
           onToggleModoAdmin={toggleModoAdmin}
           onAbrirRespaldo={() => setModalRespaldoOpen(true)}
+          onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
+        />
+      )}
+
+      {/* Modal Formulario de Empresa y Contacto (Alta Cliente) */}
+      {modalFormularioEmpresaOpen && (
+        <ModalFormularioEmpresaContacto
+          empresaActiva={empresaActiva}
+          onGuardarEmpresa={handleGuardarEmpresaContacto}
+          onClose={() => setModalFormularioEmpresaOpen(false)}
         />
       )}
 

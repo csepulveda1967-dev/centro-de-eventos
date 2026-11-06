@@ -26,6 +26,7 @@ interface GestionEmpresasModalProps {
   modoAdmin?: boolean;
   onToggleModoAdmin?: () => void;
   onAbrirRespaldo?: () => void;
+  onAbrirFormularioEmpresa?: () => void;
 }
 
 export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
@@ -36,7 +37,8 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   onClose,
   modoAdmin = false,
   onToggleModoAdmin,
-  onAbrirRespaldo
+  onAbrirRespaldo,
+  onAbrirFormularioEmpresa
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
 
@@ -109,30 +111,47 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
         </div>
 
         {/* Tabs de navegación interna */}
-        <div className="flex items-center gap-2 px-6 pt-4 border-b border-slate-100 bg-slate-50/50">
-          <button
-            type="button"
-            onClick={() => setTab('empresas')}
-            className={`pb-3 px-2 text-xs font-bold border-b-2 transition-colors ${
-              tab === 'empresas'
-                ? 'border-amber-600 text-amber-900'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Centros de Eventos Activos ({empresas.length})
-          </button>
+        <div className="flex items-center justify-between px-6 pt-4 border-b border-slate-100 bg-slate-50/50 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTab('empresas')}
+              className={`pb-3 px-2 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                tab === 'empresas'
+                  ? 'border-amber-600 text-amber-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              Centros de Eventos Activos ({empresas.length})
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTab('nueva')}
-            className={`pb-3 px-2 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
-              tab === 'nueva'
-                ? 'border-amber-600 text-amber-900'
-                : 'border-transparent text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            + Registrar Nuevo Cliente
-          </button>
+            <button
+              type="button"
+              onClick={() => setTab('nueva')}
+              className={`pb-3 px-2 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                tab === 'nueva'
+                  ? 'border-amber-600 text-amber-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              + Registro Rápido
+            </button>
+          </div>
+
+          {onAbrirFormularioEmpresa && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onAbrirFormularioEmpresa();
+              }}
+              className="mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-950 bg-amber-100 hover:bg-amber-200 rounded-xl border border-amber-300 transition-colors shadow-2xs cursor-pointer"
+              title="Abrir formulario detallado con RUT, representante, modalidad y datos bancarios"
+            >
+              <Building2 className="w-3.5 h-3.5 text-amber-800" />
+              <span>📝 Ficha Completa & Contratación</span>
+            </button>
+          )}
         </div>
 
         {/* Contenido según Tab */}

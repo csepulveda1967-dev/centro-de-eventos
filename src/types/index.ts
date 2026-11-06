@@ -173,9 +173,12 @@ export interface CotizacionState {
   margenGanancia: number; // ej. 35 para 35%
   aplicaIva: boolean;
   observaciones: string;
-  porcentajeAnticipo?: number; // ej. 40 para 40%
-  esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
-  diasSaldo?: number; // días previos al evento para cancelar el saldo (ej: 7)
+  porcentajeAnticipo?: number; // ej. 0 a 100% a criterio libre del cliente
+  esquemaPago?: 'un_pago' | 'dos_pagos' | 'tres_pagos' | 'cuatro_pagos' | 'corporativo' | 'personalizado' | (string & {});
+  hito2Porcentaje?: number; // % segundo hito en 3 o 4 cuotas
+  hito3Porcentaje?: number; // % tercer hito en 4 cuotas
+  condicionesPagoPersonalizadas?: string; // Glosa contractual y condiciones libres escritas por el cliente
+  diasSaldo?: number; // días previos al evento para cancelar el saldo (ej: 0 el mismo día, 7, 15)
   validezDias?: number; // validez de la cotización en días (ej: 15)
   // Gastos fijos operacionales detallados para emprendedores
   gastoLuzMensual?: number; // Cuenta de luz mensual
@@ -270,6 +273,18 @@ export interface EmpresaCliente {
     titular?: string;
     emailTransferencia?: string;
   };
+  // Datos legales, comerciales y de contacto extendidos para clientes contratantes
+  razonSocialLegal?: string;
+  rutEmpresa?: string;
+  giroComercial?: string;
+  contactoResponsable?: string;
+  cargoResponsable?: string;
+  instagram?: string;
+  modalidadOperacion?: 'domicilio' | 'recinto_fijo' | 'mixto';
+  capacidadMaxPax?: number;
+  porcentajeAnticipoDefault?: number;
+  validezCotizacionDefault?: number;
+  condicionesPagoDefault?: string;
 }
 
 export interface ReservaCalendario {

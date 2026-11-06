@@ -125,9 +125,10 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const porcentajeAnticipo = cotizacion.porcentajeAnticipo ?? 40;
   const esquemaPago = cotizacion.esquemaPago ?? 'dos_pagos';
   const diasSaldo = cotizacion.diasSaldo ?? 7;
-  const pieMonto = Math.round(totalAPagar * (porcentajeAnticipo / 100));
-  const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * 0.30) : 0;
-  const saldoMonto = totalAPagar - pieMonto - hito2Monto;
+  const hito2Porcentaje = cotizacion.hito2Porcentaje ?? 30;
+  const pieMonto = esquemaPago === 'un_pago' ? totalAPagar : Math.round(totalAPagar * (porcentajeAnticipo / 100));
+  const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * (hito2Porcentaje / 100)) : 0;
+  const saldoMonto = esquemaPago === 'un_pago' ? 0 : Math.max(0, totalAPagar - pieMonto - hito2Monto);
   const valorPorInvitado = Math.round(totalAPagar / Math.max(1, cotizacion.invitados));
 
   // Detección de ambientación contratada (NUNCA mostrar sección con $0)
@@ -801,9 +802,16 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
               <div className="text-xs text-slate-500 mt-3 space-y-0.5">
                 <p className="font-semibold text-slate-700">Recinto: {empresaActiva.recintoPrincipal} · {empresaActiva.direccion}, {empresaActiva.ciudad}</p>
-                <p>Contacto comercial: {empresaActiva.email} · Tel/WhatsApp: {empresaActiva.telefono}</p>
-                {empresaActiva.sitioWeb && (
-                  <p>Sitio web: {empresaActiva.sitioWeb} · Región Metropolitana, Chile</p>
+                <p>
+                  {empresaActiva.rutEmpresa && <span className="font-semibold text-slate-800">RUT: {empresaActiva.rutEmpresa} · </span>}
+                  {empresaActiva.contactoResponsable && <span>Resp: <strong>{empresaActiva.contactoResponsable}</strong>{empresaActiva.cargoResponsable ? ` (${empresaActiva.cargoResponsable})` : ''} · </span>}
+                  Contacto comercial: {empresaActiva.email} · Tel/WhatsApp: {empresaActiva.telefono}
+                </p>
+                {(empresaActiva.sitioWeb || empresaActiva.instagram) && (
+                  <p>
+                    {empresaActiva.instagram && <span className="text-pink-700 font-semibold mr-3">IG: {empresaActiva.instagram}</span>}
+                    {empresaActiva.sitioWeb && <span>Sitio web: {empresaActiva.sitioWeb} · Región Metropolitana, Chile</span>}
+                  </p>
                 )}
               </div>
             </div>

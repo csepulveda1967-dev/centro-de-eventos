@@ -39,6 +39,7 @@ interface HeaderProps {
   modoAdmin?: boolean;
   onToggleModoAdmin?: () => void;
   onGuardarCotizacion?: () => void;
+  onAbrirFormularioEmpresa?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -57,7 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirWhatsAppPropuesta,
   modoAdmin = false,
   onToggleModoAdmin,
-  onGuardarCotizacion
+  onGuardarCotizacion,
+  onAbrirFormularioEmpresa
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -119,6 +121,18 @@ export const Header: React.FC<HeaderProps> = ({
                 <ChevronDown className="w-4 h-4 text-emerald-200 pointer-events-none absolute right-1.5" />
               </div>
             </div>
+
+            {onAbrirFormularioEmpresa && (
+              <button
+                type="button"
+                onClick={onAbrirFormularioEmpresa}
+                className="ml-1 px-2 py-1.5 text-[11px] font-extrabold text-emerald-950 bg-emerald-300 hover:bg-emerald-200 active:scale-95 rounded-lg border border-emerald-400 transition-all flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+                title="Llenar o editar datos comerciales, RUT, representante legal y datos bancarios de la empresa"
+              >
+                <span>🏢</span>
+                <span className="hidden sm:inline">Datos Empresa</span>
+              </button>
+            )}
           </div>
 
           {/* Navegación Principal (Tabs) */}

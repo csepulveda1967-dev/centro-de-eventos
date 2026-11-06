@@ -285,18 +285,19 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
               <CreditCard className="w-3.5 h-3.5 text-amber-700" />
               Esquema de Pago al Cliente
             </span>
-            <div className="flex items-center gap-1 text-[11px] text-amber-800 font-semibold">
+            <div className="flex items-center gap-1.5 text-[11px] text-amber-900 font-semibold">
               <span>Anticipo:</span>
-              <select
-                value={pctAnticipo}
-                onChange={(e) => onChangeAnticipo(parseInt(e.target.value, 10))}
-                className="bg-white border border-amber-300 rounded px-1.5 py-0.5 text-xs font-bold text-amber-950 focus:outline-hidden"
-              >
-                <option value={30}>30%</option>
-                <option value={40}>40%</option>
-                <option value={50}>50%</option>
-                <option value={60}>60%</option>
-              </select>
+              <div className="flex items-center gap-0.5">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={pctAnticipo}
+                  onChange={(e) => onChangeAnticipo(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                  className="w-14 bg-white border border-amber-300 rounded px-1.5 py-0.5 text-xs font-black text-center text-amber-950 focus:outline-hidden"
+                />
+                <span className="font-bold text-xs">%</span>
+              </div>
             </div>
           </div>
 
