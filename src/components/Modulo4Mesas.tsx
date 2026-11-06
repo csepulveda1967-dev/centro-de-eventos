@@ -12,7 +12,8 @@ import {
   Check,
   Armchair,
   Sparkles,
-  Users
+  Users,
+  Truck
 } from 'lucide-react';
 
 interface Modulo4MesasProps {
@@ -285,21 +286,48 @@ export const Modulo4Mesas: React.FC<Modulo4MesasProps> = ({
             </div>
           </div>
 
-          {/* Botón 1 Clic para Aplicar la Estimación Sugerida */}
-          <button
-            type="button"
-            onClick={aplicarEstimacionSugerida}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-95 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
-          >
-            <Wand2 className="w-4 h-4" />
-            <span>🪄 Aplicar Estimación Sugerida ({cantidadSugerida} mesas)</span>
-          </button>
+          {/* Botones de acción rápida: Estimación Sugerida o Solo Servicio */}
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={aplicarEstimacionSugerida}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 active:scale-95 rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+            >
+              <Wand2 className="w-4 h-4" />
+              <span>🪄 Aplicar Estimación ({cantidadSugerida} mesas)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onChangeMesas([])}
+              className="inline-flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 active:scale-95 border border-slate-300 rounded-xl shadow-2xs transition-all shrink-0 cursor-pointer"
+              title="Configurar como evento a domicilio o solo servicio sin montaje de mesas"
+            >
+              <Truck className="w-4 h-4 text-amber-600" />
+              <span>🚚 Solo Servicio / A Domicilio</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ESTADO DE BALANCE DE SILLAS */}
       <div className="mb-5">
-        {diferencia < 0 ? (
+        {mesas.length === 0 ? (
+          <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 text-xs text-amber-950">
+              <Truck className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                <strong className="font-bold">Modo Solo Servicio / A Domicilio Activo:</strong> Sin distribución de mesas en salón (no aparecerá en la cotización del cliente si se omite).
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={aplicarEstimacionSugerida}
+              className="text-xs font-bold text-amber-900 underline hover:text-amber-950 shrink-0 cursor-pointer"
+            >
+              + Agregar mesas para salón
+            </button>
+          </div>
+        ) : diferencia < 0 ? (
           /* Alerta: Faltan puestos */
           <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-start gap-2.5">

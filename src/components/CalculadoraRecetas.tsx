@@ -71,6 +71,9 @@ interface CalculadoraRecetasProps {
   // Bebestibles gestionados en el Módulo 1 (Menús); se reciben por compatibilidad
   bebestibles?: MenuItemRatio[];
   onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
+  menuSeleccionadoId?: string;
+  onSelectMenu?: (menuId: string) => void;
+  onIrACotizador?: () => void;
 }
 
 interface InputNumeroCeldaRecetasProps {
@@ -171,7 +174,10 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onUpdateMenu,
   tarifasStaff,
   personal,
-  onChangePersonal
+  onChangePersonal,
+  menuSeleccionadoId,
+  onSelectMenu,
+  onIrACotizador
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
@@ -309,7 +315,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   }, [recetas, categoriasRecetasPersonalizadas]);
 
   // Estado para creación de nuevo menú dentro de la receta
-  const [modoMenuReceta, setModoMenuReceta] = useState<'existente' | 'nuevo'>('existente');
+  const [modoMenuReceta, setModoMenuReceta] = useState<'existente' | 'nuevo' | 'libre'>('existente');
   const [nombreNuevoMenu, setNombreNuevoMenu] = useState('');
   const [categoriaNuevoMenu, setCategoriaNuevoMenu] = useState<'formal' | 'campestre' | 'cocktail' | 'premium'>('formal');
   const [descripcionNuevoMenu, setDescripcionNuevoMenu] = useState('');
@@ -565,6 +571,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     }
 
     const esCoffeeBreak = tiempoFinal === 'coffee-break';
+    const esRecetaLibre = !esCoffeeBreak && (modoMenuReceta === 'libre' || (modoMenuReceta === 'existente' && !nuevoMenuAsociadoId));
     let menuFinalId = nuevoMenuAsociadoId;
 
     // Si el usuario eligió crear un nuevo menú para esta receta
@@ -641,8 +648,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       rendimientoPorciones: 1,
       margenSugerido: 33, // 33% estándar de la industria
       costoAdicionalElaboracion: costoElaboracion,
-      menuAsociadoId: esCoffeeBreak ? undefined : (menuFinalId || undefined),
-      menusAsociadosIds: esCoffeeBreak ? undefined : (menuFinalId ? [menuFinalId] : undefined),
+      menuAsociadoId: (esCoffeeBreak || esRecetaLibre) ? undefined : (menuFinalId || undefined),
+      menusAsociadosIds: (esCoffeeBreak || esRecetaLibre) ? undefined : (menuFinalId ? [menuFinalId] : undefined),
       servicioAsociadoId: esCoffeeBreak ? 'coffee-break-cocteleria' : undefined,
       ingredientes: ingredientesIniciales,
       descripcionProcedimiento: esCoffeeBreak
@@ -681,6 +688,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     if (esCoffeeBreak && onVincularCoffeeBreak) {
       onVincularCoffeeBreak(nueva, calculo.costoPorPorcion, calculo.precioSugeridoVenta);
       notificar(`✓ Costo de ${formatMoneda(calculo.costoPorPorcion)}/pax inyectado directamente en Tarifas Generales`);
+    } else if (esRecetaLibre) {
+      notificar(`✓ Ficha libre creada sin menú asignado: "${nueva.nombre}"`);
     } else if (nuevoMenuCreado) {
       notificar(`✓ ¡Menú "${nuevoMenuCreado.nombre}" creado y vinculado con la ficha "${nueva.nombre}"!`);
     } else {
@@ -826,6 +835,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     if (menuFiltroRecetas === 'todos') return recetas;
     if (menuFiltroRecetas === 'coffee-break') {
       return recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break');
+    }
+    if (menuFiltroRecetas === 'libres') {
+      return recetas.filter(r => (!r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && (r.tiempoMenu || '').toLowerCase() !== 'coffee-break'));
     }
     return recetas.filter(r => recetaPerteneceAMenu(r, menuFiltroRecetas));
   }, [recetas, menuFiltroRecetas, menus]);
@@ -1183,6 +1195,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               <option value="coffee-break">
                 Coffee Break ({recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break').length})
               </option>
+              <option value="libres">
+                🍃 Libres / Sin Menú ({recetas.filter(r => !r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && (r.tiempoMenu || '').toLowerCase() !== 'coffee-break').length})
+              </option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -1324,7 +1339,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                                 className={`mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer ${
                                   menusDeFicha.length > 0
                                     ? 'bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100'
-                                    : 'bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100'
+                                    : 'bg-emerald-50 text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
                                 }`}
                                 title="Agregar esta ficha a los menús que estimes, o crear un menú nuevo con ella"
                               >
@@ -1332,7 +1347,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                                 <span>
                                   {menusDeFicha.length > 0
                                     ? `✓ En ${menusDeFicha.length} ${menusDeFicha.length === 1 ? 'menú' : 'menús'} · Agregar a más`
-                                    : '＋ Agregar a Menú'}
+                                    : '🍃 Libre · Agregar a Menú'}
                                 </span>
                               </button>
                             )}
@@ -2401,18 +2416,39 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         }`}
                       >
                         <Plus className="w-2.5 h-2.5 stroke-[3]" />
-                        + Crear Nuevo Menú
+                        + Crear Menú
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setModoMenuReceta('libre')}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors flex items-center gap-1 ${
+                          modoMenuReceta === 'libre'
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'text-emerald-800 hover:text-emerald-900 font-extrabold'
+                        }`}
+                      >
+                        🍃 Libre
                       </button>
                     </div>
                   </div>
 
-                  {modoMenuReceta === 'existente' ? (
+                  {modoMenuReceta === 'libre' ? (
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-950 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                        <span>🍃 Receta Libre (Sin Menú Asignado)</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800">
+                        Esta ficha técnica se guardará de forma independiente en tu catálogo. Podrás costearla, editar sus insumos y asociarla a uno o varios menús más adelante con 1 clic.
+                      </p>
+                    </div>
+                  ) : modoMenuReceta === 'existente' ? (
                     <div>
                       <select
                         value={nuevoMenuAsociadoId}
                         onChange={(e) => setNuevoMenuAsociadoId(e.target.value)}
                         className="w-full px-2.5 py-2 border border-slate-300 rounded-xl focus:border-amber-500 focus:outline-hidden font-medium bg-white"
                       >
+                        <option value="">— Dejar libre (Sin menú asignado) —</option>
                         {menus.map((m) => (
                           <option key={m.id} value={m.id}>
                             {m.nombre} ({m.categoria})

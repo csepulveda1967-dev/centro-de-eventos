@@ -157,8 +157,6 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
         if (cotizacion.personal.aseo > 0) msg += `• ${cotizacion.personal.aseo} Auxiliares de aseo\n`;
         if (cotizacion.personal.maitre > 0) msg += `• ${cotizacion.personal.maitre} Maître de sala y supervisión\n`;
         msg += `\n`;
-      } else {
-        msg += `👨‍🍳 *BRIGADA DE SERVICIO:* No contratada en esta propuesta\n\n`;
       }
     }
 

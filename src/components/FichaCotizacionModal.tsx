@@ -20,7 +20,11 @@ import {
   Layers,
   Wine,
   GlassWater,
-  Save
+  Save,
+  Sliders,
+  Truck,
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 
 interface FichaCotizacionModalProps {
@@ -134,6 +138,39 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     ((estiloDecoracion.precioVentaSugerido && estiloDecoracion.precioVentaSugerido > 0) ||
       (estiloDecoracion.costoFijo && estiloDecoracion.costoFijo > 0))
   );
+
+  // Detección de brigada de staff contratada (NUNCA mostrar si es 0 personas o no contratado)
+  const totalStaffPersonas =
+    (cotizacion.personal?.garzones || 0) +
+    (cotizacion.personal?.cocineros || 0) +
+    (cotizacion.personal?.aseo || 0) +
+    (cotizacion.personal?.maitre || 0);
+
+  const costoStaffTotal =
+    (cotizacion.personal?.garzones || 0) * (tarifasStaff?.garzonJornada || 0) +
+    (cotizacion.personal?.cocineros || 0) * (tarifasStaff?.cocineroJornada || 0) +
+    (cotizacion.personal?.aseo || 0) * (tarifasStaff?.aseoJornada || 0) +
+    (cotizacion.personal?.maitre || 0) * (tarifasStaff?.maitreJornada || 0);
+
+  const tieneStaffContratado = totalStaffPersonas > 0;
+
+  // Detección inteligente de evento a domicilio / solo servicio (desactiva mesas por defecto)
+  const esEventoDomicilio =
+    (cotizacion.tipoEvento || '').toLowerCase().includes('domicilio') ||
+    (cotizacion.nombreEvento || '').toLowerCase().includes('domicilio') ||
+    (cotizacion.cliente || '').toLowerCase().includes('domicilio') ||
+    (empresaActiva.recintoPrincipal || '').toLowerCase().includes('domicilio') ||
+    (empresaActiva.recintoPrincipal || '').toLowerCase().includes('itinerante') ||
+    (menu?.categoria || '').toLowerCase().includes('domicilio');
+
+  // Estados interactivos para libertad total de eliminar o incluir secciones
+  const [incluirGastronomia, setIncluirGastronomia] = useState(true);
+  const [incluirBebestibles, setIncluirBebestibles] = useState(bebestiblesLista.length > 0);
+  const [incluirStaff, setIncluirStaff] = useState(tieneStaffContratado);
+  const [incluirProveedores, setIncluirProveedores] = useState(proveedoresActivos.length > 0);
+  const [incluirDecoracion, setIncluirDecoracion] = useState(incluyeDecoracion);
+  const [incluirMesas, setIncluirMesas] = useState(cotizacion.mesas.length > 0 && !esEventoDomicilio);
+  const [incluirDesgloseValores, setIncluirDesgloseValores] = useState(true);
 
   // Detección inteligente de si los tiempos del menú son texto genérico de boda
   const esTextoRellenoBoda = (texto?: string) => {
@@ -305,8 +342,13 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   </div>
 
+  ${incluirGastronomia ? `
   <div class="section-title">${htmlSec++}. Propuesta Gastronómica: ${menu.nombre}</div>
   <div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <span class="subtitle">Categoría: ${menu.categoria}</span>
+      <strong style="color: #b45309;">${formatMoneda(menu.precioSugeridoPersona * cotizacion.invitados)} CLP (${formatMoneda(menu.precioSugeridoPersona)} / comensal)</strong>
+    </div>
     <p style="font-style: italic; color: #334155; margin-bottom: 8px;">&ldquo;${(menu.descripcion || '').replace(/"/g, '&quot;')}&rdquo;</p>
     ${tieneItemsPorPersona ? `
       <div style="margin-top: 10px;">
@@ -340,8 +382,9 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
       </div>
     ` : ''}
   </div>
+  ` : ''}
 
-  ${bebestiblesLista.length > 0 ? `
+  ${(incluirBebestibles && bebestiblesLista.length > 0) ? `
     <div class="section-title">${htmlSec++}. Servicio de Bebestibles & Barra por Persona (p.p.)</div>
     <div class="card">
       <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
@@ -370,20 +413,17 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   ` : ''}
 
-  ${(cotizacion.personal.garzones > 0 || cotizacion.personal.cocineros > 0 || cotizacion.personal.aseo > 0 || cotizacion.personal.maitre > 0) ? `
+  ${(incluirStaff && tieneStaffContratado) ? `
   <div class="section-title">${htmlSec++}. Brigada de Operaciones & Personal de Servicio</div>
   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; font-size: 12px;">
-    <div class="card"><strong>Garzones:</strong><br>${cotizacion.personal.garzones > 0 ? `${cotizacion.personal.garzones} profesionales` : 'No contratado'}</div>
-    <div class="card"><strong>Cocineros/Chefs:</strong><br>${cotizacion.personal.cocineros > 0 ? `${cotizacion.personal.cocineros} cocineros` : 'No contratado'}</div>
-    <div class="card"><strong>Aseo/Sanitarios:</strong><br>${cotizacion.personal.aseo > 0 ? `${cotizacion.personal.aseo} personas` : 'No contratado'}</div>
-    <div class="card"><strong>Maître de Sala:</strong><br>${cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} coordinador` : 'No contratado'}</div>
+    ${cotizacion.personal.garzones > 0 ? `<div class="card"><strong>Garzones:</strong><br>${cotizacion.personal.garzones} profesionales (${formatMoneda(tarifasStaff?.garzonJornada || 0)}/jornada)</div>` : ''}
+    ${cotizacion.personal.cocineros > 0 ? `<div class="card"><strong>Cocineros/Chefs:</strong><br>${cotizacion.personal.cocineros} profesionales (${formatMoneda(tarifasStaff?.cocineroJornada || 0)}/jornada)</div>` : ''}
+    ${cotizacion.personal.aseo > 0 ? `<div class="card"><strong>Aseo/Sanitarios:</strong><br>${cotizacion.personal.aseo} auxiliares (${formatMoneda(tarifasStaff?.aseoJornada || 0)}/jornada)</div>` : ''}
+    ${cotizacion.personal.maitre > 0 ? `<div class="card"><strong>Maître de Sala:</strong><br>${cotizacion.personal.maitre} coordinador (${formatMoneda(tarifasStaff?.maitreJornada || 0)}/jornada)</div>` : ''}
   </div>
-  ` : `
-  <div class="section-title">${htmlSec++}. Brigada de Operaciones & Personal de Servicio</div>
-  <div class="card" style="text-align:center; color:#64748b; font-style:italic;">Personal no contratado en esta propuesta</div>
-  `}
+  ` : ''}
 
-  ${proveedoresActivos.length > 0 ? `
+  ${(incluirProveedores && proveedoresActivos.length > 0) ? `
     <div class="section-title">${htmlSec++}. Equipamiento, Técnica & Servicios de Proveedores</div>
     <div class="card">
       ${proveedoresActivos.map(p => {
@@ -398,7 +438,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   ` : ''}
 
-  ${incluyeDecoracion ? `
+  ${(incluirDecoracion && incluyeDecoracion) ? `
     <div class="section-title">${htmlSec++}. Ambientación & Decoración: ${estiloDecoracion?.nombre}</div>
     <div class="card">
       <div style="display: flex; justify-content: space-between;">
@@ -412,11 +452,82 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   ` : ''}
 
+  ${(incluirMesas && cotizacion.mesas.length > 0) ? `
   <div class="section-title">${htmlSec++}. Distribución de Salón & Mesas</div>
   <div class="card">
     <p><strong>Configuración de montaje:</strong> ${cotizacion.mesas.length} mesas distribuidas para la atención cómoda de los ${cotizacion.invitados} comensales (${capacidadTotalMesas} asientos asignados).</p>
     <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Incluye mantelería completa, numeración de mesas y plano de acceso.</p>
   </div>
+  ` : ''}
+
+  ${incluirDesgloseValores ? `
+  <div class="section-title">${htmlSec++}. Desglose Detallado de Valores Finales por Ítem</div>
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <table class="table-custom" style="margin: 0; width: 100%;">
+      <thead>
+        <tr>
+          <th>Ítem / Concepto Contratado</th>
+          <th style="text-align: center;">Provisión / Cantidad</th>
+          <th style="text-align: right;">Tarifa Unitaria</th>
+          <th style="text-align: right;">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${incluirGastronomia ? `
+          <tr>
+            <td><strong>Servicio Gastronómico:</strong> ${menu.nombre}</td>
+            <td style="text-align: center;">${cotizacion.invitados} comensales</td>
+            <td style="text-align: right;">${formatMoneda(menu.precioSugeridoPersona)}/pax</td>
+            <td style="text-align: right;"><strong>${formatMoneda(menu.precioSugeridoPersona * cotizacion.invitados)} CLP</strong></td>
+          </tr>
+        ` : ''}
+        ${(incluirStaff && tieneStaffContratado) ? `
+          <tr>
+            <td><strong>Brigada de Personal & Servicio:</strong> ${totalStaffPersonas} profesionales</td>
+            <td style="text-align: center;">Turno completo</td>
+            <td style="text-align: right;">Turno evento</td>
+            <td style="text-align: right;"><strong>${formatMoneda(costoStaffTotal)} CLP</strong></td>
+          </tr>
+        ` : ''}
+        ${(incluirProveedores && proveedoresActivos.length > 0) ? proveedoresActivos.map(p => {
+          const val = p.tipoCobro === 'por_persona' ? p.precioVentaSugerido * cotizacion.invitados : p.precioVentaSugerido;
+          return `
+            <tr>
+              <td><strong>${p.nombre}</strong> (${p.categoria})</td>
+              <td style="text-align: center;">${p.tipoCobro === 'por_persona' ? `${cotizacion.invitados} pax` : 'Tarifa fija'}</td>
+              <td style="text-align: right;">${p.tipoCobro === 'por_persona' ? `${formatMoneda(p.precioVentaSugerido)}/pax` : 'Tarifa fija'}</td>
+              <td style="text-align: right;"><strong>${formatMoneda(val)} CLP</strong></td>
+            </tr>
+          `;
+        }).join('') : ''}
+        ${(incluirDecoracion && incluyeDecoracion) ? `
+          <tr>
+            <td><strong>Ambientación & Decoración:</strong> ${estiloDecoracion?.nombre}</td>
+            <td style="text-align: center;">Diseño integral</td>
+            <td style="text-align: right;">Global</td>
+            <td style="text-align: right;"><strong>${formatMoneda(estiloDecoracion?.precioVentaSugerido || 0)} CLP</strong></td>
+          </tr>
+        ` : ''}
+      </tbody>
+      <tfoot>
+        <tr style="background: #f8fafc; font-weight: bold;">
+          <td colspan="3" style="text-align: right; padding: 8px;">Subtotal Neto Servicios:</td>
+          <td style="text-align: right; padding: 8px; font-weight: 800;">${formatMoneda(precioVentaNeto)} CLP</td>
+        </tr>
+        ${cotizacion.aplicaIva ? `
+          <tr style="background: #f8fafc; font-weight: bold;">
+            <td colspan="3" style="text-align: right; padding: 8px;">IVA (19%):</td>
+            <td style="text-align: right; padding: 8px; font-weight: 800;">+${formatMoneda(ivaMonto)} CLP</td>
+          </tr>
+        ` : ''}
+        <tr style="background: #fef3c7; font-weight: 900; font-size: 13px;">
+          <td colspan="3" style="text-align: right; padding: 8px; color: #78350f;">TOTAL GENERAL PROPUESTA:</td>
+          <td style="text-align: right; padding: 8px; color: #78350f;">${formatMoneda(totalAPagar)} CLP</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  ` : ''}
 
   <div class="total-box">
     <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
@@ -543,6 +654,131 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
           </div>
         </div>
 
+        {/* Barra de Personalización de Secciones Visibles (No se imprime) */}
+        <div className="no-print px-4 py-2.5 bg-slate-900 border-b border-slate-800 text-xs text-slate-300 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-white flex items-center gap-1.5 shrink-0">
+              <Sliders className="w-3.5 h-3.5 text-amber-400" />
+              Secciones en Cotización:
+            </span>
+            <div className="flex flex-wrap items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setIncluirGastronomia(!incluirGastronomia)}
+                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                  incluirGastronomia ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                }`}
+              >
+                {incluirGastronomia ? '✓ Gastronomía' : '✕ Gastronomía'}
+              </button>
+
+              {bebestiblesLista.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIncluirBebestibles(!incluirBebestibles)}
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                    incluirBebestibles ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                  }`}
+                >
+                  {incluirBebestibles ? `✓ Bebestibles (${bebestiblesLista.length})` : '✕ Bebestibles'}
+                </button>
+              )}
+
+              {tieneStaffContratado && (
+                <button
+                  type="button"
+                  onClick={() => setIncluirStaff(!incluirStaff)}
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                    incluirStaff ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                  }`}
+                >
+                  {incluirStaff ? `✓ Staff (${totalStaffPersonas})` : '✕ Staff'}
+                </button>
+              )}
+
+              {proveedoresActivos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIncluirProveedores(!incluirProveedores)}
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                    incluirProveedores ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                  }`}
+                >
+                  {incluirProveedores ? `✓ Proveedores (${proveedoresActivos.length})` : '✕ Proveedores'}
+                </button>
+              )}
+
+              {incluyeDecoracion && (
+                <button
+                  type="button"
+                  onClick={() => setIncluirDecoracion(!incluirDecoracion)}
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                    incluirDecoracion ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                  }`}
+                >
+                  {incluirDecoracion ? '✓ Decoración' : '✕ Decoración'}
+                </button>
+              )}
+
+              {cotizacion.mesas.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIncluirMesas(!incluirMesas)}
+                  className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                    incluirMesas ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                  }`}
+                  title={incluirMesas ? 'Clic para omitir mesas' : 'Clic para incluir mesas'}
+                >
+                  {incluirMesas ? '✓ Distribución Mesas' : '✕ Mesas Omitidas'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIncluirDesgloseValores(!incluirDesgloseValores)}
+                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors cursor-pointer ${
+                  incluirDesgloseValores ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-slate-800 text-slate-500 line-through'
+                }`}
+              >
+                {incluirDesgloseValores ? '✓ Detalle Valores' : '✕ Detalle Valores'}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIncluirMesas(false);
+                if (!tieneStaffContratado) setIncluirStaff(false);
+              }}
+              className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              title="Ajustar automáticamente para servicio a domicilio: oculta mesas y servicios no requeridos"
+            >
+              <Truck className="w-3.5 h-3.5 text-amber-400" />
+              <span>🚚 Modo Solo Servicio / A Domicilio</span>
+            </button>
+            {(!incluirMesas || !incluirStaff) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIncluirGastronomia(true);
+                  setIncluirBebestibles(bebestiblesLista.length > 0);
+                  setIncluirStaff(tieneStaffContratado);
+                  setIncluirProveedores(proveedoresActivos.length > 0);
+                  setIncluirDecoracion(incluyeDecoracion);
+                  setIncluirMesas(cotizacion.mesas.length > 0);
+                  setIncluirDesgloseValores(true);
+                }}
+                className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+                title="Restablecer todas las secciones estándar"
+              >
+                Restablecer todas
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* CONTENIDO IMPRIMIBLE DE LA FICHA - Contenedor scrollable independiente */}
         <div className="p-6 sm:p-10 space-y-7 bg-white text-slate-900 flex-1 overflow-y-auto" id="seccion-cotizacion-imprimible">
           
@@ -620,94 +856,116 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
           </div>
 
           {/* 1. Detalle del Menú Gastronómico (Adaptado 100% al Evento) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Utensils className="w-4 h-4 text-amber-600" />
-                <span>{getNextNum()}. Propuesta Gastronómica: {menu.nombre}</span>
-              </h3>
-              <span className="text-xs font-bold text-amber-900 tabular-nums">
-                {formatMoneda(menu.precioSugeridoPersona * cotizacion.invitados)}
-              </span>
-            </div>
-
-            <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-4 text-xs space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-slate-800 font-medium italic">
-                  &ldquo;{menu.descripcion}&rdquo;
-                </p>
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md uppercase tracking-wider">
-                  Categoría: {menu.categoria}
-                </span>
+          {incluirGastronomia && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-amber-600" />
+                  <span>{getNextNum()}. Propuesta Gastronómica: {menu.nombre}</span>
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-amber-900 tabular-nums">
+                    {formatMoneda(menu.precioSugeridoPersona * cotizacion.invitados)} CLP ({formatMoneda(menu.precioSugeridoPersona)}/pax)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirGastronomia(false)}
+                    className="no-print text-[10px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Omitir propuesta gastronómica de la cotización"
+                  >
+                    ✕ Omitir
+                  </button>
+                </div>
               </div>
 
-              {/* Si el menú tiene Ratios / Ítems por Persona (ej: Sándwiches, Bebidas), mostrar desglose de compra exacto */}
-              {tieneItemsPorPersona && (
-                <div className="pt-2 border-t border-amber-200/60 space-y-2">
-                  <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">
-                    Consumos Exactos por Comensal (Para los {cotizacion.invitados} comensales):
+              <div className="bg-amber-50/40 border border-amber-200/60 rounded-xl p-4 text-xs space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-slate-800 font-medium italic">
+                    &ldquo;{menu.descripcion}&rdquo;
+                  </p>
+                  <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded-md uppercase tracking-wider">
+                    Categoría: {menu.categoria}
                   </span>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border border-amber-200 rounded-lg overflow-hidden bg-white">
-                      <thead className="bg-amber-100/70 text-amber-950 font-bold text-[11px]">
-                        <tr>
-                          <th className="py-2 px-3">Ítem / Preparación</th>
-                          <th className="py-2 px-3 text-center">Consumo p.p.</th>
-                          <th className="py-2 px-3 text-right">Total a Preparar / Servir</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-amber-100">
-                        {menu.itemsPorPersona?.map(it => {
-                          const total = it.cantidadPorPersona * cotizacion.invitados;
-                          return (
-                            <tr key={it.id} className="hover:bg-amber-50/30">
-                              <td className="py-2 px-3 font-semibold text-slate-900">
-                                {it.nombre}
-                              </td>
-                              <td className="py-2 px-3 text-center text-slate-600">
-                                <span className="px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-800 text-[11px]">
-                                  {it.cantidadPorPersona} {it.unidad} p.p.
-                                </span>
-                              </td>
-                              <td className="py-2 px-3 text-right font-black text-amber-950 tabular-nums">
-                                {total} {pluralizarUnidad(String(it.unidad || ''), total)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
                 </div>
-              )}
 
-              {/* Tiempos de banquete reales (únicamente si existen y no son texto relleno) */}
-              {tiemposReales.length > 0 && (
-                <div className="pt-2 border-t border-amber-200/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {tiemposReales.map(t => (
-                      <div key={t.etiqueta}>
-                        <span className="font-bold text-slate-800">{t.etiqueta}:</span>
-                        <p className="text-slate-600 mt-0.5">{t.valor}</p>
-                      </div>
-                    ))}
+                {/* Si el menú tiene Ratios / Ítems por Persona (ej: Sándwiches, Bebidas), mostrar desglose de compra exacto */}
+                {tieneItemsPorPersona && (
+                  <div className="pt-2 border-t border-amber-200/60 space-y-2">
+                    <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">
+                      Consumos Exactos por Comensal (Para los {cotizacion.invitados} comensales):
+                    </span>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border border-amber-200 rounded-lg overflow-hidden bg-white">
+                        <thead className="bg-amber-100/70 text-amber-950 font-bold text-[11px]">
+                          <tr>
+                            <th className="py-2 px-3">Ítem / Preparación</th>
+                            <th className="py-2 px-3 text-center">Consumo p.p.</th>
+                            <th className="py-2 px-3 text-right">Total a Preparar / Servir</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-amber-100">
+                          {menu.itemsPorPersona?.map(it => {
+                            const total = it.cantidadPorPersona * cotizacion.invitados;
+                            return (
+                              <tr key={it.id} className="hover:bg-amber-50/30">
+                                <td className="py-2 px-3 font-semibold text-slate-900">
+                                  {it.nombre}
+                                </td>
+                                <td className="py-2 px-3 text-center text-slate-600">
+                                  <span className="px-2 py-0.5 rounded-md bg-slate-100 font-bold text-slate-800 text-[11px]">
+                                    {it.cantidadPorPersona} {it.unidad} p.p.
+                                  </span>
+                                </td>
+                                <td className="py-2 px-3 text-right font-black text-amber-950 tabular-nums">
+                                  {total} {pluralizarUnidad(String(it.unidad || ''), total)}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Tiempos de banquete reales (únicamente si existen y no son texto relleno) */}
+                {tiemposReales.length > 0 && (
+                  <div className="pt-2 border-t border-amber-200/60">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {tiemposReales.map(t => (
+                        <div key={t.etiqueta}>
+                          <span className="font-bold text-slate-800">{t.etiqueta}:</span>
+                          <p className="text-slate-600 mt-0.5">{t.valor}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 1.5. Servicio de Bebestibles & Barra por Persona (p.p.) */}
-          {bebestiblesLista.length > 0 && (
+          {incluirBebestibles && bebestiblesLista.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Wine className="w-4 h-4 text-purple-600" />
                   <span>{getNextNum()}. Servicio de Bebestibles & Barra por Persona (p.p.)</span>
                 </h3>
-                <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
-                  {bebestiblesLista.length} ítems considerados
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-purple-900 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                    {bebestiblesLista.length} ítems considerados
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirBebestibles(false)}
+                    className="no-print text-[10px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Omitir servicio de bebestibles"
+                  >
+                    ✕ Omitir
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 rounded-xl bg-purple-50/40 border border-purple-200/80 space-y-3">
@@ -747,48 +1005,78 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
             </div>
           )}
 
-          {/* 2. Personal & Brigada de Servicio Incluida */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-600" />
-                <span>{getNextNum()}. Staff de Operaciones & Brigada de Salón</span>
-              </h3>
-              <span className="text-xs font-bold text-slate-500">
-                Incluido en la tarifa base
-              </span>
-            </div>
+          {/* 2. Personal & Brigada de Servicio Incluida (SOLO si fue contratado) */}
+          {incluirStaff && tieneStaffContratado && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-indigo-600" />
+                  <span>{getNextNum()}. Staff de Operaciones & Brigada de Salón</span>
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
+                    {totalStaffPersonas} profesionales en turno
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirStaff(false)}
+                    className="no-print text-[10px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Omitir staff de la cotización"
+                  >
+                    ✕ Omitir
+                  </button>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500 block">Garzones de Salón:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.garzones > 0 ? `${cotizacion.personal.garzones} persona(s)` : 'No contratado'}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500 block">Chefs & Cocineros:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.cocineros > 0 ? `${cotizacion.personal.cocineros} persona(s)` : 'No contratado'}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500 block">Aseo y Sanitarios:</span>
-                <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.aseo > 0 ? `${cotizacion.personal.aseo} persona(s)` : 'No contratado'}</span>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <span className="text-slate-500 block">Maître de Sala:</span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} persona(s)` : 'No contratado'}
-                </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                {cotizacion.personal.garzones > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-slate-500 block">Garzones de Salón:</span>
+                    <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.garzones} persona(s)</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{formatMoneda(tarifasStaff?.garzonJornada || 0)} / jornada</span>
+                  </div>
+                )}
+                {cotizacion.personal.cocineros > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-slate-500 block">Chefs & Cocineros:</span>
+                    <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.cocineros} persona(s)</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{formatMoneda(tarifasStaff?.cocineroJornada || 0)} / jornada</span>
+                  </div>
+                )}
+                {cotizacion.personal.aseo > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-slate-500 block">Aseo y Sanitarios:</span>
+                    <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.aseo} persona(s)</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{formatMoneda(tarifasStaff?.aseoJornada || 0)} / jornada</span>
+                  </div>
+                )}
+                {cotizacion.personal.maitre > 0 && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-slate-500 block">Maître de Sala:</span>
+                    <span className="font-bold text-slate-900 text-sm">{cotizacion.personal.maitre} persona(s)</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{formatMoneda(tarifasStaff?.maitreJornada || 0)} / jornada</span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
+          )}
 
           {/* 3. Servicios & Proveedores Contratados (Solo si hay contrataciones reales) */}
-          {proveedoresActivos.length > 0 && (
+          {incluirProveedores && proveedoresActivos.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                   <Layers className="w-4 h-4 text-emerald-600" />
                   <span>{getNextNum()}. Equipamiento, Técnica & Servicios de Proveedores</span>
                 </h3>
+                <button
+                  type="button"
+                  onClick={() => setIncluirProveedores(false)}
+                  className="no-print text-[10px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                  title="Omitir proveedores de la cotización"
+                >
+                  ✕ Omitir
+                </button>
               </div>
 
               <div className="divide-y divide-slate-100 text-xs bg-slate-50/60 p-3 rounded-xl border border-slate-200">
@@ -812,15 +1100,25 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
           )}
 
           {/* 4. Ambientación & Decoración: Solo se muestra si está contratada y no es $0 */}
-          {incluyeDecoracion && estiloDecoracion && (
+          {incluirDecoracion && incluyeDecoracion && estiloDecoracion && (
             <div className="space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                   {getNextNum()}. Concepto de Ambientación: {estiloDecoracion.nombre}
                 </h3>
-                <span className="text-xs font-bold text-rose-900 tabular-nums">
-                  {formatMoneda(estiloDecoracion.precioVentaSugerido)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-rose-900 tabular-nums">
+                    {formatMoneda(estiloDecoracion.precioVentaSugerido)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirDecoracion(false)}
+                    className="no-print text-[10px] text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                    title="Omitir decoración de la cotización"
+                  >
+                    ✕ Omitir
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-1.5 border border-slate-200">
@@ -837,20 +1135,170 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
             </div>
           )}
 
-          {/* 5. Esquema de Mesas y Montaje */}
-          {cotizacion.mesas.length > 0 && (
+          {/* 5. Esquema de Mesas y Montaje (Libertad total de omitir en evento a domicilio o solo servicio) */}
+          {incluirMesas && cotizacion.mesas.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                 <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
                   {getNextNum()}. Distribución de Salón & Mesas
                 </h3>
-                <span className="text-xs font-bold text-emerald-800">
-                  {cotizacion.mesas.length} mesas ({capacidadTotalMesas} puestos para {cotizacion.invitados} comensales)
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-800">
+                    {cotizacion.mesas.length} mesas ({capacidadTotalMesas} puestos para {cotizacion.invitados} comensales)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirMesas(false)}
+                    className="no-print text-[11px] text-rose-700 hover:text-rose-900 font-bold bg-rose-50 hover:bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                    title="Eliminar esta sección si el evento es a domicilio o solo servicio"
+                  >
+                    <Trash2 className="w-3 h-3 text-rose-600" />
+                    <span>Eliminar (Solo Servicio / A Domicilio)</span>
+                  </button>
+                </div>
               </div>
               <p className="text-xs text-slate-500">
                 Montaje y distribución coordinada para {cotizacion.invitados} comensales. El salón incluye mantelería completa, numeración de mesas y plano de distribución para la recepción.
               </p>
+            </div>
+          )}
+
+          {/* 6. Desglose Detallado de Valores Finales por Ítem */}
+          {incluirDesgloseValores && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-amber-600" />
+                  <span>{getNextNum()}. Desglose Detallado de Valores Finales por Ítem</span>
+                </h3>
+                <span className="text-xs font-bold text-slate-500">
+                  Transparencia Total de Presupuesto
+                </span>
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Ítem / Concepto Contratado</th>
+                      <th className="py-2.5 px-3 text-center">Provisión / Cantidad</th>
+                      <th className="py-2.5 px-3 text-right">Tarifa Unitaria</th>
+                      <th className="py-2.5 px-3 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {incluirGastronomia && (
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-3">
+                          <span className="font-bold text-slate-900 block">Servicio Gastronómico: {menu.nombre}</span>
+                          <span className="text-[10px] text-slate-400">Categoría: {menu.categoria}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-600 font-medium">
+                          {cotizacion.invitados} comensales
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
+                          {formatMoneda(menu.precioSugeridoPersona)} / pax
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                          {formatMoneda(menu.precioSugeridoPersona * cotizacion.invitados)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {incluirStaff && tieneStaffContratado && (
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-3">
+                          <span className="font-bold text-slate-900 block">Brigada de Personal & Servicio</span>
+                          <span className="text-[10px] text-slate-400">
+                            {[
+                              cotizacion.personal.garzones > 0 ? `${cotizacion.personal.garzones} garzones` : null,
+                              cotizacion.personal.cocineros > 0 ? `${cotizacion.personal.cocineros} cocineros` : null,
+                              cotizacion.personal.aseo > 0 ? `${cotizacion.personal.aseo} aseo` : null,
+                              cotizacion.personal.maitre > 0 ? `${cotizacion.personal.maitre} maître` : null
+                            ].filter(Boolean).join(' · ')}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-600 font-medium">
+                          {totalStaffPersonas} profesionales
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
+                          Turno completo
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                          {formatMoneda(costoStaffTotal)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {incluirProveedores && proveedoresActivos.map((p) => {
+                      const val = p.tipoCobro === 'por_persona' ? p.precioVentaSugerido * cotizacion.invitados : p.precioVentaSugerido;
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/50">
+                          <td className="py-2.5 px-3">
+                            <span className="font-bold text-slate-900 block">{p.nombre}</span>
+                            <span className="text-[10px] text-slate-400">{p.descripcion}</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-600 font-medium">
+                            {p.tipoCobro === 'por_persona' ? `${cotizacion.invitados} pax` : 'Tarifa fija evento'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
+                            {p.tipoCobro === 'por_persona' ? `${formatMoneda(p.precioVentaSugerido)}/pax` : 'Tarifa única'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                            {formatMoneda(val)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {incluirDecoracion && incluyeDecoracion && estiloDecoracion && (
+                      <tr className="hover:bg-slate-50/50">
+                        <td className="py-2.5 px-3">
+                          <span className="font-bold text-slate-900 block">Ambientación: {estiloDecoracion.nombre}</span>
+                          <span className="text-[10px] text-slate-400">{estiloDecoracion.descripcion}</span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center text-slate-600 font-medium">
+                          Diseño integral
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-600 tabular-nums">
+                          Global
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                          {formatMoneda(estiloDecoracion.precioVentaSugerido)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <tfoot className="bg-slate-50 font-bold border-t border-slate-200 text-xs">
+                    <tr>
+                      <td colSpan={3} className="py-2 px-3 text-slate-700 text-right">
+                        Subtotal Neto Servicios:
+                      </td>
+                      <td className="py-2 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                        {formatMoneda(precioVentaNeto)} CLP
+                      </td>
+                    </tr>
+                    {cotizacion.aplicaIva && (
+                      <tr>
+                        <td colSpan={3} className="py-2 px-3 text-slate-700 text-right">
+                          Impuesto al Valor Agregado (IVA 19%):
+                        </td>
+                        <td className="py-2 px-3 text-right font-extrabold text-slate-900 tabular-nums">
+                          +{formatMoneda(ivaMonto)} CLP
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="bg-amber-100/70 text-amber-950 font-black">
+                      <td colSpan={3} className="py-2.5 px-3 text-right uppercase tracking-wider text-xs">
+                        Total Final de la Propuesta:
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-sm font-black text-amber-900">
+                        {formatMoneda(totalAPagar)} CLP
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           )}
 

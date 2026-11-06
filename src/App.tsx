@@ -1753,6 +1753,12 @@ export default function App() {
           }}
           modoAdmin={modoAdmin}
           onGuardarCotizacion={handleGuardarCotizacionActual}
+          recetas={recetas}
+          insumos={insumos}
+          onUpdateEmpresaActiva={(emp) => {
+            setEmpresaActiva(emp);
+            setEmpresas(prev => prev.map(e => e.id === emp.id ? emp : e));
+          }}
         />
       )}
 
@@ -1768,6 +1774,8 @@ export default function App() {
           precioVentaTotal={resumenFinanciero.precioCobradoFinal}
           empresaActiva={empresaActiva}
           onClose={() => setModalWhatsAppOpen(false)}
+          recetas={recetas}
+          insumos={insumos}
         />
       )}
 
