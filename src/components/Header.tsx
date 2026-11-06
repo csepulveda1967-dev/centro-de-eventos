@@ -92,30 +92,31 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════
-              SELECTOR ELEGANTE: PERFIL DE OPERACIÓN / CLIENTE
+              SELECTOR: PERFIL DE OPERACIÓN / CLIENTE (FONDO VERDE, TEXTO BLANCO LEGIBLE)
           ══════════════════════════════════════════════════════════════════ */}
-          <div className="flex items-center gap-2 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-3 py-1.5 rounded-xl border border-indigo-400/30 shadow-xs shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-400/30">
-              <Building2 className="w-3.5 h-3.5 text-amber-400" />
+          <div className="flex items-center gap-2.5 bg-emerald-900 text-white px-3 py-1.5 rounded-xl border border-emerald-600 shadow-xs shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-emerald-800 text-white flex items-center justify-center shrink-0 border border-emerald-600">
+              <Building2 className="w-3.5 h-3.5 text-emerald-200" />
             </div>
             <div className="flex flex-col text-left">
-              <label htmlFor="selector-perfil-cliente" className="text-[9px] font-bold text-amber-300 tracking-wider uppercase flex items-center gap-1 leading-tight">
+              <label htmlFor="selector-perfil-cliente" className="text-[9.5px] font-extrabold text-emerald-200 tracking-wider uppercase flex items-center gap-1.5 leading-tight">
                 <span>Perfil de Operación / Cliente</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Aislamiento activo en localStorage" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Aislamiento activo en localStorage" />
               </label>
-              <div className="relative flex items-center">
+              <div className="relative flex items-center mt-0.5">
                 <select
                   id="selector-perfil-cliente"
                   value={clienteActivoId}
                   onChange={(e) => onCambiarCliente(e.target.value as PerfilClienteId)}
-                  className="bg-transparent text-white text-xs font-bold focus:outline-hidden cursor-pointer pr-5 py-0.5 appearance-none [&>option]:text-slate-900 [&>option]:bg-white"
+                  style={{ backgroundColor: '#064e3b', color: '#ffffff' }}
+                  className="bg-emerald-900 hover:bg-emerald-800 text-white text-xs font-bold focus:outline-hidden cursor-pointer pl-2 pr-7 py-1 rounded-lg border border-emerald-600/80 appearance-none transition-colors shadow-2xs"
                   title="Cambiar perfil y propuesta aislada en localStorage"
                 >
-                  <option value="modelo-base">Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
-                  <option value="dominga-eventos">Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
-                  <option value="damaris-eventos">Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
+                  <option value="modelo-base" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
+                  <option value="dominga-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
+                  <option value="damaris-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-indigo-300 pointer-events-none absolute right-0" />
+                <ChevronDown className="w-4 h-4 text-emerald-200 pointer-events-none absolute right-1.5" />
               </div>
             </div>
           </div>
