@@ -801,6 +801,38 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
     // onUpdateReceta dispara la sincronización automática del costo de TODOS los menús afectados
     onUpdateReceta(recetaActualizada);
+
+    // Incorporar automáticamente la ficha a los ítems por persona (p.p.) de cada menú asociado
+    if (onUpdateMenu && idsFinales.length > 0) {
+      const calcFicha = calcularCostoReceta(fichaParaMenus, insumos);
+      idsFinales.forEach(mId => {
+        const targetMenu = menus.find(m => m.id === mId);
+        if (!targetMenu) return;
+        const items = targetMenu.itemsPorPersona ? [...targetMenu.itemsPorPersona] : [];
+        const yaExiste = items.some(it => it.recetaId === fichaParaMenus.id || it.nombre.toLowerCase().trim() === fichaParaMenus.nombre.toLowerCase().trim());
+        if (!yaExiste) {
+          items.push({
+            id: 'ratio-rec-' + fichaParaMenus.id + '-' + Date.now(),
+            nombre: fichaParaMenus.nombre,
+            cantidadPorPersona: 1,
+            unidad: 'porción',
+            costoUnitario: calcFicha.costoPorPorcion,
+            recetaId: fichaParaMenus.id,
+            recetaNombre: fichaParaMenus.nombre,
+            categoria: (fichaParaMenus.tiempoMenu || '').toLowerCase() === 'cocteleria' ? 'bebestible' : 'comida',
+            tipoOrigen: 'receta'
+          });
+          const nuevoCosto = targetMenu.costoPersona + calcFicha.costoPorPorcion;
+          onUpdateMenu({
+            ...targetMenu,
+            itemsPorPersona: items,
+            costoPersona: nuevoCosto,
+            precioSugeridoPersona: Math.round(nuevoCosto / 0.33)
+          });
+        }
+      });
+    }
+
     setModalAgregarMenuOpen(false);
     setFichaParaMenus(null);
 

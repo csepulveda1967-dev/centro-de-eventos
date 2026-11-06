@@ -84,6 +84,35 @@ export function construirMinutaConFichas(
     }
   }
 
+  // Fichas con categorías o tiempos personalizados (ej: 'CAFE - TE - AGUA HIERBAS', 'Cafetería', etc.)
+  const fichasPersonalizadas = fichasDelMenu.filter(r => {
+    const t = (r.tiempoMenu || '').toLowerCase().trim();
+    if (t === 'cocteleria') return false; // ya procesado en coctel
+    const destino = TIEMPO_A_CAMPO[t] || t;
+    return !ORDEN_TIEMPOS_MENU.includes(destino as any);
+  });
+
+  if (fichasPersonalizadas.length > 0) {
+    const gruposPers = new Map<string, RecetaFichaTecnica[]>();
+    fichasPersonalizadas.forEach(r => {
+      const etiqueta = r.tiempoMenu || r.categoria || 'Estación Adicional';
+      const lista = gruposPers.get(etiqueta) || [];
+      lista.push(r);
+      gruposPers.set(etiqueta, lista);
+    });
+
+    gruposPers.forEach((fichasGrupo, etiqueta) => {
+      resultado.push({
+        tiempoId: 'custom-' + etiqueta.toLowerCase().replace(/\s+/g, '_'),
+        tiempoLabel: etiqueta,
+        textoManual: '',
+        fichas: fichasGrupo,
+        tieneContenido: fichasGrupo.length > 0,
+        ocultoManual: false
+      });
+    });
+  }
+
   return resultado;
 }
 

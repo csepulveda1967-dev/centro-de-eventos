@@ -1418,6 +1418,7 @@ export default function App() {
                     costoFijoPorPersona={resumenFinanciero.costoFijoPorPersona}
                     recetas={recetas}
                     insumos={insumos}
+                    onUpdateReceta={handleUpdateReceta}
                     bebestibles={cotizacion.bebestibles}
                     onUpdateBebestibles={handleUpdateBebestibles}
                   />
