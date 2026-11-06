@@ -1652,9 +1652,6 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
-            menuSeleccionadoId={cotizacion.menuId}
-            onSelectMenu={handleSelectMenu}
-            onIrACotizador={() => setVistaActual('cotizador')}
           />
         )}
 
