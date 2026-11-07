@@ -1647,7 +1647,7 @@ export default function App() {
                 onChangeMetodoPago={handleChangeMetodoPago}
                 detalleMetodoPago={cotizacion.detalleMetodoPago ?? ''}
                 onChangeDetalleMetodoPago={handleChangeDetalleMetodoPago}
-                mostrarCondicionesPago={cotizacion.mostrarCondicionesPago ?? false}
+                mostrarCondicionesPago={cotizacion.mostrarCondicionesPago ?? ((cotizacion.condicionesPagoPersonalizadas ?? '').trim().length > 0)}
                 onToggleMostrarCondiciones={handleToggleMostrarCondiciones}
                 modoCondicionesPago={cotizacion.modoCondicionesPago ?? 'manual'}
                 onChangeModoCondiciones={handleChangeModoCondiciones}

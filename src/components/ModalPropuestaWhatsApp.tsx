@@ -36,7 +36,9 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const [incluirTiemposMenu, setIncluirTiemposMenu] = useState(true);
   const [incluirProveedores, setIncluirProveedores] = useState(true);
   const [incluirStaff, setIncluirStaff] = useState(true);
-  const [incluirCondiciones, setIncluirCondiciones] = useState(cotizacion.mostrarCondicionesPago ?? false);
+  const [incluirCondiciones, setIncluirCondiciones] = useState(
+    cotizacion.mostrarCondicionesPago ?? ((cotizacion.condicionesPagoPersonalizadas || '').trim().length > 0)
+  );
   const [incluirDatosBanco, setIncluirDatosBanco] = useState(true);
   
   // Destinatario: cliente (+56 9 ...), Dominga Eventos (+56 9 3118 1304) o personalizado
@@ -56,7 +58,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const metodoPago = cotizacion.metodoPago ?? 'transferencia';
   const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
   const condicionesPagoTexto = (cotizacion.condicionesPagoPersonalizadas || '').trim();
-  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? false;
+  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? (condicionesPagoTexto.length > 0);
   const modoCondicionesPago = cotizacion.modoCondicionesPago ?? 'manual';
   const puedeIncluirCondiciones = modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0;
   const metodoPagoLabel: Record<string, string> = {

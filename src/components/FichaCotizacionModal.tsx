@@ -131,7 +131,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const metodoPago = cotizacion.metodoPago ?? 'transferencia';
   const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
   const condicionesPagoTexto = (cotizacion.condicionesPagoPersonalizadas || '').trim();
-  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? false;
+  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? (condicionesPagoTexto.length > 0);
   const modoCondicionesPago = cotizacion.modoCondicionesPago ?? 'manual';
   const hayCondicionesPago = mostrarCondicionesPago && (modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0);
   const metodoPagoLabel: Record<string, string> = {
@@ -193,6 +193,9 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const [incluirDecoracion, setIncluirDecoracion] = useState(incluyeDecoracion);
   const [incluirMesas, setIncluirMesas] = useState(cotizacion.mesas.length > 0 && !esEventoDomicilio);
   const [incluirDesgloseValores, setIncluirDesgloseValores] = useState(true);
+  // Permite incluir u omitir las condiciones de pago solo en esta ficha/PDF
+  const [incluirCondicionesFicha, setIncluirCondicionesFicha] = useState(hayCondicionesPago);
+  const mostrarCondicionesFicha = incluirCondicionesFicha && hayCondicionesPago;
 
   // Detección inteligente de si los tiempos del menú son texto genérico de boda
   const esTextoRellenoBoda = (texto?: string) => {
@@ -584,7 +587,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   </div>
 
-  ${hayCondicionesPago ? `
+  ${mostrarCondicionesFicha ? `
   <div style="margin-top: 30px; font-size: 11px; color: #64748b; line-height: 1.6;">
     <h4 style="color: #0f172a; text-transform: uppercase; font-size: 12px; margin-bottom: 4px;">Condiciones Comerciales y de Pago:</h4>
     ${modoCondicionesPago === 'manual' ? condicionesHtmlManual : `
@@ -790,6 +793,26 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
               >
                 {incluirDesgloseValores ? '✓ Detalle Valores' : '✕ Detalle Valores'}
               </button>
+
+              <button
+                type="button"
+                onClick={() => setIncluirCondicionesFicha(!incluirCondicionesFicha)}
+                disabled={!hayCondicionesPago}
+                title={
+                  hayCondicionesPago
+                    ? (incluirCondicionesFicha ? 'Clic para ocultar las condiciones de pago de esta ficha' : 'Clic para mostrar las condiciones de pago en esta ficha')
+                    : 'No hay condiciones para mostrar: actívalas o escríbelas en Adm. Costos → Condiciones de Pago'
+                }
+                className={`px-2 py-0.5 rounded-md font-semibold text-[11px] transition-colors ${
+                  !hayCondicionesPago
+                    ? 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                    : incluirCondicionesFicha
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-pointer'
+                    : 'bg-slate-800 text-slate-500 line-through cursor-pointer'
+                }`}
+              >
+                {!hayCondicionesPago ? '— Condiciones (sin texto)' : incluirCondicionesFicha ? '✓ Condiciones de Pago' : '✕ Condiciones'}
+              </button>
             </div>
           </div>
 
@@ -817,6 +840,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
                   setIncluirDecoracion(incluyeDecoracion);
                   setIncluirMesas(cotizacion.mesas.length > 0);
                   setIncluirDesgloseValores(true);
+                  setIncluirCondicionesFicha(hayCondicionesPago);
                 }}
                 className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
                 title="Restablecer todas las secciones estándar"
@@ -1398,7 +1422,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
           {/* Condiciones Comerciales, Datos de Pago y Firmas */}
           <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-500 space-y-3">
-            {hayCondicionesPago && (
+            {mostrarCondicionesFicha && (
               <>
             <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs">
               Condiciones Comerciales & Forma de Pago:
