@@ -53,8 +53,14 @@ interface Modulo6DashboardCostosProps {
   onChangeCondicionesPagoPersonalizadas?: (texto: string) => void;
   diasSaldo?: number;
   onChangeDiasSaldo?: (dias: number) => void;
+  diasConfirmacionComensales?: number;
+  onChangeDiasConfirmacion?: (dias: number) => void;
   validezDias?: number;
   onChangeValidezDias?: (dias: number) => void;
+  metodoPago?: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro';
+  onChangeMetodoPago?: (metodo: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro') => void;
+  detalleMetodoPago?: string;
+  onChangeDetalleMetodoPago?: (texto: string) => void;
   // Campos básicos de luz & gas y otros gastos fijos a mano
   gastoLuzMensual?: number;
   onChangeGastoLuz?: (luz: number) => void;
@@ -101,8 +107,14 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   onChangeCondicionesPagoPersonalizadas,
   diasSaldo = 7,
   onChangeDiasSaldo,
+  diasConfirmacionComensales = 10,
+  onChangeDiasConfirmacion,
   validezDias = 15,
   onChangeValidezDias,
+  metodoPago = 'transferencia',
+  onChangeMetodoPago,
+  detalleMetodoPago = '',
+  onChangeDetalleMetodoPago,
   gastoLuzMensual = 0,
   onChangeGastoLuz,
   gastoGasMensual = 0,
@@ -1302,6 +1314,59 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             placeholder="Ej: Confirmación definitiva de comensales hasta 10 días antes. Degustación incluida para 2 personas tras pago de reserva."
             className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
           />
+        </div>
+
+        {/* Medio de Pago y Confirmación de Comensales (Libre) */}
+        <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                Medio de Pago:
+              </label>
+              <select
+                value={metodoPago}
+                onChange={(e) => onChangeMetodoPago && onChangeMetodoPago(e.target.value as 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro')}
+                className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden cursor-pointer"
+              >
+                <option value="transferencia">Transferencia bancaria</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="tarjeta">Tarjeta (débito / crédito)</option>
+                <option value="cheque">Cheque</option>
+                <option value="otro">Otro / Mixto</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                Días mínimos para confirmar comensales:
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  min={0}
+                  max={90}
+                  value={diasConfirmacionComensales}
+                  onChange={(e) => onChangeDiasConfirmacion && onChangeDiasConfirmacion(Number(e.target.value) || 0)}
+                  className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+                />
+                <span className="text-xs text-slate-600">días</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-700 block mb-1">
+              Detalle libre del medio de pago:
+            </label>
+            <input
+              type="text"
+              value={detalleMetodoPago}
+              onChange={(e) => onChangeDetalleMetodoPago && onChangeDetalleMetodoPago(e.target.value)}
+              placeholder="Ej: efectivo contra entrega / 50% transferencia y 50% efectivo"
+              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+            />
+          </div>
+          <p className="text-[10px] text-slate-400">
+            El medio de pago y su detalle aparecen en la ficha formal y en el WhatsApp.
+          </p>
         </div>
 
         {/* Desglose Matemático Reactivo de Cuotas en CLP */}

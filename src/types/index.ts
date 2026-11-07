@@ -179,7 +179,10 @@ export interface CotizacionState {
   hito3Porcentaje?: number; // % tercer hito en 4 cuotas
   condicionesPagoPersonalizadas?: string; // Glosa contractual y condiciones libres escritas por el cliente
   diasSaldo?: number; // días previos al evento para cancelar el saldo (ej: 0 el mismo día, 7, 15)
+  diasConfirmacionComensales?: number; // días mínimos para confirmar comensales (ej: 10)
   validezDias?: number; // validez de la cotización en días (ej: 15)
+  metodoPago?: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro';
+  detalleMetodoPago?: string; // texto libre: ej. "Efectivo contra entrega" o "50% transferencia y 50% efectivo"
   // Gastos fijos operacionales detallados para emprendedores
   gastoLuzMensual?: number; // Cuenta de luz mensual
   gastoGasMensual?: number; // Cuenta de gas mensual (balones, granel, cocina)

@@ -853,15 +853,49 @@ export default function App() {
   };
 
   const handleChangeAnticipo = (porcentaje: number) => {
-    setCotizacion(prev => ({ ...prev, porcentajeAnticipo: porcentaje }));
+    const limpio = Number.isFinite(porcentaje) ? Math.min(100, Math.max(0, porcentaje)) : 0;
+    setCotizacion(prev => ({ ...prev, porcentajeAnticipo: limpio }));
   };
 
-  const handleChangeEsquemaPago = (esquema: 'dos_pagos' | 'tres_pagos' | 'corporativo') => {
+  const handleChangeEsquemaPago = (esquema: string) => {
     setCotizacion(prev => ({ ...prev, esquemaPago: esquema }));
   };
 
+  const handleChangeHito2Porcentaje = (porcentaje: number) => {
+    const limpio = Number.isFinite(porcentaje) ? Math.min(100, Math.max(0, porcentaje)) : 0;
+    setCotizacion(prev => ({ ...prev, hito2Porcentaje: limpio }));
+  };
+
+  const handleChangeHito3Porcentaje = (porcentaje: number) => {
+    const limpio = Number.isFinite(porcentaje) ? Math.min(100, Math.max(0, porcentaje)) : 0;
+    setCotizacion(prev => ({ ...prev, hito3Porcentaje: limpio }));
+  };
+
+  const handleChangeCondicionesPago = (texto: string) => {
+    setCotizacion(prev => ({ ...prev, condicionesPagoPersonalizadas: texto }));
+  };
+
   const handleChangeDiasSaldo = (dias: number) => {
-    setCotizacion(prev => ({ ...prev, diasSaldo: dias }));
+    const limpio = Number.isFinite(dias) ? Math.max(0, Math.round(dias)) : 0;
+    setCotizacion(prev => ({ ...prev, diasSaldo: limpio }));
+  };
+
+  const handleChangeDiasConfirmacion = (dias: number) => {
+    const limpio = Number.isFinite(dias) ? Math.max(0, Math.round(dias)) : 0;
+    setCotizacion(prev => ({ ...prev, diasConfirmacionComensales: limpio }));
+  };
+
+  const handleChangeValidezDias = (dias: number) => {
+    const limpio = Number.isFinite(dias) ? Math.max(1, Math.round(dias)) : 15;
+    setCotizacion(prev => ({ ...prev, validezDias: limpio }));
+  };
+
+  const handleChangeMetodoPago = (metodo: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro') => {
+    setCotizacion(prev => ({ ...prev, metodoPago: metodo }));
+  };
+
+  const handleChangeDetalleMetodoPago = (texto: string) => {
+    setCotizacion(prev => ({ ...prev, detalleMetodoPago: texto }));
   };
 
   const handleChangeGastoLuz = (luz: number) => {
@@ -1055,8 +1089,14 @@ export default function App() {
       observaciones: '',
       porcentajeAnticipo: 40,
       esquemaPago: 'dos_pagos',
+      hito2Porcentaje: 30,
+      hito3Porcentaje: 20,
+      condicionesPagoPersonalizadas: '',
       diasSaldo: 7,
+      diasConfirmacionComensales: 10,
       validezDias: 15,
+      metodoPago: 'transferencia',
+      detalleMetodoPago: '',
       gastoLuzMensual: def.cotizacion.gastoLuzMensual || 85000,
       gastoGasMensual: def.cotizacion.gastoGasMensual || 45000,
       otrosGastosFijos: def.cotizacion.otrosGastosFijos || [],
@@ -1581,8 +1621,22 @@ export default function App() {
                 onChangeAnticipo={handleChangeAnticipo}
                 esquemaPago={cotizacion.esquemaPago ?? 'dos_pagos'}
                 onChangeEsquemaPago={handleChangeEsquemaPago}
+                hito2Porcentaje={cotizacion.hito2Porcentaje ?? 30}
+                onChangeHito2Porcentaje={handleChangeHito2Porcentaje}
+                hito3Porcentaje={cotizacion.hito3Porcentaje ?? 20}
+                onChangeHito3Porcentaje={handleChangeHito3Porcentaje}
+                condicionesPagoPersonalizadas={cotizacion.condicionesPagoPersonalizadas ?? ''}
+                onChangeCondicionesPagoPersonalizadas={handleChangeCondicionesPago}
                 diasSaldo={cotizacion.diasSaldo ?? 7}
                 onChangeDiasSaldo={handleChangeDiasSaldo}
+                diasConfirmacionComensales={cotizacion.diasConfirmacionComensales ?? 10}
+                onChangeDiasConfirmacion={handleChangeDiasConfirmacion}
+                validezDias={cotizacion.validezDias ?? 15}
+                onChangeValidezDias={handleChangeValidezDias}
+                metodoPago={cotizacion.metodoPago ?? 'transferencia'}
+                onChangeMetodoPago={handleChangeMetodoPago}
+                detalleMetodoPago={cotizacion.detalleMetodoPago ?? ''}
+                onChangeDetalleMetodoPago={handleChangeDetalleMetodoPago}
                 // Gastos fijos específicos para emprendedores: Luz, Gas y Otros a mano
                 gastoLuzMensual={cotizacion.gastoLuzMensual ?? 0}
                 onChangeGastoLuz={handleChangeGastoLuz}
