@@ -49,14 +49,25 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
 
   const porcentajeAnticipo = cotizacion.porcentajeAnticipo ?? 40;
   const esquemaPago = cotizacion.esquemaPago ?? 'dos_pagos';
+  const porcentajeSegundoPago = cotizacion.porcentajeSegundoPago ?? 30;
   const diasSaldo = cotizacion.diasSaldo ?? 7;
   const validezDias = cotizacion.validezDias ?? 15;
+  const metodoPago = cotizacion.metodoPago ?? 'transferencia';
+  const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
+  const condicionesPagoTexto = (cotizacion.condicionesPagoTexto || '').trim();
+  const metodoPagoLabel: Record<string, string> = {
+    transferencia: 'Transferencia bancaria',
+    efectivo: 'Efectivo',
+    tarjeta: 'Tarjeta de débito / crédito',
+    cheque: 'Cheque',
+    otro: 'Otro / Mixto'
+  };
 
   const totalAPagar = cotizacion.aplicaIva ? precioVentaTotal : precioVentaNeto;
   const valorPorPersona = Math.round(totalAPagar / Math.max(1, cotizacion.invitados));
   const montoPie = Math.round(totalAPagar * (porcentajeAnticipo / 100));
-  const montoHito2 = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * 0.30) : 0;
-  const saldoRestante = totalAPagar - montoPie - montoHito2;
+  const montoHito2 = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * (porcentajeSegundoPago / 100)) : 0;
+  const saldoRestante = Math.max(0, totalAPagar - montoPie - montoHito2);
 
   // Limpiar número de teléfono para wa.me (remover +, espacios, guiones)
   const limpiarNumero = (num: string) => {
@@ -187,17 +198,19 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
       msg += `📋 *POLÍTICA DE RESERVA Y PAGOS:*\n`;
       msg += `1️⃣ *Anticipo ${porcentajeAnticipo}%:* ${formatMoneda(montoPie)} (Bloquea exclusividad de la fecha)\n`;
       if (esquemaPago === 'tres_pagos') {
-        msg += `2️⃣ *Segundo Pago (30%):* ${formatMoneda(montoHito2)} (Tras degustación y aprobación de montaje)\n`;
-        msg += `3️⃣ *Saldo Final (${100 - porcentajeAnticipo - 30}%):* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
+        msg += `2️⃣ *Segundo Pago (${porcentajeSegundoPago}%):* ${formatMoneda(montoHito2)} (Tras degustación y aprobación de montaje)\n`;
+        msg += `3️⃣ *Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - porcentajeSegundoPago)}%):* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
       } else if (esquemaPago === 'corporativo') {
         msg += `2️⃣ *Saldo Restante (${100 - porcentajeAnticipo}%):* ${formatMoneda(saldoRestante)} (Contra factura a 30 días con Orden de Compra aprobada)\n`;
       } else {
         msg += `2️⃣ *Saldo ${100 - porcentajeAnticipo}%:* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
       }
+      msg += `• *Forma de pago:* ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}\n`;
+      if (condicionesPagoTexto) msg += `• ${condicionesPagoTexto}\n`;
       msg += `• Cotización con validez de ${validezDias} días continuos.\n\n`;
     }
 
-    if (incluirDatosBanco) {
+    if (incluirDatosBanco && metodoPago === 'transferencia') {
       const db = empresaActiva.datosBancarios;
       if (db && (db.razonSocial || db.numeroCuenta)) {
         msg += `🏦 *DATOS DE TRANSFERENCIA BANCARIA:*\n`;
@@ -389,18 +402,20 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
                     onChange={(e) => setIncluirCondiciones(e.target.checked)}
                     className="rounded-md accent-emerald-600"
                   />
-                  <span>Condiciones de pago (Pie 40% y saldo 60%)</span>
+                  <span>Condiciones de pago (Anticipo {porcentajeAnticipo}% y saldo {100 - porcentajeAnticipo}%)</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={incluirDatosBanco}
-                    onChange={(e) => setIncluirDatosBanco(e.target.checked)}
-                    className="rounded-md accent-emerald-600"
-                  />
-                  <span>Datos cuenta bancaria para transferencia</span>
-                </label>
+                {metodoPago === 'transferencia' && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={incluirDatosBanco}
+                      onChange={(e) => setIncluirDatosBanco(e.target.checked)}
+                      className="rounded-md accent-emerald-600"
+                    />
+                    <span>Datos cuenta bancaria para transferencia</span>
+                  </label>
+                )}
               </div>
             </div>
 

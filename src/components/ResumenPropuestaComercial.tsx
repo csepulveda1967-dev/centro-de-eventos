@@ -287,16 +287,16 @@ export const ResumenPropuestaComercial: React.FC<ResumenPropuestaComercialProps>
             </span>
             <div className="flex items-center gap-1 text-[11px] text-amber-800 font-semibold">
               <span>Anticipo:</span>
-              <select
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
                 value={pctAnticipo}
-                onChange={(e) => onChangeAnticipo(parseInt(e.target.value, 10))}
-                className="bg-white border border-amber-300 rounded px-1.5 py-0.5 text-xs font-bold text-amber-950 focus:outline-hidden"
-              >
-                <option value={30}>30%</option>
-                <option value={40}>40%</option>
-                <option value={50}>50%</option>
-                <option value={60}>60%</option>
-              </select>
+                onChange={(e) => onChangeAnticipo(Math.min(100, Math.max(0, parseInt(e.target.value, 10) || 0)))}
+                className="w-14 bg-white border border-amber-300 rounded px-1.5 py-0.5 text-xs font-bold text-amber-950 text-right tabular-nums focus:outline-hidden focus:border-amber-500"
+              />
+              <span>%</span>
             </div>
           </div>
 

@@ -120,10 +120,23 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const totalAPagar = cotizacion.aplicaIva ? precioVentaTotal : precioVentaNeto;
   const porcentajeAnticipo = cotizacion.porcentajeAnticipo ?? 40;
   const esquemaPago = cotizacion.esquemaPago ?? 'dos_pagos';
+  const porcentajeSegundoPago = cotizacion.porcentajeSegundoPago ?? 30;
   const diasSaldo = cotizacion.diasSaldo ?? 7;
+  const diasConfirmacionComensales = cotizacion.diasConfirmacionComensales ?? 10;
+  const validezDias = cotizacion.validezDias ?? 15;
+  const metodoPago = cotizacion.metodoPago ?? 'transferencia';
+  const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
+  const condicionesPagoTexto = (cotizacion.condicionesPagoTexto || '').trim();
+  const metodoPagoLabel: Record<string, string> = {
+    transferencia: 'Transferencia bancaria',
+    efectivo: 'Efectivo',
+    tarjeta: 'Tarjeta de débito / crédito',
+    cheque: 'Cheque',
+    otro: 'Otro / Mixto'
+  };
   const pieMonto = Math.round(totalAPagar * (porcentajeAnticipo / 100));
-  const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * 0.30) : 0;
-  const saldoMonto = totalAPagar - pieMonto - hito2Monto;
+  const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(totalAPagar * (porcentajeSegundoPago / 100)) : 0;
+  const saldoMonto = Math.max(0, totalAPagar - pieMonto - hito2Monto);
   const valorPorInvitado = Math.round(totalAPagar / Math.max(1, cotizacion.invitados));
 
   // Detección de ambientación contratada (NUNCA mostrar sección con $0)
@@ -443,10 +456,13 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   <div style="margin-top: 30px; font-size: 11px; color: #64748b; line-height: 1.6;">
     <h4 style="color: #0f172a; text-transform: uppercase; font-size: 12px; margin-bottom: 4px;">Condiciones Comerciales y de Pago:</h4>
     • Anticipo del ${porcentajeAnticipo}% (${formatMoneda(pieMonto)} CLP) para reservar y asegurar la exclusividad de la fecha.<br>
-    ${esquemaPago === 'tres_pagos' ? `• Segundo Pago 30% (${formatMoneda(hito2Monto)} CLP) tras degustación y prueba de menú.<br>• Saldo Final (${100 - porcentajeAnticipo - 30}% - ${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos al evento.<br>` : esquemaPago === 'corporativo' ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) contra factura a 30 días con Orden de Compra aprobada.<br>` : `• Saldo del ${100 - porcentajeAnticipo}% (${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos a la realización del evento.<br>`}
-    • Confirmación final de comensales con un mínimo de 10 días de anticipación.<br>
+    ${esquemaPago === 'tres_pagos' ? `• Segundo Pago ${porcentajeSegundoPago}% (${formatMoneda(hito2Monto)} CLP) tras degustación y prueba de menú.<br>• Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - porcentajeSegundoPago)}% - ${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos al evento.<br>` : esquemaPago === 'corporativo' ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) contra factura a 30 días con Orden de Compra aprobada.<br>` : `• Saldo del ${100 - porcentajeAnticipo}% (${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos a la realización del evento.<br>`}
+    • Forma de pago: ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}.<br>
+    ${condicionesPagoTexto ? `• Condiciones adicionales: ${condicionesPagoTexto}<br>` : ''}
+    • Confirmación final de comensales con un mínimo de ${diasConfirmacionComensales} días de anticipación.<br>
+    • Cotización con validez de ${validezDias} días continuos.<br>
     ${!incluyeDecoracion ? '• <em>Ambientación & Decoración: No incluida en la tarifa (Aporte directo del cliente o no requerida).</em><br>' : ''}
-    ${(empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta)) ? `• Datos de Transferencia: ${[empresaActiva.datosBancarios.razonSocial, empresaActiva.datosBancarios.banco, empresaActiva.datosBancarios.tipoCuenta, empresaActiva.datosBancarios.numeroCuenta, empresaActiva.datosBancarios.rut].filter(Boolean).join(' · ')}.<br>` : '• <em>Datos de Transferencia: A confirmar por la empresa.</em><br>'}
+    ${metodoPago === 'transferencia' ? ((empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta)) ? `• Datos de Transferencia: ${[empresaActiva.datosBancarios.razonSocial, empresaActiva.datosBancarios.banco, empresaActiva.datosBancarios.tipoCuenta, empresaActiva.datosBancarios.numeroCuenta, empresaActiva.datosBancarios.rut].filter(Boolean).join(' · ')}.<br>` : '• <em>Datos de Transferencia: A confirmar por la empresa.</em><br>') : ''}
   </div>
 
   <div class="signatures">
@@ -898,73 +914,80 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
             <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs">
               Condiciones Comerciales & Forma de Pago:
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div className={`grid grid-cols-1 ${metodoPago === 'transferencia' ? 'sm:grid-cols-2' : ''} gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200`}>
               <ul className="list-disc list-inside space-y-1">
-                <li><strong className="text-slate-800">Anticipo {porcentajeAnticipo}%:</strong> {formatMoneda(pieMonto)} CLP para reservar la exclusividad de la fecha.</li>
+                <li><strong className="text-slate-800">1. Anticipo {porcentajeAnticipo}%:</strong> {formatMoneda(pieMonto)} CLP para reservar la exclusividad de la fecha.</li>
                 {esquemaPago === 'tres_pagos' ? (
                   <>
-                    <li><strong className="text-slate-800">Segundo Pago 30%:</strong> {formatMoneda(hito2Monto)} CLP tras degustación y aprobación.</li>
-                    <li><strong className="text-slate-800">Saldo Final {100 - porcentajeAnticipo - 30}%:</strong> {formatMoneda(saldoMonto)} CLP hasta {diasSaldo} días hábiles previos.</li>
+                    <li><strong className="text-slate-800">2. Segundo Pago {porcentajeSegundoPago}%:</strong> {formatMoneda(hito2Monto)} CLP tras degustación y aprobación.</li>
+                    <li><strong className="text-slate-800">3. Saldo Final {Math.max(0, 100 - porcentajeAnticipo - porcentajeSegundoPago)}%:</strong> {formatMoneda(saldoMonto)} CLP hasta {diasSaldo} días hábiles antes del evento.</li>
                   </>
                 ) : esquemaPago === 'corporativo' ? (
-                  <li><strong className="text-slate-800">Saldo {100 - porcentajeAnticipo}%:</strong> {formatMoneda(saldoMonto)} CLP contra factura 30 días (con O.C.).</li>
+                  <li><strong className="text-slate-800">2. Saldo {100 - porcentajeAnticipo}%:</strong> {formatMoneda(saldoMonto)} CLP contra factura 30 días (con O.C.).</li>
                 ) : (
-                  <li><strong className="text-slate-800">Saldo {100 - porcentajeAnticipo}%:</strong> {formatMoneda(saldoMonto)} CLP hasta {diasSaldo} días hábiles previos al evento.</li>
+                  <li><strong className="text-slate-800">2. Saldo {100 - porcentajeAnticipo}%:</strong> {formatMoneda(saldoMonto)} CLP hasta {diasSaldo} días hábiles antes del evento.</li>
                 )}
-                <li>Confirmación definitiva de comensales con un mínimo de 10 días de anticipación.</li>
+                <li><strong className="text-slate-700">Forma de pago:</strong> {metodoPagoLabel[metodoPago] || 'A convenir'}{detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}.</li>
+                {condicionesPagoTexto && (
+                  <li><strong className="text-slate-700">Condiciones adicionales:</strong> {condicionesPagoTexto}</li>
+                )}
+                <li>Confirmación definitiva de comensales con un mínimo de {diasConfirmacionComensales} días de anticipación.</li>
+                <li>Cotización con validez de {validezDias} días continuos.</li>
                 {!incluyeDecoracion && (
                   <li><strong className="text-slate-700">Ambientación & Decoración:</strong> No incluida en la propuesta (Aporte directo del cliente o no requerida).</li>
                 )}
                 <li>Horario estándar: uso exclusivo del recinto según bloque acordado.</li>
               </ul>
 
-              <div className="border-t sm:border-t-0 sm:border-l sm:border-slate-200 sm:pl-4 pt-2 sm:pt-0 space-y-1">
-                <div className="flex items-center justify-between">
-                  <strong className="text-slate-800 block">Datos de Transferencia Bancaria:</strong>
-                  {onUpdateEmpresaActiva && (
-                    <button
-                      type="button"
-                      onClick={() => setEditandoBanco(!editandoBanco)}
-                      className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline cursor-pointer"
-                      title="Editar y guardar los datos bancarios de esta empresa (quedan guardados en el perfil)"
-                    >
-                      {editandoBanco ? 'Cancelar' : '✏️ Editar'}
-                    </button>
+              {metodoPago === 'transferencia' && (
+                <div className="border-t sm:border-t-0 sm:border-l sm:border-slate-200 sm:pl-4 pt-2 sm:pt-0 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-slate-800 block">Datos de Transferencia Bancaria:</strong>
+                    {onUpdateEmpresaActiva && (
+                      <button
+                        type="button"
+                        onClick={() => setEditandoBanco(!editandoBanco)}
+                        className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline cursor-pointer"
+                        title="Editar y guardar los datos bancarios de esta empresa (quedan guardados en el perfil)"
+                      >
+                        {editandoBanco ? 'Cancelar' : '✏️ Editar'}
+                      </button>
+                    )}
+                  </div>
+
+                  {editandoBanco ? (
+                    <div className="space-y-1.5 mt-1 p-2 bg-amber-50/60 border border-amber-200 rounded-lg">
+                      <input type="text" value={dbRazon} onChange={(e) => setDbRazon(e.target.value)} placeholder="Razón Social" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <input type="text" value={dbRut} onChange={(e) => setDbRut(e.target.value)} placeholder="RUT (ej: 77.892.410-K)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <input type="text" value={dbBanco} onChange={(e) => setDbBanco(e.target.value)} placeholder="Banco (ej: Banco de Chile)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <select value={dbTipo} onChange={(e) => setDbTipo(e.target.value)} className="w-full px-2 py-1 border border-slate-300 rounded text-xs bg-white">
+                        <option>Cuenta Corriente</option>
+                        <option>Cuenta Vista</option>
+                        <option>Cuenta RUT</option>
+                        <option>Cuenta de Ahorro</option>
+                      </select>
+                      <input type="text" value={dbNumero} onChange={(e) => setDbNumero(e.target.value)} placeholder="N° Cuenta" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <input type="text" value={dbTitular} onChange={(e) => setDbTitular(e.target.value)} placeholder="Titular (si es distinto a la razón social)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <input type="email" value={dbEmail} onChange={(e) => setDbEmail(e.target.value)} placeholder="Correo para comprobantes" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
+                      <button type="button" onClick={guardarDatosBancarios} className="w-full py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs mt-1 cursor-pointer">
+                        Guardar datos bancarios
+                      </button>
+                      <p className="text-[10px] text-slate-500 italic">Quedan guardados en el perfil de esta empresa. No vuelven a aparecer los datos ficticios.</p>
+                    </div>
+                  ) : empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta) ? (
+                    <>
+                      {empresaActiva.datosBancarios.razonSocial && <p>• Razón Social: {empresaActiva.datosBancarios.razonSocial}</p>}
+                      {empresaActiva.datosBancarios.rut && <p>• RUT: {empresaActiva.datosBancarios.rut}</p>}
+                      {empresaActiva.datosBancarios.banco && <p>• Banco: {empresaActiva.datosBancarios.banco}{empresaActiva.datosBancarios.tipoCuenta ? ` · ${empresaActiva.datosBancarios.tipoCuenta}` : ''}</p>}
+                      {empresaActiva.datosBancarios.numeroCuenta && <p>• N° Cuenta: {empresaActiva.datosBancarios.numeroCuenta}</p>}
+                      {empresaActiva.datosBancarios.titular && <p>• Titular: {empresaActiva.datosBancarios.titular}</p>}
+                      {empresaActiva.datosBancarios.emailTransferencia && <p>• Correo: {empresaActiva.datosBancarios.emailTransferencia}</p>}
+                    </>
+                  ) : (
+                    <p className="italic text-slate-500">Datos bancarios a confirmar por la empresa (no configurados todavía). Clic en "Editar" para llenarlos.</p>
                   )}
                 </div>
-
-                {editandoBanco ? (
-                  <div className="space-y-1.5 mt-1 p-2 bg-amber-50/60 border border-amber-200 rounded-lg">
-                    <input type="text" value={dbRazon} onChange={(e) => setDbRazon(e.target.value)} placeholder="Razón Social" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <input type="text" value={dbRut} onChange={(e) => setDbRut(e.target.value)} placeholder="RUT (ej: 77.892.410-K)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <input type="text" value={dbBanco} onChange={(e) => setDbBanco(e.target.value)} placeholder="Banco (ej: Banco de Chile)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <select value={dbTipo} onChange={(e) => setDbTipo(e.target.value)} className="w-full px-2 py-1 border border-slate-300 rounded text-xs bg-white">
-                      <option>Cuenta Corriente</option>
-                      <option>Cuenta Vista</option>
-                      <option>Cuenta RUT</option>
-                      <option>Cuenta de Ahorro</option>
-                    </select>
-                    <input type="text" value={dbNumero} onChange={(e) => setDbNumero(e.target.value)} placeholder="N° Cuenta" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <input type="text" value={dbTitular} onChange={(e) => setDbTitular(e.target.value)} placeholder="Titular (si es distinto a la razón social)" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <input type="email" value={dbEmail} onChange={(e) => setDbEmail(e.target.value)} placeholder="Correo para comprobantes" className="w-full px-2 py-1 border border-slate-300 rounded text-xs" />
-                    <button type="button" onClick={guardarDatosBancarios} className="w-full py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-xs mt-1 cursor-pointer">
-                      Guardar datos bancarios
-                    </button>
-                    <p className="text-[10px] text-slate-500 italic">Quedan guardados en el perfil de esta empresa. No vuelven a aparecer los datos ficticios.</p>
-                  </div>
-                ) : empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta) ? (
-                  <>
-                    {empresaActiva.datosBancarios.razonSocial && <p>• Razón Social: {empresaActiva.datosBancarios.razonSocial}</p>}
-                    {empresaActiva.datosBancarios.rut && <p>• RUT: {empresaActiva.datosBancarios.rut}</p>}
-                    {empresaActiva.datosBancarios.banco && <p>• Banco: {empresaActiva.datosBancarios.banco}{empresaActiva.datosBancarios.tipoCuenta ? ` · ${empresaActiva.datosBancarios.tipoCuenta}` : ''}</p>}
-                    {empresaActiva.datosBancarios.numeroCuenta && <p>• N° Cuenta: {empresaActiva.datosBancarios.numeroCuenta}</p>}
-                    {empresaActiva.datosBancarios.titular && <p>• Titular: {empresaActiva.datosBancarios.titular}</p>}
-                    {empresaActiva.datosBancarios.emailTransferencia && <p>• Correo: {empresaActiva.datosBancarios.emailTransferencia}</p>}
-                  </>
-                ) : (
-                  <p className="italic text-slate-500">Datos bancarios a confirmar por la empresa (no configurados todavía). Clic en "Editar" para llenarlos.</p>
-                )}
-              </div>
+              )}
             </div>
 
             <div className="mt-8 pt-8 grid grid-cols-2 gap-8 text-center text-xs text-slate-500">

@@ -45,8 +45,18 @@ interface Modulo6DashboardCostosProps {
   onChangeAnticipo?: (pct: number) => void;
   esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
   onChangeEsquemaPago?: (esquema: 'dos_pagos' | 'tres_pagos' | 'corporativo') => void;
+  porcentajeSegundoPago?: number;
+  onChangePorcentajeSegundoPago?: (pct: number) => void;
   diasSaldo?: number;
   onChangeDiasSaldo?: (dias: number) => void;
+  diasConfirmacionComensales?: number;
+  onChangeDiasConfirmacion?: (dias: number) => void;
+  metodoPago?: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro';
+  onChangeMetodoPago?: (metodo: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro') => void;
+  detalleMetodoPago?: string;
+  onChangeDetalleMetodoPago?: (texto: string) => void;
+  condicionesPagoTexto?: string;
+  onChangeCondicionesPagoTexto?: (texto: string) => void;
   // Campos básicos de luz & gas y otros gastos fijos a mano
   gastoLuzMensual?: number;
   onChangeGastoLuz?: (luz: number) => void;
@@ -85,8 +95,18 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   onChangeAnticipo,
   esquemaPago = 'dos_pagos',
   onChangeEsquemaPago,
+  porcentajeSegundoPago = 30,
+  onChangePorcentajeSegundoPago,
   diasSaldo = 7,
   onChangeDiasSaldo,
+  diasConfirmacionComensales = 10,
+  onChangeDiasConfirmacion,
+  metodoPago = 'transferencia',
+  onChangeMetodoPago,
+  detalleMetodoPago = '',
+  onChangeDetalleMetodoPago,
+  condicionesPagoTexto = '',
+  onChangeCondicionesPagoTexto,
   gastoLuzMensual = 0,
   onChangeGastoLuz,
   gastoGasMensual = 0,
@@ -1044,27 +1064,44 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </span>
         </div>
 
-        {/* Selector de Porcentaje de Anticipo */}
+        {/* Porcentaje de Anticipo LIBRE */}
         <div>
           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-            Porcentaje de Anticipo para Reserva:
+            Porcentaje de Anticipo para Reserva (libre):
           </span>
-          <div className="grid grid-cols-3 gap-1.5">
-            {[30, 40, 50].map((pct) => (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={porcentajeAnticipo}
+                onChange={(e) => onChangeAnticipo && onChangeAnticipo(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-2 pr-8 text-sm font-black text-emerald-900 tabular-nums border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-emerald-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {[0, 30, 40, 50, 100].map((pct) => (
               <button
                 key={pct}
                 type="button"
                 onClick={() => onChangeAnticipo && onChangeAnticipo(pct)}
-                className={`py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer ${
+                className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-all cursor-pointer ${
                   porcentajeAnticipo === pct
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                {pct}% {pct === 40 ? '(Estándar)' : pct === 50 ? '(Alta Dem.)' : ''}
+                {pct}%
               </button>
             ))}
           </div>
+          <p className="text-[10px] text-slate-400 mt-1">
+            Escribe cualquier porcentaje de 0 a 100. Los botones son solo atajos.
+          </p>
         </div>
 
         {/* Selector de Modalidad / Esquema */}
@@ -1101,7 +1138,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
               />
               <div className="leading-tight">
                 <span className="font-bold text-slate-800 block text-[11px]">3 Cuotas / Hitos</span>
-                <span className="text-[10px] text-slate-500">Reserva {porcentajeAnticipo}% + Degustación 30% + Saldo final</span>
+                <span className="text-[10px] text-slate-500">Reserva {porcentajeAnticipo}% + Degustación {porcentajeSegundoPago}% + Saldo final</span>
               </div>
             </label>
 
@@ -1123,13 +1160,113 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </div>
         </div>
 
+        {/* Segundo pago LIBRE (solo esquema de 3 cuotas) */}
+        {esquemaPago === 'tres_pagos' && (
+          <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+              Porcentaje del Segundo Pago (Degustación):
+            </span>
+            <div className="relative">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={1}
+                value={porcentajeSegundoPago}
+                onChange={(e) => onChangePorcentajeSegundoPago && onChangePorcentajeSegundoPago(parseInt(e.target.value, 10) || 0)}
+                className="w-full px-3 py-1.5 pr-8 text-xs font-bold text-slate-800 tabular-nums border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-emerald-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">%</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              Saldo final automático: {Math.max(0, 100 - porcentajeAnticipo - porcentajeSegundoPago)}%
+            </p>
+          </div>
+        )}
+
+        {/* Días y confirmación de comensales */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+              Días antes para el saldo:
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={diasSaldo}
+              onChange={(e) => onChangeDiasSaldo && onChangeDiasSaldo(parseInt(e.target.value, 10) || 0)}
+              className="w-full px-3 py-1.5 text-xs font-bold text-slate-800 tabular-nums border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-emerald-500"
+            />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+              Días mínimos confirmación:
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={diasConfirmacionComensales}
+              onChange={(e) => onChangeDiasConfirmacion && onChangeDiasConfirmacion(parseInt(e.target.value, 10) || 0)}
+              className="w-full px-3 py-1.5 text-xs font-bold text-slate-800 tabular-nums border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-emerald-500"
+            />
+          </div>
+        </div>
+
+        {/* Medio de pago LIBRE */}
+        <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-2">
+          <div>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+              Medio de Pago:
+            </span>
+            <select
+              value={metodoPago}
+              onChange={(e) => onChangeMetodoPago && onChangeMetodoPago(e.target.value as 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro')}
+              className="w-full px-3 py-1.5 text-xs font-bold text-slate-800 border border-slate-200 rounded-lg bg-white cursor-pointer focus:outline-hidden focus:border-emerald-500"
+            >
+              <option value="transferencia">Transferencia bancaria</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta (débito / crédito)</option>
+              <option value="cheque">Cheque</option>
+              <option value="otro">Otro / Mixto</option>
+            </select>
+          </div>
+          <div>
+            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+              Detalle libre del medio de pago:
+            </span>
+            <input
+              type="text"
+              value={detalleMetodoPago}
+              onChange={(e) => onChangeDetalleMetodoPago && onChangeDetalleMetodoPago(e.target.value)}
+              placeholder="Ej: efectivo contra entrega / 50% transferencia y 50% efectivo"
+              className="w-full px-3 py-1.5 text-xs font-semibold text-slate-800 border border-slate-200 rounded-lg bg-white focus:outline-hidden focus:border-emerald-500"
+            />
+          </div>
+        </div>
+
+        {/* Condiciones adicionales LIBRES */}
+        <div>
+          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1">
+            Condiciones adicionales (salen en la ficha y el WhatsApp):
+          </span>
+          <textarea
+            rows={2}
+            value={condicionesPagoTexto}
+            onChange={(e) => onChangeCondicionesPagoTexto && onChangeCondicionesPagoTexto(e.target.value)}
+            placeholder="Ej: aceptamos efectivo, transferencia o tarjeta. El saldo puede pagarse el mismo día del evento."
+            className="w-full px-3 py-1.5 text-xs font-semibold text-slate-800 border border-slate-200 rounded-lg bg-white resize-y focus:outline-hidden focus:border-emerald-500"
+          />
+        </div>
+
         {/* Desglose Matemático de Cuotas en CLP calculado sobre el precio cobrado real */}
         <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">
           {(() => {
             const total = precioCobradoFinal;
             const pieMonto = Math.round(total * (porcentajeAnticipo / 100));
-            const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(total * 0.30) : 0;
-            const saldoMonto = total - pieMonto - hito2Monto;
+            const hito2Monto = esquemaPago === 'tres_pagos' ? Math.round(total * (porcentajeSegundoPago / 100)) : 0;
+            const saldoMonto = Math.max(0, total - pieMonto - hito2Monto);
 
             return (
               <>
@@ -1139,7 +1276,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
                 </div>
                 {esquemaPago === 'tres_pagos' && (
                   <div className="flex justify-between text-slate-700">
-                    <span>2. Hito Degustación (30%):</span>
+                    <span>2. Hito Degustación ({porcentajeSegundoPago}%):</span>
                     <span className="tabular-nums font-semibold">{formatMoneda(hito2Monto)}</span>
                   </div>
                 )}

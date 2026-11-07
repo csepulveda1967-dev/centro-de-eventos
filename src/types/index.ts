@@ -173,10 +173,15 @@ export interface CotizacionState {
   margenGanancia: number; // ej. 35 para 35%
   aplicaIva: boolean;
   observaciones: string;
-  porcentajeAnticipo?: number; // ej. 40 para 40%
+  porcentajeAnticipo?: number; // ej. 40 para 40% (libre, 0 a 100)
   esquemaPago?: 'dos_pagos' | 'tres_pagos' | 'corporativo';
+  porcentajeSegundoPago?: number; // % del segundo pago en esquema de 3 cuotas (ej: 30)
   diasSaldo?: number; // días previos al evento para cancelar el saldo (ej: 7)
+  diasConfirmacionComensales?: number; // días mínimos para confirmar comensales (ej: 10)
   validezDias?: number; // validez de la cotización en días (ej: 15)
+  metodoPago?: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro';
+  detalleMetodoPago?: string; // texto libre: ej. "Efectivo contra entrega" o "50% transferencia y 50% efectivo"
+  condicionesPagoTexto?: string; // condiciones adicionales libres para la ficha y el WhatsApp
   // Gastos fijos operacionales detallados para emprendedores
   gastoLuzMensual?: number; // Cuenta de luz mensual
   gastoGasMensual?: number; // Cuenta de gas mensual (balones, granel, cocina)
