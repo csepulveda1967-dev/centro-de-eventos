@@ -58,7 +58,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const condicionesPagoTexto = (cotizacion.condicionesPagoPersonalizadas || '').trim();
   const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? false;
   const modoCondicionesPago = cotizacion.modoCondicionesPago ?? 'manual';
-  const hayCondicionesPago = mostrarCondicionesPago && (modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0);
+  const puedeIncluirCondiciones = modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0;
   const metodoPagoLabel: Record<string, string> = {
     transferencia: 'Transferencia bancaria',
     efectivo: 'Efectivo',
@@ -202,7 +202,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     }
     msg += `• *Valor por Invitado:* ${formatMoneda(valorPorPersona)} / comensal\n\n`;
 
-    if (incluirCondiciones && hayCondicionesPago) {
+    if (incluirCondiciones && puedeIncluirCondiciones) {
       if (modoCondicionesPago === 'manual') {
         msg += `📋 *CONDICIONES DE PAGO:*\n`;
         condicionesPagoTexto
@@ -422,23 +422,32 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
                   <span>Servicios y técnica seleccionada ({proveedoresActivos.length} ítems)</span>
                 </label>
 
-                {mostrarCondicionesPago ? (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={incluirCondiciones}
-                      onChange={(e) => setIncluirCondiciones(e.target.checked)}
-                      className="rounded-md accent-emerald-600"
-                    />
-                    <span>
-                      {modoCondicionesPago === 'manual'
+                <label className={`flex items-center gap-2 ${puedeIncluirCondiciones ? 'cursor-pointer' : 'opacity-60 cursor-not-allowed'}`}>
+                  <input
+                    type="checkbox"
+                    checked={incluirCondiciones}
+                    onChange={(e) => setIncluirCondiciones(e.target.checked)}
+                    disabled={!puedeIncluirCondiciones}
+                    className="rounded-md accent-emerald-600"
+                  />
+                  <span>
+                    {modoCondicionesPago === 'manual'
+                      ? puedeIncluirCondiciones
                         ? 'Condiciones de pago (texto escrito en Adm. Costos)'
-                        : `Condiciones de pago (${esUnPago ? 'Pago único 100%' : `Anticipo ${porcentajeAnticipo}% y saldo ${100 - porcentajeAnticipo}%`})`}
-                    </span>
-                  </label>
-                ) : (
+                        : 'Condiciones de pago (sin texto en Adm. Costos)'
+                      : `Condiciones de pago (${esUnPago ? 'Pago único 100%' : `Anticipo ${porcentajeAnticipo}% y saldo ${100 - porcentajeAnticipo}%`})`}
+                  </span>
+                </label>
+
+                {!mostrarCondicionesPago && puedeIncluirCondiciones && (
                   <p className="text-[10px] text-slate-400 italic">
-                    Las condiciones de pago están desactivadas en Adm. Costos.
+                    Las condiciones están desactivadas en Adm. Costos. Marca la casilla si quieres incluirlas solo en este envío.
+                  </p>
+                )}
+
+                {!puedeIncluirCondiciones && (
+                  <p className="text-[10px] text-amber-600 italic">
+                    Escribe el texto en Adm. Costos → Condiciones de Pago para poder incluirlas.
                   </p>
                 )}
 

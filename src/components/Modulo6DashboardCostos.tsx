@@ -1094,10 +1094,10 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           />
           <div className="leading-tight">
             <span className="font-bold text-slate-900 block text-[11px]">
-              Mostrar condiciones de pago en la ficha y en el WhatsApp
+              Activar condiciones de pago (ficha y WhatsApp)
             </span>
             <span className="text-[10px] text-slate-500">
-              Si lo desactivas, no aparece ningún texto de condiciones en la ficha ni en el mensaje (útil cuando no corresponde).
+              Si lo desactivas, la ficha no muestra condiciones y el WhatsApp parte sin ellas. En el mismo WhatsApp puedes marcar la casilla para incluirlas solo en ese envío.
             </span>
           </div>
         </label>
