@@ -36,7 +36,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const [incluirTiemposMenu, setIncluirTiemposMenu] = useState(true);
   const [incluirProveedores, setIncluirProveedores] = useState(true);
   const [incluirStaff, setIncluirStaff] = useState(true);
-  const [incluirCondiciones, setIncluirCondiciones] = useState(true);
+  const [incluirCondiciones, setIncluirCondiciones] = useState(cotizacion.mostrarCondicionesPago ?? false);
   const [incluirDatosBanco, setIncluirDatosBanco] = useState(true);
   
   // Destinatario: cliente (+56 9 ...), Dominga Eventos (+56 9 3118 1304) o personalizado
@@ -56,6 +56,9 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const metodoPago = cotizacion.metodoPago ?? 'transferencia';
   const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
   const condicionesPagoTexto = (cotizacion.condicionesPagoPersonalizadas || '').trim();
+  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? false;
+  const modoCondicionesPago = cotizacion.modoCondicionesPago ?? 'manual';
+  const hayCondicionesPago = mostrarCondicionesPago && (modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0);
   const metodoPagoLabel: Record<string, string> = {
     transferencia: 'Transferencia bancaria',
     efectivo: 'Efectivo',
@@ -199,29 +202,39 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     }
     msg += `• *Valor por Invitado:* ${formatMoneda(valorPorPersona)} / comensal\n\n`;
 
-    if (incluirCondiciones) {
-      msg += `📋 *POLÍTICA DE RESERVA Y PAGOS:*\n`;
-      if (esUnPago) {
-        msg += `1️⃣ *Pago Único (100%):* ${formatMoneda(totalAPagar)} (Al reservar o confirmar la fecha)\n`;
+    if (incluirCondiciones && hayCondicionesPago) {
+      if (modoCondicionesPago === 'manual') {
+        msg += `📋 *CONDICIONES DE PAGO:*\n`;
+        condicionesPagoTexto
+          .split(/\r?\n/)
+          .map((linea) => linea.trim())
+          .filter(Boolean)
+          .forEach((linea) => { msg += `${linea}\n`; });
+        msg += `\n`;
       } else {
-        msg += `1️⃣ *Anticipo ${porcentajeAnticipo}%:* ${formatMoneda(montoPie)} (Bloquea exclusividad de la fecha)\n`;
-        if (esTresPagos) {
-          msg += `2️⃣ *Segundo Pago (${hito2Porcentaje}%):* ${formatMoneda(montoHito2)} (Tras degustación y aprobación de montaje)\n`;
-          msg += `3️⃣ *Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}%):* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
-        } else if (esCuatroPagos) {
-          msg += `2️⃣ *Saldo en 3 cuotas (${100 - porcentajeAnticipo}%):* 3 pagos de ${formatMoneda(cuotaCuatroPagos)} (Última cuota hasta ${diasSaldo} días antes del evento)\n`;
-        } else if (esCorporativo) {
-          msg += `2️⃣ *Saldo Restante (${100 - porcentajeAnticipo}%):* ${formatMoneda(saldoRestante)} (Contra factura a 30 días con Orden de Compra aprobada)\n`;
-        } else if (esPersonalizado) {
-          msg += `2️⃣ *Saldo Restante (${100 - porcentajeAnticipo}%):* ${formatMoneda(saldoRestante)} (Según las condiciones acordadas)\n`;
+        msg += `📋 *POLÍTICA DE RESERVA Y PAGOS:*\n`;
+        if (esUnPago) {
+          msg += `1️⃣ *Pago Único (100%):* ${formatMoneda(totalAPagar)} (Al reservar o confirmar la fecha)\n`;
         } else {
-          msg += `2️⃣ *Saldo ${100 - porcentajeAnticipo}%:* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
+          msg += `1️⃣ *Anticipo ${porcentajeAnticipo}%:* ${formatMoneda(montoPie)} (Bloquea exclusividad de la fecha)\n`;
+          if (esTresPagos) {
+            msg += `2️⃣ *Segundo Pago (${hito2Porcentaje}%):* ${formatMoneda(montoHito2)} (Tras degustación y aprobación de montaje)\n`;
+            msg += `3️⃣ *Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}%):* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
+          } else if (esCuatroPagos) {
+            msg += `2️⃣ *Saldo en 3 cuotas (${100 - porcentajeAnticipo}%):* 3 pagos de ${formatMoneda(cuotaCuatroPagos)} (Última cuota hasta ${diasSaldo} días antes del evento)\n`;
+          } else if (esCorporativo) {
+            msg += `2️⃣ *Saldo Restante (${100 - porcentajeAnticipo}%):* ${formatMoneda(saldoRestante)} (Contra factura a 30 días con Orden de Compra aprobada)\n`;
+          } else if (esPersonalizado) {
+            msg += `2️⃣ *Saldo Restante (${100 - porcentajeAnticipo}%):* ${formatMoneda(saldoRestante)} (Según las condiciones acordadas)\n`;
+          } else {
+            msg += `2️⃣ *Saldo ${100 - porcentajeAnticipo}%:* ${formatMoneda(saldoRestante)} (Hasta ${diasSaldo} días antes del evento)\n`;
+          }
         }
+        msg += `• *Forma de pago:* ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}\n`;
+        if (condicionesPagoTexto) msg += `• ${condicionesPagoTexto}\n`;
+        msg += `• Confirmación de comensales con un mínimo de ${diasConfirmacionComensales} días de anticipación.\n`;
+        msg += `• Cotización con validez de ${validezDias} días continuos.\n\n`;
       }
-      msg += `• *Forma de pago:* ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}\n`;
-      if (condicionesPagoTexto) msg += `• ${condicionesPagoTexto}\n`;
-      msg += `• Confirmación de comensales con un mínimo de ${diasConfirmacionComensales} días de anticipación.\n`;
-      msg += `• Cotización con validez de ${validezDias} días continuos.\n\n`;
     }
 
     if (incluirDatosBanco && metodoPago === 'transferencia') {
@@ -409,17 +422,25 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
                   <span>Servicios y técnica seleccionada ({proveedoresActivos.length} ítems)</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={incluirCondiciones}
-                    onChange={(e) => setIncluirCondiciones(e.target.checked)}
-                    className="rounded-md accent-emerald-600"
-                  />
-                  <span>
-                    Condiciones de pago ({esUnPago ? 'Pago único 100%' : `Anticipo ${porcentajeAnticipo}% y saldo ${100 - porcentajeAnticipo}%`})
-                  </span>
-                </label>
+                {mostrarCondicionesPago ? (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={incluirCondiciones}
+                      onChange={(e) => setIncluirCondiciones(e.target.checked)}
+                      className="rounded-md accent-emerald-600"
+                    />
+                    <span>
+                      {modoCondicionesPago === 'manual'
+                        ? 'Condiciones de pago (texto escrito en Adm. Costos)'
+                        : `Condiciones de pago (${esUnPago ? 'Pago único 100%' : `Anticipo ${porcentajeAnticipo}% y saldo ${100 - porcentajeAnticipo}%`})`}
+                    </span>
+                  </label>
+                ) : (
+                  <p className="text-[10px] text-slate-400 italic">
+                    Las condiciones de pago están desactivadas en Adm. Costos.
+                  </p>
+                )}
 
                 {metodoPago === 'transferencia' && (
                   <label className="flex items-center gap-2 cursor-pointer">

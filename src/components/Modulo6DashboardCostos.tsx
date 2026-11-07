@@ -61,6 +61,10 @@ interface Modulo6DashboardCostosProps {
   onChangeMetodoPago?: (metodo: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro') => void;
   detalleMetodoPago?: string;
   onChangeDetalleMetodoPago?: (texto: string) => void;
+  mostrarCondicionesPago?: boolean;
+  onToggleMostrarCondiciones?: (mostrar: boolean) => void;
+  modoCondicionesPago?: 'manual' | 'auto';
+  onChangeModoCondiciones?: (modo: 'manual' | 'auto') => void;
   // Campos básicos de luz & gas y otros gastos fijos a mano
   gastoLuzMensual?: number;
   onChangeGastoLuz?: (luz: number) => void;
@@ -115,6 +119,10 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
   onChangeMetodoPago,
   detalleMetodoPago = '',
   onChangeDetalleMetodoPago,
+  mostrarCondicionesPago = false,
+  onToggleMostrarCondiciones,
+  modoCondicionesPago = 'manual',
+  onChangeModoCondiciones,
   gastoLuzMensual = 0,
   onChangeGastoLuz,
   gastoGasMensual = 0,
@@ -1057,28 +1065,102 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
         <div className="flex items-center justify-between flex-wrap gap-2">
           <label className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
             <CreditCard className="w-4 h-4 text-emerald-600" />
-            <span>Condiciones de Anticipo & Pago</span>
+            <span>Condiciones de Pago</span>
           </label>
-          <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-            {esquemaPago === 'un_pago'
-              ? '100% Contado'
-              : esquemaPago === 'personalizado'
-              ? '⭐ Criterio Libre'
-              : esquemaPago === 'cuatro_pagos'
-              ? '4 Cuotas'
-              : esquemaPago === 'tres_pagos'
-              ? `3 Hitos (${porcentajeAnticipo}% / ${hito2Porcentaje}%)`
-              : `${porcentajeAnticipo}% Pie`}
+          <span className={`text-[10px] font-extrabold border px-2.5 py-0.5 rounded-full ${
+            !mostrarCondicionesPago
+              ? 'bg-slate-100 text-slate-600 border-slate-300'
+              : modoCondicionesPago === 'manual'
+              ? 'bg-amber-100 text-amber-900 border-amber-300'
+              : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+          }`}>
+            {!mostrarCondicionesPago
+              ? 'No se muestran'
+              : modoCondicionesPago === 'manual'
+              ? '✍️ Manual'
+              : '⚙️ Automático'}
           </span>
         </div>
 
-        {/* Explicación de criterio libre */}
-        <div className="text-[11px] text-slate-600 bg-emerald-50/60 p-2.5 rounded-lg border border-emerald-200 leading-snug flex items-start gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-          <span>
-            <strong className="text-emerald-950 font-bold">Criterio Libre del Emprendedor:</strong> Tienes total libertad para definir cómo cobrar a tus clientes: ajusta el porcentaje de anticipo (0 a 100%), elige la cantidad de cuotas o redacta tus propias condiciones contractuales personalizadas.
-          </span>
-        </div>
+        {/* Interruptor maestro: mostrar u ocultar las condiciones */}
+        <label className={`flex items-start gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+          mostrarCondicionesPago ? 'bg-white border-emerald-500 ring-1 ring-emerald-500' : 'bg-white border-slate-300'
+        }`}>
+          <input
+            type="checkbox"
+            checked={mostrarCondicionesPago}
+            onChange={(e) => onToggleMostrarCondiciones && onToggleMostrarCondiciones(e.target.checked)}
+            className="accent-emerald-600 cursor-pointer mt-0.5"
+          />
+          <div className="leading-tight">
+            <span className="font-bold text-slate-900 block text-[11px]">
+              Mostrar condiciones de pago en la ficha y en el WhatsApp
+            </span>
+            <span className="text-[10px] text-slate-500">
+              Si lo desactivas, no aparece ningún texto de condiciones en la ficha ni en el mensaje (útil cuando no corresponde).
+            </span>
+          </div>
+        </label>
+
+        {mostrarCondicionesPago && (
+          <>
+            {/* Selector de modo: manual o automático */}
+            <div>
+              <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider block mb-1.5">
+                ¿Quién define las condiciones?
+              </span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onChangeModoCondiciones && onChangeModoCondiciones('manual')}
+                  className={`py-2 px-2 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+                    modoCondicionesPago === 'manual'
+                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title="La banquetera escribe las condiciones tal cual saldrán en la ficha"
+                >
+                  ✍️ Manual (yo las escribo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeModoCondiciones && onChangeModoCondiciones('auto')}
+                  className={`py-2 px-2 text-[11px] font-bold rounded-lg border transition-all cursor-pointer ${
+                    modoCondicionesPago === 'auto'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                  title="El sistema arma el desglose según el anticipo y las cuotas configuradas"
+                >
+                  ⚙️ Automático (según cuotas)
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-1">
+                {modoCondicionesPago === 'manual'
+                  ? 'En modo manual la ficha y el WhatsApp muestran exactamente el texto que escribas abajo.'
+                  : 'En modo automático la ficha y el WhatsApp muestran el desglose calculado con los valores de abajo.'}
+              </p>
+            </div>
+
+            {modoCondicionesPago === 'manual' && (
+              <div className="p-2.5 bg-amber-50/60 rounded-lg border border-amber-200 space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-800 block">
+                  Condiciones de pago (texto libre — sale tal cual en la ficha y WhatsApp):
+                </label>
+                <textarea
+                  rows={6}
+                  value={condicionesPagoPersonalizadas}
+                  onChange={(e) => onChangeCondicionesPagoPersonalizadas && onChangeCondicionesPagoPersonalizadas(e.target.value)}
+                  placeholder={"Ej:\nAnticipo del 50% al reservar la fecha.\nSaldo del 50% el mismo día del evento, en efectivo.\nConfirmación de comensales hasta 10 días antes."}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-amber-500 focus:outline-hidden"
+                />
+                <p className="text-[10px] text-slate-500">
+                  Puedes usar varias líneas. Si lo dejas vacío, no se mostrará nada de condiciones aunque el interruptor esté activo.
+                </p>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Selector de Porcentaje de Anticipo Libre */}
         {esquemaPago !== 'un_pago' && (
@@ -1237,6 +1319,8 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           </div>
         </div>
 
+        {mostrarCondicionesPago && modoCondicionesPago === 'auto' && (
+          <>
         {/* Parámetros Ajustables Adicionales según Modalidad */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200">
           {esquemaPago === 'tres_pagos' && (
@@ -1316,58 +1400,69 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           />
         </div>
 
+          </>
+        )}
+
         {/* Medio de Pago y Confirmación de Comensales (Libre) */}
-        <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-2">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                Medio de Pago:
-              </label>
-              <select
-                value={metodoPago}
-                onChange={(e) => onChangeMetodoPago && onChangeMetodoPago(e.target.value as 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro')}
-                className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden cursor-pointer"
-              >
-                <option value="transferencia">Transferencia bancaria</option>
-                <option value="efectivo">Efectivo</option>
-                <option value="tarjeta">Tarjeta (débito / crédito)</option>
-                <option value="cheque">Cheque</option>
-                <option value="otro">Otro / Mixto</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                Días mínimos para confirmar comensales:
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min={0}
-                  max={90}
-                  value={diasConfirmacionComensales}
-                  onChange={(e) => onChangeDiasConfirmacion && onChangeDiasConfirmacion(Number(e.target.value) || 0)}
-                  className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
-                />
-                <span className="text-xs text-slate-600">días</span>
+        {mostrarCondicionesPago && (
+          <div className="p-2.5 bg-white rounded-lg border border-slate-200 space-y-2">
+            <div className={`grid grid-cols-1 ${modoCondicionesPago === 'auto' ? 'sm:grid-cols-2' : ''} gap-2`}>
+              <div>
+                <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                  Medio de Pago:
+                </label>
+                <select
+                  value={metodoPago}
+                  onChange={(e) => onChangeMetodoPago && onChangeMetodoPago(e.target.value as 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro')}
+                  className="w-full px-2.5 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden cursor-pointer"
+                >
+                  <option value="transferencia">Transferencia bancaria</option>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="tarjeta">Tarjeta (débito / crédito)</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="otro">Otro / Mixto</option>
+                </select>
               </div>
+              {modoCondicionesPago === 'auto' && (
+                <div>
+                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                    Días mínimos para confirmar comensales:
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={0}
+                      max={90}
+                      value={diasConfirmacionComensales}
+                      onChange={(e) => onChangeDiasConfirmacion && onChangeDiasConfirmacion(Number(e.target.value) || 0)}
+                      className="w-18 px-2 py-1 text-xs font-bold bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+                    />
+                    <span className="text-xs text-slate-600">días</span>
+                  </div>
+                </div>
+              )}
             </div>
+            {modoCondicionesPago === 'auto' && (
+              <div>
+                <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                  Detalle libre del medio de pago:
+                </label>
+                <input
+                  type="text"
+                  value={detalleMetodoPago}
+                  onChange={(e) => onChangeDetalleMetodoPago && onChangeDetalleMetodoPago(e.target.value)}
+                  placeholder="Ej: efectivo contra entrega / 50% transferencia y 50% efectivo"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
+                />
+              </div>
+            )}
+            <p className="text-[10px] text-slate-400">
+              {modoCondicionesPago === 'auto'
+                ? 'El medio de pago y su detalle aparecen en la ficha formal y en el WhatsApp.'
+                : 'El medio de pago define si se muestran los datos bancarios (solo transferencia). La forma de pago y los plazos escríbelos tú en el texto de condiciones.'}
+            </p>
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-slate-700 block mb-1">
-              Detalle libre del medio de pago:
-            </label>
-            <input
-              type="text"
-              value={detalleMetodoPago}
-              onChange={(e) => onChangeDetalleMetodoPago && onChangeDetalleMetodoPago(e.target.value)}
-              placeholder="Ej: efectivo contra entrega / 50% transferencia y 50% efectivo"
-              className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:border-emerald-500 focus:outline-hidden"
-            />
-          </div>
-          <p className="text-[10px] text-slate-400">
-            El medio de pago y su detalle aparecen en la ficha formal y en el WhatsApp.
-          </p>
-        </div>
+        )}
 
         {/* Desglose Matemático Reactivo de Cuotas en CLP */}
         <div className="pt-2 border-t border-slate-200 space-y-1 text-xs">

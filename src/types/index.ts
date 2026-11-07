@@ -183,6 +183,8 @@ export interface CotizacionState {
   validezDias?: number; // validez de la cotización en días (ej: 15)
   metodoPago?: 'transferencia' | 'efectivo' | 'tarjeta' | 'cheque' | 'otro';
   detalleMetodoPago?: string; // texto libre: ej. "Efectivo contra entrega" o "50% transferencia y 50% efectivo"
+  mostrarCondicionesPago?: boolean; // interruptor: mostrar u ocultar el bloque de condiciones en ficha y WhatsApp
+  modoCondicionesPago?: 'manual' | 'auto'; // manual = texto escrito por la banquetera; auto = desglose calculado
   // Gastos fijos operacionales detallados para emprendedores
   gastoLuzMensual?: number; // Cuenta de luz mensual
   gastoGasMensual?: number; // Cuenta de gas mensual (balones, granel, cocina)

@@ -898,6 +898,14 @@ export default function App() {
     setCotizacion(prev => ({ ...prev, detalleMetodoPago: texto }));
   };
 
+  const handleToggleMostrarCondiciones = (mostrar: boolean) => {
+    setCotizacion(prev => ({ ...prev, mostrarCondicionesPago: mostrar }));
+  };
+
+  const handleChangeModoCondiciones = (modo: 'manual' | 'auto') => {
+    setCotizacion(prev => ({ ...prev, modoCondicionesPago: modo }));
+  };
+
   const handleChangeGastoLuz = (luz: number) => {
     setCotizacion(prev => {
       const otros = prev.otrosGastosFijos || [];
@@ -1097,6 +1105,8 @@ export default function App() {
       validezDias: 15,
       metodoPago: 'transferencia',
       detalleMetodoPago: '',
+      mostrarCondicionesPago: false,
+      modoCondicionesPago: 'manual',
       gastoLuzMensual: def.cotizacion.gastoLuzMensual || 85000,
       gastoGasMensual: def.cotizacion.gastoGasMensual || 45000,
       otrosGastosFijos: def.cotizacion.otrosGastosFijos || [],
@@ -1637,6 +1647,10 @@ export default function App() {
                 onChangeMetodoPago={handleChangeMetodoPago}
                 detalleMetodoPago={cotizacion.detalleMetodoPago ?? ''}
                 onChangeDetalleMetodoPago={handleChangeDetalleMetodoPago}
+                mostrarCondicionesPago={cotizacion.mostrarCondicionesPago ?? false}
+                onToggleMostrarCondiciones={handleToggleMostrarCondiciones}
+                modoCondicionesPago={cotizacion.modoCondicionesPago ?? 'manual'}
+                onChangeModoCondiciones={handleChangeModoCondiciones}
                 // Gastos fijos específicos para emprendedores: Luz, Gas y Otros a mano
                 gastoLuzMensual={cotizacion.gastoLuzMensual ?? 0}
                 onChangeGastoLuz={handleChangeGastoLuz}

@@ -131,6 +131,9 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const metodoPago = cotizacion.metodoPago ?? 'transferencia';
   const detalleMetodoPago = (cotizacion.detalleMetodoPago || '').trim();
   const condicionesPagoTexto = (cotizacion.condicionesPagoPersonalizadas || '').trim();
+  const mostrarCondicionesPago = cotizacion.mostrarCondicionesPago ?? false;
+  const modoCondicionesPago = cotizacion.modoCondicionesPago ?? 'manual';
+  const hayCondicionesPago = mostrarCondicionesPago && (modoCondicionesPago === 'auto' || condicionesPagoTexto.length > 0);
   const metodoPagoLabel: Record<string, string> = {
     transferencia: 'Transferencia bancaria',
     efectivo: 'Efectivo',
@@ -272,6 +275,17 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
   const handlePrint = () => {
     window.print();
   };
+
+  const escaparHtml = (texto: string) =>
+    texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // Condiciones manuales: respeta los saltos de línea que escribió la banquetera
+  const condicionesHtmlManual = condicionesPagoTexto
+    .split(/\r?\n/)
+    .map((linea) => linea.trim())
+    .filter(Boolean)
+    .map((linea) => `• ${escaparHtml(linea)}<br>`)
+    .join('');
 
   const handleDescargarHTML = () => {
     let htmlSec = 1;
@@ -570,27 +584,29 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
     </div>
   </div>
 
+  ${hayCondicionesPago ? `
   <div style="margin-top: 30px; font-size: 11px; color: #64748b; line-height: 1.6;">
     <h4 style="color: #0f172a; text-transform: uppercase; font-size: 12px; margin-bottom: 4px;">Condiciones Comerciales y de Pago:</h4>
-    ${esUnPago
-      ? `• Pago único del 100% (${formatMoneda(totalAPagar)} CLP) al reservar o confirmar la fecha.<br>`
-      : `• Anticipo del ${porcentajeAnticipo}% (${formatMoneda(pieMonto)} CLP) para reservar y asegurar la exclusividad de la fecha.<br>`}
-    ${esUnPago ? '' : esTresPagos
-      ? `• Segundo Pago ${hito2Porcentaje}% (${formatMoneda(hito2Monto)} CLP) tras degustación y prueba de menú.<br>• Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}% - ${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos al evento.<br>`
-      : esCuatroPagos
-      ? `• Saldo restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) en 3 cuotas de ${formatMoneda(cuotaCuatroPagos)} CLP; última cuota hasta ${diasSaldo} días hábiles antes del evento.<br>`
-      : esCorporativo
-      ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) contra factura a 30 días con Orden de Compra aprobada.<br>`
-      : esPersonalizado
-      ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) según las condiciones acordadas.<br>`
-      : `• Saldo del ${100 - porcentajeAnticipo}% (${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos a la realización del evento.<br>`}
-    • Forma de pago: ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}.<br>
-    ${condicionesPagoTexto ? `• Condiciones adicionales: ${condicionesPagoTexto}<br>` : ''}
-    • Confirmación final de comensales con un mínimo de ${diasConfirmacionComensales} días de anticipación.<br>
-    • Cotización con validez de ${validezDias} días continuos.<br>
+    ${modoCondicionesPago === 'manual' ? condicionesHtmlManual : `
+      ${esUnPago
+        ? `• Pago único del 100% (${formatMoneda(totalAPagar)} CLP) al reservar o confirmar la fecha.<br>`
+        : `• Anticipo del ${porcentajeAnticipo}% (${formatMoneda(pieMonto)} CLP) para reservar y asegurar la exclusividad de la fecha.<br>`}
+      ${esUnPago ? '' : esTresPagos
+        ? `• Segundo Pago ${hito2Porcentaje}% (${formatMoneda(hito2Monto)} CLP) tras degustación y prueba de menú.<br>• Saldo Final (${Math.max(0, 100 - porcentajeAnticipo - hito2Porcentaje)}% - ${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos al evento.<br>`
+        : esCuatroPagos
+        ? `• Saldo restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) en 3 cuotas de ${formatMoneda(cuotaCuatroPagos)} CLP; última cuota hasta ${diasSaldo} días hábiles antes del evento.<br>`
+        : esCorporativo
+        ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) contra factura a 30 días con Orden de Compra aprobada.<br>`
+        : esPersonalizado
+        ? `• Saldo Restante (${100 - porcentajeAnticipo}% - ${formatMoneda(saldoMonto)} CLP) según las condiciones acordadas.<br>`
+        : `• Saldo del ${100 - porcentajeAnticipo}% (${formatMoneda(saldoMonto)} CLP) hasta ${diasSaldo} días hábiles previos a la realización del evento.<br>`}
+      • Forma de pago: ${metodoPagoLabel[metodoPago] || 'A convenir'}${detalleMetodoPago ? ` — ${detalleMetodoPago}` : ''}.<br>
+      • Confirmación final de comensales con un mínimo de ${diasConfirmacionComensales} días de anticipación.<br>
+      • Cotización con validez de ${validezDias} días continuos.<br>
+    `}
     ${!incluyeDecoracion ? '• <em>Ambientación & Decoración: No incluida en la tarifa (Aporte directo del cliente o no requerida).</em><br>' : ''}
     ${metodoPago === 'transferencia' ? ((empresaActiva.datosBancarios && (empresaActiva.datosBancarios.razonSocial || empresaActiva.datosBancarios.numeroCuenta)) ? `• Datos de Transferencia: ${[empresaActiva.datosBancarios.razonSocial, empresaActiva.datosBancarios.banco, empresaActiva.datosBancarios.tipoCuenta, empresaActiva.datosBancarios.numeroCuenta, empresaActiva.datosBancarios.rut].filter(Boolean).join(' · ')}.<br>` : '• <em>Datos de Transferencia: A confirmar por la empresa.</em><br>') : ''}
-  </div>
+  </div>` : ''}
 
   <div class="signatures">
     <div class="sig-line">
@@ -1382,10 +1398,17 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
 
           {/* Condiciones Comerciales, Datos de Pago y Firmas */}
           <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-500 space-y-3">
+            {hayCondicionesPago && (
+              <>
             <h4 className="font-bold text-slate-800 uppercase tracking-wider text-xs">
               Condiciones Comerciales & Forma de Pago:
             </h4>
             <div className={`grid grid-cols-1 ${metodoPago === 'transferencia' ? 'sm:grid-cols-2' : ''} gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200`}>
+              {modoCondicionesPago === 'manual' ? (
+                <div className="whitespace-pre-line leading-relaxed text-slate-700">
+                  {condicionesPagoTexto}
+                </div>
+              ) : (
               <ul className="list-disc list-inside space-y-1">
                 {esUnPago ? (
                   <li><strong className="text-slate-800">Pago único (100%):</strong> {formatMoneda(totalAPagar)} CLP al reservar o confirmar la fecha.</li>
@@ -1423,6 +1446,7 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
                 )}
                 <li>Horario estándar: uso exclusivo del recinto según bloque acordado.</li>
               </ul>
+              )}
 
               {metodoPago === 'transferencia' && (
                 <div className="border-t sm:border-t-0 sm:border-l sm:border-slate-200 sm:pl-4 pt-2 sm:pt-0 space-y-1">
@@ -1474,6 +1498,8 @@ export const FichaCotizacionModal: React.FC<FichaCotizacionModalProps> = ({
                 </div>
               )}
             </div>
+              </>
+            )}
 
             <div className="mt-8 pt-8 grid grid-cols-2 gap-8 text-center text-xs text-slate-500">
               <div className="border-t border-slate-300 pt-2">
