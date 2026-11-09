@@ -11,7 +11,10 @@ export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ em
   const telefonoLimpio = '56931181304';
   const telefonoFormateado = '+56 9 49209398';
 
-  const demoUrl = typeof window !== 'undefined' ? window.location.href : 'https://domingaeventos.cl';
+  const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+  const demoUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true`
+    : 'https://domingaeventos.cl';
 
   const mensajeWhatsApp = `Hola! Quiero consultar por el Sistema de Cotizaciones y Costeo para Centros de Eventos (${empresa.nombre}). Puedes ver el demo funcionando aquí: ${demoUrl}`;
   const enlaceWsp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensajeWhatsApp)}`;

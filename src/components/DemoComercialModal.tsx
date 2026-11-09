@@ -812,35 +812,48 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
                   <span>Mensaje listo para WhatsApp (con tu número +56 9 3118 1304 y enlace al demo)</span>
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <a
-                    href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Preparé esta propuesta para ${empresa.nombre}. Diseñé este sistema de cotizaciones y costeo en tiempo real. Puedes ver el demo funcionando en vivo aquí: ${typeof window !== 'undefined' ? window.location.href : ''}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 fill-white" />
-                    <span>Abrir en WhatsApp</span>
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const demoUrl = typeof window !== 'undefined' ? window.location.href : '';
-                      const textoWsp = `Hola! Preparé una propuesta especial para ${empresa.nombre}. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta en PDF con tu membrete. Puedes probar el demo en vivo aquí: ${demoUrl}. Mi WhatsApp es +56 9 3118 1304.`;
-                      navigator.clipboard.writeText(textoWsp);
-                      setCopiado(true);
-                      setTimeout(() => setCopiado(false), 2500);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copiar Texto</span>
-                  </button>
+                  {(() => {
+                    const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                    const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
+                    return (
+                      <>
+                        <a
+                          href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Preparé esta propuesta para ${empresa.nombre}. Diseñé este sistema de cotizaciones y costeo en tiempo real. Puedes ver el demo funcionando en vivo aquí: ${demoUrl}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                          <span>Abrir en WhatsApp</span>
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const textoWsp = `Hola! Preparé una propuesta especial para ${empresa.nombre}. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta en PDF con tu membrete. Puedes probar el demo en vivo aquí: ${demoUrl}. Mi WhatsApp es +56 9 3118 1304.`;
+                            navigator.clipboard.writeText(textoWsp);
+                            setCopiado(true);
+                            setTimeout(() => setCopiado(false), 2500);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-bold transition-colors shadow-xs cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>{copiado ? 'Copiado!' : 'Copiar Texto'}</span>
+                        </button>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
-              <div className="p-3.5 bg-slate-900 rounded-lg text-xs text-slate-300 leading-relaxed font-sans border border-slate-800">
-                "Hola! Preparé una propuesta especial para <b>{empresa.nombre}</b>. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta de lujo en PDF con tu propio membrete de Finca La Toscana en Linderos. Puedes probar el demo en vivo aquí: <span className="text-amber-400 underline font-mono">{typeof window !== 'undefined' ? window.location.href : 'enlace-demo'}</span>. ¿Tienes 5 minutos para verlo? Me puedes responder directo a este WhatsApp: <b>+56 9 3118 1304</b>."
-              </div>
+              {(() => {
+                const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : 'enlace-demo';
+                return (
+                  <div className="p-3.5 bg-slate-900 rounded-lg text-xs text-slate-300 leading-relaxed font-sans border border-slate-800">
+                    "Hola! Preparé una propuesta especial para <b>{empresa.nombre}</b>. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta de lujo en PDF con tu propio membrete de {empresa.recintoPrincipal}. Puedes probar el demo en vivo aquí: <span className="text-amber-400 underline font-mono break-all">{demoUrl}</span>. ¿Tienes 5 minutos para verlo? Me puedes responder directo a este WhatsApp: <b>+56 9 3118 1304</b>."
+                  </div>
+                );
+              })()}
             </div>
 
           </div>

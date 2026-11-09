@@ -103,6 +103,19 @@ export default function App() {
 
   // ── Gestión de Perfil de Operación / Cliente con Aislamiento en localStorage ──
   const [clienteActivoId, setClienteActivoId] = useState<PerfilClienteId>(() => {
+    // 1. Prioridad: Parámetro en la URL (ej: ?centro=toscana o ?empresa=dominga-eventos)
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const param = params.get('centro') || params.get('empresa') || params.get('cliente') || params.get('perfil');
+        if (param) {
+          const p = param.toLowerCase();
+          if (p.includes('toscana') || p.includes('dominga') || p.includes('emp-dominga')) return 'dominga-eventos';
+          if (p.includes('damaris') || p.includes('emp-damaris')) return 'damaris-eventos';
+          if (p.includes('isidora') || p.includes('base') || p.includes('emp-solvi')) return 'modelo-base';
+        }
+      } catch {}
+    }
     const saved = localStorage.getItem('hlr_perfil_cliente_activo') as PerfilClienteId;
     if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos')) {
       return saved;
@@ -204,24 +217,43 @@ export default function App() {
     }
   };
 
-  // ── Modo Administrador (Libre por defecto para Respaldos y Gestión) ──
+  // ── Modo Administrador vs Modo Demo (Candado cerrado para clientes) ──
   const [modoAdmin, setModoAdmin] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        // Si la URL viene para demostración a cliente (?demo=true o con centro fijado), arrancar con candado cerrado
+        if (params.get('demo') === 'true' || params.get('centro') || params.get('empresa') || params.get('cliente')) {
+          return false;
+        }
+      } catch {}
+    }
     try {
       const saved = localStorage.getItem('solvi_flow_modo_admin');
       if (saved !== null) return saved === 'true';
-      return true; // Libre y desbloqueado por defecto para respaldo
+      return false; // Candado cerrado por defecto para proteger la presentación comercial
     } catch {
-      return true;
+      return false;
     }
   });
 
   const toggleModoAdmin = () => {
+    if (!modoAdmin) {
+      // Si el candado está cerrado y se quiere abrir, solicitar clave o confirmación de administrador
+      const clave = window.prompt('🔒 Modo Administrador:\nIngresa la clave para desbloquear el cambio de centros de eventos y herramientas de configuración:\n(Escribe "admin" o presiona Aceptar)');
+      if (clave === null) return; // Cancelado por el usuario
+      const claveLimpia = clave.trim().toLowerCase();
+      if (claveLimpia !== 'admin' && claveLimpia !== 'solvi' && claveLimpia !== '') {
+        alert('❌ Clave no válida. El centro de eventos continúa protegido en Modo Demo.');
+        return;
+      }
+    }
     setModoAdmin(prev => {
       const next = !prev;
       try {
         localStorage.setItem('solvi_flow_modo_admin', String(next));
       } catch {}
-      mostrarToast(next ? '🔓 Modo Administrador Activado (Herramientas técnicas visibles)' : '🔒 Modo Demo Activado (Herramientas de respaldo ocultas para el cliente)');
+      mostrarToast(next ? '🔓 Modo Administrador Activado (Centros de eventos desbloqueados)' : '🔒 Modo Demo Activado (Centro de eventos fijado y protegido)');
       return next;
     });
   };
@@ -305,6 +337,10 @@ export default function App() {
 
   // ── CAMBIO DE PERFIL / CLIENTE CON AISLAMIENTO TOTAL Y REACCIÓN INSTANTÁNEA ──
   const handleCambiarCliente = (nuevoClienteId: PerfilClienteId) => {
+    if (!modoAdmin) {
+      mostrarToast('🔒 El centro de eventos está protegido en Modo Demo. Abre el candado de Administrador para cambiar.');
+      return;
+    }
     if (nuevoClienteId === clienteActivoId) return;
 
     // 1. Guardar el estado actual del cliente saliente
@@ -2069,6 +2105,10 @@ export default function App() {
           empresas={empresas}
           empresaActivaId={empresaActiva.id}
           onSelectEmpresa={(id) => {
+            if (!modoAdmin) {
+              mostrarToast('🔒 El centro de eventos está protegido en Modo Demo. Abre el candado de Administrador para cambiar.');
+              return;
+            }
             const emp = empresas.find(e => e.id === id);
             if (emp) {
               setEmpresaActiva(emp);

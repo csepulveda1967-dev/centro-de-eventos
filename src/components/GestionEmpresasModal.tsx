@@ -14,7 +14,8 @@ import {
   Server,
   Lock,
   Unlock,
-  FolderGit2
+  FolderGit2,
+  Share2
 } from 'lucide-react';
 
 interface GestionEmpresasModalProps {
@@ -216,13 +217,19 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                     <div
                       key={emp.id}
                       onClick={() => {
+                        if (!modoAdmin && !isActiva) {
+                          alert(`🔒 El centro de eventos está protegido en Modo Demo.\n\nPara cambiar a "${emp.nombre}", primero debes abrir el candado de Administrador en la cabecera.`);
+                          return;
+                        }
                         onSelectEmpresa(emp.id);
                         onClose();
                       }}
-                      className={`p-4 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between ${
                         isActiva
-                          ? 'border-amber-500 bg-amber-50/30 shadow-xs ring-2 ring-amber-400'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                          ? 'border-amber-500 bg-amber-50/30 shadow-xs ring-2 ring-amber-400 cursor-default'
+                          : modoAdmin
+                          ? 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                          : 'border-slate-200 bg-slate-50/70 opacity-90 cursor-not-allowed'
                       }`}
                     >
                       <div>
@@ -241,10 +248,15 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                             </div>
                           </div>
 
-                          {isActiva && (
+                          {isActiva ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               Activo
+                            </span>
+                          ) : !modoAdmin && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                              <Lock className="w-2.5 h-2.5 text-slate-500" />
+                              Bloqueado
                             </span>
                           )}
                         </div>
@@ -265,11 +277,44 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                        <span className="text-[10px] text-slate-400">Registrado: {emp.fechaRegistro}</span>
-                        <span className="font-bold text-amber-900 hover:underline text-[11px]">
-                          {isActiva ? 'Espacio en uso' : 'Cambiar a este centro →'}
-                        </span>
+                      <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                              const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(url);
+                              }
+                              alert(`✓ Enlace de Demo para "${emp.nombre}" copiado al portapapeles:\n\n${url}\n\nEste enlace abrirá directamente este centro con el candado cerrado para que tu cliente NO pueda cambiar de centro.`);
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                            title="Copiar enlace directo de demo protegido para este centro de eventos"
+                          >
+                            <Share2 className="w-3 h-3 text-indigo-600" />
+                            <span>Copiar Enlace Demo</span>
+                          </button>
+                        </div>
+
+                        <div>
+                          {isActiva ? (
+                            <span className="font-bold text-emerald-800 text-[11px] flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              Espacio en uso
+                            </span>
+                          ) : modoAdmin ? (
+                            <span className="font-bold text-amber-900 hover:underline text-[11px] cursor-pointer">
+                              Cambiar a este centro →
+                            </span>
+                          ) : (
+                            <span className="font-bold text-slate-400 text-[11px] flex items-center gap-1">
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              Fijado en Demo
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

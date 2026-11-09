@@ -124,35 +124,60 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* ══════════════════════════════════════════════════════════════════
-              SELECTOR: PERFIL DE OPERACIÓN / CLIENTE (FONDO VERDE, TEXTO BLANCO LEGIBLE)
+              SELECTOR: PERFIL DE OPERACIÓN / CLIENTE (PROTEGIDO EN MODO DEMO)
           ══════════════════════════════════════════════════════════════════ */}
           <div className="flex items-center gap-2.5 bg-emerald-900 text-white px-3 py-1.5 rounded-xl border border-emerald-600 shadow-xs shrink-0">
             <div className="w-7 h-7 rounded-lg bg-emerald-800 text-white flex items-center justify-center shrink-0 border border-emerald-600">
-              <Building2 className="w-3.5 h-3.5 text-emerald-200" />
+              {modoAdmin ? (
+                <Building2 className="w-3.5 h-3.5 text-emerald-200" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-amber-300" />
+              )}
             </div>
             <div className="flex flex-col text-left">
               <label htmlFor="selector-perfil-cliente" className="text-[9.5px] font-extrabold text-emerald-200 tracking-wider uppercase flex items-center gap-1.5 leading-tight">
-                <span>Perfil de Operación / Cliente</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Aislamiento activo en localStorage" />
+                <span>{modoAdmin ? 'Perfil de Operación / Cliente' : 'Centro de Eventos (Fijado)'}</span>
+                {modoAdmin ? (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Modo Administrador: Selector editable" />
+                ) : (
+                  <span className="text-[8.5px] font-black text-amber-300 bg-amber-950/90 px-1.5 py-0.2 rounded border border-amber-400/50">🔒 Demo Bloqueado</span>
+                )}
               </label>
-              <div className="relative flex items-center mt-0.5">
-                <select
-                  id="selector-perfil-cliente"
-                  value={clienteActivoId}
-                  onChange={(e) => onCambiarCliente(e.target.value as PerfilClienteId)}
-                  style={{ backgroundColor: '#064e3b', color: '#ffffff' }}
-                  className="bg-emerald-900 hover:bg-emerald-800 text-white text-xs font-bold focus:outline-hidden cursor-pointer pl-2 pr-7 py-1 rounded-lg border border-emerald-600/80 appearance-none transition-colors shadow-2xs"
-                  title="Cambiar perfil y propuesta aislada en localStorage"
+
+              {modoAdmin ? (
+                /* MODO ADMIN: SELECTOR EDITABLE */
+                <div className="relative flex items-center mt-0.5">
+                  <select
+                    id="selector-perfil-cliente"
+                    value={clienteActivoId}
+                    onChange={(e) => onCambiarCliente(e.target.value as PerfilClienteId)}
+                    style={{ backgroundColor: '#064e3b', color: '#ffffff' }}
+                    className="bg-emerald-900 hover:bg-emerald-800 text-white text-xs font-bold focus:outline-hidden cursor-pointer pl-2 pr-7 py-1 rounded-lg border border-emerald-600/80 appearance-none transition-colors shadow-2xs"
+                    title="Cambiar perfil y propuesta aislada en localStorage"
+                  >
+                    <option value="modelo-base" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
+                    <option value="dominga-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
+                    <option value="damaris-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-emerald-200 pointer-events-none absolute right-1.5" />
+                </div>
+              ) : (
+                /* MODO DEMO: CANDADO CERRADO, CLIENTE NO PUEDE CAMBIAR A OTRO CENTRO */
+                <div
+                  className="mt-0.5 flex items-center gap-1.5 text-xs font-black text-white bg-emerald-950/80 border border-emerald-700/80 rounded-lg px-2.5 py-1 select-none shadow-2xs"
+                  title="Centro de eventos fijado para demostración. El cliente no puede cambiar a otro centro."
                 >
-                  <option value="modelo-base" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
-                  <option value="dominga-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
-                  <option value="damaris-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-emerald-200 pointer-events-none absolute right-1.5" />
-              </div>
+                  <Lock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span className="truncate max-w-[200px] sm:max-w-[320px]">
+                    {clienteActivoId === 'dominga-eventos' && 'Dominga Eventos (Finca La Toscana)'}
+                    {clienteActivoId === 'damaris-eventos' && 'Centro Damaris (Calera de Tango)'}
+                    {clienteActivoId === 'modelo-base' && 'Doña Isidora Eventos (Banquetería)'}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {onAbrirFormularioEmpresa && (
+            {onAbrirFormularioEmpresa && modoAdmin && (
               <button
                 type="button"
                 onClick={onAbrirFormularioEmpresa}
