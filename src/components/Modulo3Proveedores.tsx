@@ -95,8 +95,8 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
         </div>
       </div>
 
-      {/* Lista de Checkboxes interactivos */}
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      {/* Lista de Checkboxes interactivos en 3 columnas por fila */}
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
         {proveedores.map((p) => {
           const isSelected = !!proveedoresSeleccionados[p.id];
           const costoCalculado = p.tipoCobro === 'por_persona' ? p.costo * invitados : p.costo;
@@ -106,29 +106,29 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
             <div
               key={p.id}
               onClick={() => onToggleProveedor(p.id)}
-              className={`rounded-xl border p-4 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+              className={`rounded-xl border p-3.5 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
                 isSelected
                   ? 'border-indigo-500 bg-indigo-50/20 shadow-xs ring-1 ring-indigo-500'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
               }`}
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2 rounded-lg bg-slate-100/80 shrink-0">
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-slate-100/80 shrink-0">
                       {renderIcon(p.iconName)}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug">
+                    <div className="min-w-0">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug truncate" title={p.nombre}>
                         {p.nombre}
                       </h3>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">
-                          {p.tipoCobro === 'por_persona' ? `Cobro por comensal (${invitados} pax)` : 'Cobro fijo del evento'}
+                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                        <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                          {p.tipoCobro === 'por_persona' ? `Por persona (${invitados} pax)` : 'Cobro fijo evento'}
                         </span>
                         {p.recetaVinculadaNombre && (
-                          <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full">
-                            Ficha: {p.recetaVinculadaNombre}
+                          <span className="text-[8px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full truncate max-w-[120px]">
+                            {p.recetaVinculadaNombre}
                           </span>
                         )}
                       </div>
@@ -143,15 +143,16 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 mt-2.5">
+                <p className="text-xs text-slate-500 mt-2 line-clamp-2 leading-relaxed">
                   {p.descripcion}
                 </p>
+
                 {/* Datos de Contacto de Pedidos / Coordinación */}
                 {(p.contactoNombre || p.telefonoPedidos) && (
-                  <div className="mt-3 p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-700 font-semibold truncate">
-                        👤 {p.contactoNombre || 'Contacto Comercial'}
+                  <div className="mt-2.5 p-2 rounded-lg bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-slate-700 font-semibold truncate text-[10px] sm:text-[11px]" title={p.contactoNombre}>
+                        👤 {p.contactoNombre || 'Contacto'}
                       </span>
                       {p.telefonoPedidos && (
                         <a
@@ -159,17 +160,17 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors shrink-0"
+                          className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors shrink-0"
                           title="Enviar WhatsApp de coordinación al proveedor"
                         >
                           <span>💬 {p.telefonoPedidos}</span>
                         </a>
                       )}
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                      <span>{p.emailPedidos || 'Sin correo registrado'}</span>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 gap-1">
+                      <span className="truncate">{p.emailPedidos || 'Sin correo'}</span>
                       {p.plazoAnticipacion && (
-                        <span className="text-amber-800 font-medium">{p.plazoAnticipacion}</span>
+                        <span className="text-amber-800 font-medium shrink-0">{p.plazoAnticipacion}</span>
                       )}
                     </div>
                   </div>
@@ -177,13 +178,13 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
               </div>
 
               {/* Pie de Precios */}
-              <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Costo Real Proveedor</span>
-                  <div className="font-bold text-slate-800 tabular-nums">
+                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Costo Real</span>
+                  <div className="font-bold text-slate-800 text-xs tabular-nums">
                     {formatMoneda(costoCalculado)}{' '}
                     {p.tipoCobro === 'por_persona' && (
-                      <span className="font-normal text-slate-400 text-[10px]">
+                      <span className="font-normal text-slate-400 text-[10px] block sm:inline">
                         ({formatMoneda(p.costo)}/pax)
                       </span>
                     )}
@@ -191,8 +192,8 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
                 </div>
 
                 <div className="text-right">
-                  <span className="text-slate-400 block text-[10px]">Precio Sugerido Venta</span>
-                  <div className="font-bold text-indigo-900 tabular-nums">
+                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Precio Venta</span>
+                  <div className="font-bold text-indigo-900 text-xs tabular-nums">
                     {formatMoneda(precioVentaCalculado)}
                   </div>
                 </div>
