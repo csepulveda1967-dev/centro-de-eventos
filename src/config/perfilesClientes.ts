@@ -22,6 +22,7 @@ import {
   RECETAS_INICIALES,
   migrarRecetasAGramos
 } from './insumosYRecetas';
+import { EMPRESAS_INICIALES } from './empresasIniciales';
 
 export interface DatosPerfilCliente {
   cotizacion: CotizacionState;
@@ -53,7 +54,7 @@ export interface PerfilClienteConfig {
    8 servicios activos: Incluye Coffee Break, costeo en gramos y vajilla de $390.000 (100 pax x $3.900).
    ========================================================================================= */
 const crearDatosDominga = (): DatosPerfilCliente => {
-  const empresa: EmpresaCliente = {
+  const empresa: EmpresaCliente = EMPRESAS_INICIALES.find(e => e.id === 'emp-dominga') || {
     id: 'emp-dominga',
     nombre: 'Dominga Eventos by Mauge',
     subtitulo: 'Alta Banquetería & Matrimonios',
@@ -63,11 +64,28 @@ const crearDatosDominga = (): DatosPerfilCliente => {
     telefono: '+56 9 6236 0766',
     email: 'info@domingaeventos.cl',
     sitioWeb: 'www.domingaeventos.cl',
-    letraLogo: 'D',
+    instagram: '@domingaeventos',
+    letraLogo: 'DE',
     colorTema: 'amber',
     fechaRegistro: '2026-10-10',
     tituloCabecera: 'Dominga Eventos by Mauge · Alta Banquetería & Matrimonios',
-    infraestructura: 'Salón exclusivo en Finca La Toscana, producción integral de bodas, graduaciones y eventos corporativos de alto estándar.'
+    infraestructura: 'Salón exclusivo en Finca La Toscana, producción integral de bodas, graduaciones y eventos corporativos de alto estándar.',
+    razonSocialLegal: 'Dominga Eventos y Banquetería SpA',
+    rutEmpresa: '77.348.910-2',
+    giroComercial: 'Servicios de Banquetería, Producción de Bodas y Eventos',
+    contactoResponsable: 'Mauge Valenzuela',
+    cargoResponsable: 'Directora Ejecutiva & Banquetera',
+    modalidadOperacion: 'recinto_fijo',
+    capacidadMaxPax: 250,
+    datosBancarios: {
+      razonSocial: 'Dominga Eventos y Banquetería SpA',
+      banco: 'Banco de Chile',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '00-158-94321-00',
+      rut: '77.348.910-2',
+      titular: 'Dominga Eventos y Banquetería SpA',
+      emailTransferencia: 'pagos@domingaeventos.cl'
+    }
   };
 
   const cotizacion: CotizacionState = {
@@ -174,7 +192,7 @@ const crearDatosDominga = (): DatosPerfilCliente => {
    Tarifa base arriendo locación por defecto: $1.500.000.
    ========================================================================================= */
 const crearDatosDamaris = (): DatosPerfilCliente => {
-  const empresa: EmpresaCliente = {
+  const empresa: EmpresaCliente = EMPRESAS_INICIALES.find(e => e.id === 'emp-damaris') || {
     id: 'emp-damaris',
     nombre: 'Centro de Eventos Damaris',
     subtitulo: 'Sistema Inteligente de Gestión & Banquetes',
@@ -184,12 +202,29 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
     telefono: '+56 9 7123 4567',
     email: 'contacto@eventosdamaris.cl',
     sitioWeb: 'www.eventosdamaris.cl',
-    letraLogo: 'D',
+    instagram: '@eventosdamaris',
+    letraLogo: 'CD',
     colorTema: 'emerald',
     fechaRegistro: '2026-10-20',
     tituloCabecera: 'Centro de Eventos Damaris · Sistema Inteligente de Gestión & Banquetes',
     infraestructura: 'Salón Principal (hasta 300 personas), 10.000 m² de parque campestre con jardines, piscina y zona de juegos inflables.',
-    tarifaBaseArriendo: 1500000
+    tarifaBaseArriendo: 1500000,
+    razonSocialLegal: 'Centro de Eventos y Recreación Damaris SpA',
+    rutEmpresa: '76.924.815-K',
+    giroComercial: 'Centro de Eventos, Salones de Fiestas y Servicios Gastronómicos',
+    contactoResponsable: 'Damaris Sepúlveda',
+    cargoResponsable: 'Administradora General',
+    modalidadOperacion: 'recinto_fijo',
+    capacidadMaxPax: 300,
+    datosBancarios: {
+      razonSocial: 'Centro de Eventos y Recreación Damaris SpA',
+      banco: 'Banco Santander',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '74-892-01934-8',
+      rut: '76.924.815-K',
+      titular: 'Centro de Eventos y Recreación Damaris SpA',
+      emailTransferencia: 'transferencias@eventosdamaris.cl'
+    }
   };
 
   const proveedoresDamaris: ProveedorServicio[] = [
@@ -443,7 +478,7 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
    Configuración sin centro de eventos fijo con 2 menús de matrimonio chilenos realistas.
    ========================================================================================= */
 const crearDatosIsidoraEventos = (): DatosPerfilCliente => {
-  const empresa: EmpresaCliente = {
+  const empresa: EmpresaCliente = EMPRESAS_INICIALES.find(e => e.id === 'emp-isidora') || {
     id: 'emp-isidora',
     nombre: 'Doña Isidora Eventos',
     subtitulo: 'Banquetería & Producción de Matrimonios',
@@ -453,11 +488,28 @@ const crearDatosIsidoraEventos = (): DatosPerfilCliente => {
     telefono: '+56 9 9432 1890',
     email: 'contacto@donaisidoraeventos.cl',
     sitioWeb: 'www.donaisidoraeventos.cl',
-    letraLogo: 'I',
+    instagram: '@donaisidoraeventos',
+    letraLogo: 'DI',
     colorTema: 'rose',
     fechaRegistro: '2026-10-01',
     tituloCabecera: 'Doña Isidora Eventos · Banquetería & Producción de Matrimonios',
-    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).'
+    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).',
+    razonSocialLegal: 'Doña Isidora Banquetería SpA',
+    rutEmpresa: '76.512.987-3',
+    giroComercial: 'Servicios de Banquetería Itinerante y Catering para Bodas',
+    contactoResponsable: 'Isidora Valdés',
+    cargoResponsable: 'Chef Ejecutiva & Directora',
+    modalidadOperacion: 'domicilio',
+    capacidadMaxPax: 200,
+    datosBancarios: {
+      razonSocial: 'Doña Isidora Banquetería SpA',
+      banco: 'BancoEstado',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '00-543-21987-65',
+      rut: '76.512.987-3',
+      titular: 'Doña Isidora Banquetería SpA',
+      emailTransferencia: 'contacto@donaisidoraeventos.cl'
+    }
   };
 
   const menusIsidora: MenuOption[] = [
@@ -627,8 +679,36 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
     try {
       const parsed = JSON.parse(guardado) as Partial<DatosPerfilCliente>;
       
-      // La empresa SIEMPRE adopta la estructura oficial del perfil seleccionado
-      const empresaFinal = def.empresa;
+      // La empresa SIEMPRE adopta la estructura oficial del perfil seleccionado y hereda la imagen corporativa completa
+      const empresaBase = def.empresa;
+      const empresaGuardada: Partial<EmpresaCliente> = (parsed.empresa || {});
+      const empresaFinal: EmpresaCliente = {
+        ...empresaBase,
+        ...empresaGuardada,
+        id: empresaBase.id,
+        nombre: empresaBase.nombre,
+        subtitulo: empresaBase.subtitulo,
+        recintoPrincipal: empresaBase.recintoPrincipal,
+        letraLogo: empresaBase.letraLogo,
+        colorTema: empresaBase.colorTema,
+        tituloCabecera: empresaBase.tituloCabecera,
+        infraestructura: empresaBase.infraestructura,
+        razonSocialLegal: (empresaGuardada.razonSocialLegal && empresaGuardada.razonSocialLegal.trim().length > 0) ? empresaGuardada.razonSocialLegal : empresaBase.razonSocialLegal,
+        rutEmpresa: (empresaGuardada.rutEmpresa && empresaGuardada.rutEmpresa.trim().length > 0) ? empresaGuardada.rutEmpresa : empresaBase.rutEmpresa,
+        giroComercial: (empresaGuardada.giroComercial && empresaGuardada.giroComercial.trim().length > 0) ? empresaGuardada.giroComercial : empresaBase.giroComercial,
+        contactoResponsable: (empresaGuardada.contactoResponsable && empresaGuardada.contactoResponsable.trim().length > 0) ? empresaGuardada.contactoResponsable : empresaBase.contactoResponsable,
+        cargoResponsable: (empresaGuardada.cargoResponsable && empresaGuardada.cargoResponsable.trim().length > 0) ? empresaGuardada.cargoResponsable : empresaBase.cargoResponsable,
+        instagram: (empresaGuardada.instagram && empresaGuardada.instagram.trim().length > 0) ? empresaGuardada.instagram : empresaBase.instagram,
+        sitioWeb: (empresaGuardada.sitioWeb && empresaGuardada.sitioWeb.trim().length > 0) ? empresaGuardada.sitioWeb : empresaBase.sitioWeb,
+        email: (empresaGuardada.email && empresaGuardada.email.trim().length > 0) ? empresaGuardada.email : empresaBase.email,
+        telefono: (empresaGuardada.telefono && empresaGuardada.telefono.trim().length > 0) ? empresaGuardada.telefono : empresaBase.telefono,
+        direccion: (empresaGuardada.direccion && empresaGuardada.direccion.trim().length > 0) ? empresaGuardada.direccion : empresaBase.direccion,
+        ciudad: (empresaGuardada.ciudad && empresaGuardada.ciudad.trim().length > 0) ? empresaGuardada.ciudad : empresaBase.ciudad,
+        datosBancarios: {
+          ...empresaBase.datosBancarios,
+          ...(empresaGuardada.datosBancarios || {})
+        }
+      };
 
       const rawProveedores = parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores;
       const proveedoresLimpios = rawProveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'));

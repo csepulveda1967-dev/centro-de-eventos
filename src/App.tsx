@@ -86,7 +86,12 @@ import {
   FilePlus,
   Wine,
   Database,
-  FileCode2
+  FileCode2,
+  LayoutList,
+  Utensils,
+  Truck,
+  LayoutGrid,
+  Palette
 } from 'lucide-react';
 
 export default function App() {
@@ -111,8 +116,19 @@ export default function App() {
   }, []);
 
   const [empresas, setEmpresas] = useState<EmpresaCliente[]>(() => {
-    const saved = localStorage.getItem('hlr_empresas_clientes');
-    return saved ? JSON.parse(saved) : EMPRESAS_INICIALES;
+    try {
+      const saved = localStorage.getItem('hlr_empresas_clientes');
+      if (saved) {
+        const parsed: EmpresaCliente[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(p => {
+            const match = EMPRESAS_INICIALES.find(init => init.id === p.id);
+            return match ? { ...match, ...p, datosBancarios: { ...match.datosBancarios, ...(p.datosBancarios || {}) } } : p;
+          });
+        }
+      }
+    } catch {}
+    return EMPRESAS_INICIALES;
   });
 
   const [empresaActiva, setEmpresaActiva] = useState<EmpresaCliente>(() => datosIniciales.empresa);
@@ -549,10 +565,19 @@ export default function App() {
   };
 
   const handleRestablecerInsumos = () => {
-    if (window.confirm('¿Deseas restablecer el maestro de insumos a sus valores iniciales?')) {
-      localStorage.removeItem('hlr_maestro_insumos');
-      setInsumos(INSUMOS_MAESTRO_INICIALES);
-      mostrarToast('✓ Insumos restablecidos');
+    if (
+      window.confirm(
+        '¿Deseas restablecer los precios base del maestro de insumos a sus valores iniciales?\n\n' +
+        '✓ Tus insumos personalizados creados se conservarán.'
+      )
+    ) {
+      const customInsumos = insumos.filter(i => !INSUMOS_MAESTRO_INICIALES.some(init => init.id === i.id));
+      const insumosRestablecidos = [...INSUMOS_MAESTRO_INICIALES, ...customInsumos];
+      try {
+        localStorage.setItem('hlr_maestro_insumos', JSON.stringify(insumosRestablecidos));
+      } catch {}
+      setInsumos(insumosRestablecidos);
+      mostrarToast('✓ Precios base restablecidos (insumos personalizados conservados)');
     }
   };
 
@@ -1169,18 +1194,84 @@ export default function App() {
 
   const handleRestablecerDefecto = () => {
     const config = PERFILES_CLIENTES_CATALOGO[clienteActivoId];
-    if (window.confirm(`¿Deseas restablecer los valores del perfil "${config.nombreOpcion}" a sus valores de fábrica?`)) {
+    if (
+      window.confirm(
+        `⚠️ ¿Deseas restablecer las tarifas base del perfil "${config.nombreOpcion}" a sus valores de fábrica?\n\n` +
+        `✓ NOTA DE SEGURIDAD: Todos tus menús creados, fichas técnicas e insumos personalizados se CONSERVARÁN intactos.`
+      )
+    ) {
+      // 1. Respaldo preventivo automático antes de cualquier restablecimiento
+      try {
+        const respaldoSeguridad = {
+          fecha: new Date().toISOString(),
+          perfil: clienteActivoId,
+          menus,
+          recetas,
+          insumos,
+          cotizacion
+        };
+        localStorage.setItem(`hlr_backup_seguridad_${clienteActivoId}`, JSON.stringify(respaldoSeguridad));
+      } catch {}
+
       const def = config.crearDatosIniciales();
-      setMenus(def.menus);
+
+      // 2. PRESERVAR menús creados por el usuario
+      const customMenus = menus.filter(m => !def.menus.some(dm => dm.id === m.id));
+      const menusRestablecidos = [...def.menus, ...customMenus];
+
+      // 3. PRESERVAR fichas técnicas / recetas creadas por el usuario
+      const customRecetas = recetas.filter(r => !def.recetas.some(dr => dr.id === r.id));
+      const recetasRestablecidas = [...def.recetas, ...customRecetas];
+
+      // 4. PRESERVAR insumos creados por el usuario
+      const customInsumos = insumos.filter(i => !def.insumos.some(di => di.id === i.id));
+      const insumosRestablecidos = [...def.insumos, ...customInsumos];
+
+      setMenus(menusRestablecidos);
+      setRecetas(recetasRestablecidas);
+      setInsumos(insumosRestablecidos);
       setTarifasStaff(def.tarifasStaff);
       setProveedores(def.proveedores);
       setEstilosDecoracion(def.estilosDecoracion);
-      setInsumos(def.insumos);
-      setRecetas(def.recetas);
-      setCotizacion(def.cotizacion);
+
+      // 5. Preservar datos de cotización (cliente, fecha, invitados, condiciones de pago)
+      setCotizacion(prev => {
+        const menuSigueValido = menusRestablecidos.some(m => m.id === prev.menuId);
+        return {
+          ...def.cotizacion,
+          nombreEvento: prev.nombreEvento || def.cotizacion.nombreEvento,
+          cliente: prev.cliente || def.cotizacion.cliente,
+          emailCliente: prev.emailCliente || def.cotizacion.emailCliente,
+          telefonoCliente: prev.telefonoCliente || def.cotizacion.telefonoCliente,
+          tipoEvento: prev.tipoEvento || def.cotizacion.tipoEvento,
+          fechaEvento: prev.fechaEvento || def.cotizacion.fechaEvento,
+          invitados: prev.invitados || def.cotizacion.invitados,
+          menuId: menuSigueValido ? prev.menuId : (menusRestablecidos[0]?.id || def.cotizacion.menuId),
+          personal: prev.personal || def.cotizacion.personal,
+          observaciones: prev.observaciones || def.cotizacion.observaciones,
+          mostrarCondicionesPago: prev.mostrarCondicionesPago,
+          modoCondicionesPago: prev.modoCondicionesPago,
+          condicionesPagoPersonalizadas: prev.condicionesPagoPersonalizadas,
+          metodoPago: prev.metodoPago || def.cotizacion.metodoPago,
+          detalleMetodoPago: prev.detalleMetodoPago || def.cotizacion.detalleMetodoPago
+        };
+      });
+
       setEmpresaActiva(def.empresa);
-      guardarDatosCliente(clienteActivoId, def);
-      mostrarToast(`✓ Precios y recetas restablecidos para ${config.nombreOpcion}`);
+
+      const nuevoPaquete: DatosPerfilCliente = {
+        cotizacion,
+        menus: menusRestablecidos,
+        tarifasStaff: def.tarifasStaff,
+        proveedores: def.proveedores,
+        estilosDecoracion: def.estilosDecoracion,
+        insumos: insumosRestablecidos,
+        recetas: recetasRestablecidas,
+        reservas,
+        empresa: def.empresa
+      };
+      guardarDatosCliente(clienteActivoId, nuevoPaquete);
+      mostrarToast(`✓ Tarifas base restablecidas. Tus menús y fichas creadas se conservaron intactos.`);
     }
   };
 
@@ -1231,35 +1322,90 @@ export default function App() {
         {vistaActual === 'cotizador' && (
           <div className="space-y-6">
 
-            {/* ── Banner Informativo del Perfil Activo, Infraestructura y Tarifa Base ── */}
-            <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-indigo-500/30">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-sans shadow-xs">
-                      {perfilActualConfig.nombreOpcion}
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-200">
-                      {perfilActualConfig.detalleOpcion}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      Aislamiento en localStorage: <code className="text-emerald-300 font-mono text-[10px]">propuesta_datos_{clienteActivoId}</code>
-                    </span>
-                  </div>
+            {/* ── Banner Informativo del Perfil Activo con Identidad Corporativa Completa ── */}
+            {(() => {
+              const bannerTheme = (() => {
+                switch (empresaActiva.colorTema) {
+                  case 'amber':
+                    return {
+                      wrapper: 'bg-gradient-to-r from-stone-950 via-amber-950/80 to-stone-900 border-amber-500/40 shadow-md shadow-amber-950/30',
+                      badge: 'bg-amber-400 text-stone-950',
+                      subBadge: 'text-amber-200',
+                      logoBg: 'bg-gradient-to-tr from-stone-900 via-amber-600 to-amber-400 text-white shadow-amber-600/30 ring-1 ring-amber-400/40',
+                      iconColor: 'text-amber-400'
+                    };
+                  case 'emerald':
+                    return {
+                      wrapper: 'bg-gradient-to-r from-slate-950 via-emerald-950/80 to-slate-900 border-emerald-500/40 shadow-md shadow-emerald-950/30',
+                      badge: 'bg-emerald-400 text-slate-950',
+                      subBadge: 'text-emerald-200',
+                      logoBg: 'bg-gradient-to-tr from-emerald-950 via-emerald-700 to-emerald-400 text-white shadow-emerald-700/30 ring-1 ring-emerald-400/40',
+                      iconColor: 'text-emerald-400'
+                    };
+                  case 'rose':
+                    return {
+                      wrapper: 'bg-gradient-to-r from-stone-950 via-rose-950/80 to-stone-900 border-rose-500/40 shadow-md shadow-rose-950/30',
+                      badge: 'bg-rose-400 text-stone-950',
+                      subBadge: 'text-rose-200',
+                      logoBg: 'bg-gradient-to-tr from-stone-900 via-rose-700 to-rose-400 text-white shadow-rose-700/30 ring-1 ring-rose-400/40',
+                      iconColor: 'text-rose-400'
+                    };
+                  case 'blue':
+                  default:
+                    return {
+                      wrapper: 'bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border-indigo-500/30 shadow-md shadow-indigo-950/20',
+                      badge: 'bg-amber-400 text-slate-950',
+                      subBadge: 'text-indigo-200',
+                      logoBg: 'bg-gradient-to-tr from-indigo-950 via-indigo-700 to-sky-500 text-white shadow-indigo-700/30 ring-1 ring-sky-400/40',
+                      iconColor: 'text-amber-400'
+                    };
+                }
+              })();
 
-                  <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-                    <span>{empresaActiva.tituloCabecera || perfilActualConfig.tituloCabecera}</span>
-                  </h1>
+              return (
+                <div className={`${bannerTheme.wrapper} rounded-2xl p-4 sm:p-5 text-white border transition-colors duration-200`}>
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3.5">
+                      <div className={`w-12 h-12 rounded-2xl ${bannerTheme.logoBg} flex items-center justify-center font-black text-lg tracking-wider shrink-0 mt-0.5`}>
+                        {empresaActiva.letraLogo || 'SF'}
+                      </div>
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${bannerTheme.badge} font-sans shadow-xs`}>
+                            {perfilActualConfig.nombreOpcion}
+                          </span>
+                          <span className={`text-xs font-semibold ${bannerTheme.subBadge}`}>
+                            {perfilActualConfig.detalleOpcion}
+                          </span>
+                          {empresaActiva.rutEmpresa && (
+                            <span className="text-[11px] font-semibold text-slate-300 bg-white/10 px-2 py-0.5 rounded-md border border-white/10">
+                              RUT: {empresaActiva.rutEmpresa}
+                            </span>
+                          )}
+                          {empresaActiva.contactoResponsable && (
+                            <span className="text-[11px] font-medium text-slate-300 hidden md:inline">
+                              Resp: <strong className="text-white">{empresaActiva.contactoResponsable}</strong>
+                            </span>
+                          )}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Aislamiento en localStorage: <code className="text-emerald-300 font-mono text-[10px]">propuesta_datos_{clienteActivoId}</code>
+                          </span>
+                        </div>
 
-                  <div className="flex items-start gap-2 text-xs text-slate-300 pt-0.5 max-w-3xl">
-                    <Building2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                    <p>
-                      <strong className="text-white font-semibold">Infraestructura: </strong>
-                      {empresaActiva.infraestructura || perfilActualConfig.infraestructura}
-                    </p>
-                  </div>
-                </div>
+                        <h1 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                          <span>{empresaActiva.tituloCabecera || perfilActualConfig.tituloCabecera}</span>
+                        </h1>
+
+                        <div className="flex items-start gap-2 text-xs text-slate-300 pt-0.5 max-w-3xl">
+                          <Building2 className={`w-4 h-4 ${bannerTheme.iconColor} shrink-0 mt-0.5`} />
+                          <p>
+                            <strong className="text-white font-semibold">Infraestructura: </strong>
+                            {empresaActiva.infraestructura || perfilActualConfig.infraestructura}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
                 {/* Resumen Clave del Perfil: Tarifa Base / Arriendo + Pax */}
                 <div className="flex flex-wrap items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3 shrink-0">
@@ -1335,53 +1481,88 @@ export default function App() {
                 </div>
               </div>
             </div>
+          );
+        })()}
 
-            {/* Banner de Datos Generales del Evento */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
+            {/* Banner de Datos Generales del Evento (Diseño Armónico y Espacioso) */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+              {/* Fila Superior: Nombre del Evento y Acciones Directas */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0">
+                <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 shadow-2xs">
                     <Sparkles className="w-5 h-5 text-amber-700" />
                   </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest block">
-                      Ficha de Trabajo
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-extrabold text-amber-800 uppercase tracking-widest block">
+                      Ficha de Trabajo / Propuesta de Evento
                     </span>
                     <input
                       type="text"
                       value={cotizacion.nombreEvento}
                       onChange={(e) => setCotizacion(prev => ({ ...prev, nombreEvento: e.target.value }))}
                       placeholder="Nombre del Evento (ej. Boda González & Pérez)"
-                      className="text-base sm:text-lg font-bold text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-amber-500 focus:outline-hidden bg-transparent w-full md:w-80"
+                      className="text-base sm:text-lg font-black text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-amber-500 focus:outline-hidden bg-transparent w-full transition-colors"
                     />
                   </div>
                 </div>
 
-                {/* Campos rápidos de Cliente y Fecha */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs w-full md:w-auto">
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-                    <User className="w-4 h-4 text-slate-400 shrink-0" />
+                {/* Acciones directas de la Ficha: Guardar y Nueva en Blanco */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleGuardarCotizacionActual}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
+                    title="Guardar esta cotización en el historial y calendario"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Guardar Ficha</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleNuevaCotizacionLimpia}
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-all cursor-pointer"
+                    title="Iniciar cotización limpia en blanco lista para un nuevo cliente"
+                  >
+                    <FilePlus className="w-4 h-4 text-slate-500" />
+                    <span>En Blanco</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Fila Inferior: Campos Clave del Evento con espacio equilibrado */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-4 border-t border-slate-100 text-xs">
+                <div className="flex items-center gap-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl px-3.5 py-2 focus-within:border-amber-400 focus-within:bg-white transition-colors">
+                  <User className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Cliente:</span>
                     <input
                       type="text"
                       value={cotizacion.cliente}
                       onChange={(e) => setCotizacion(prev => ({ ...prev, cliente: e.target.value }))}
-                      placeholder="Nombre Cliente"
-                      className="bg-transparent focus:outline-hidden text-slate-800 font-medium w-full"
+                      placeholder="Nombre del Cliente"
+                      className="bg-transparent focus:outline-hidden text-slate-900 font-semibold w-full text-xs"
                     />
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-                    <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                <div className="flex items-center gap-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl px-3.5 py-2 focus-within:border-amber-400 focus-within:bg-white transition-colors">
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Fecha:</span>
                     <input
                       type="date"
                       value={cotizacion.fechaEvento}
                       onChange={(e) => setCotizacion(prev => ({ ...prev, fechaEvento: e.target.value }))}
-                      className="bg-transparent focus:outline-hidden text-slate-800 font-medium w-full"
+                      className="bg-transparent focus:outline-hidden text-slate-900 font-semibold w-full text-xs"
                     />
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5">
-                    <span className="text-slate-400 font-semibold">Tipo:</span>
+                <div className="flex items-center gap-2.5 bg-slate-50/90 border border-slate-200/90 rounded-xl px-3.5 py-2 focus-within:border-amber-400 focus-within:bg-white transition-colors">
+                  <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Tipo:</span>
                     <select
                       value={cotizacion.tipoEvento}
                       onChange={(e) => {
@@ -1389,7 +1570,7 @@ export default function App() {
                         if (valor === '__OTRO_TIPO__') {
                           const escrito = window.prompt('Escribe el tipo de evento (ej: Fiesta de 15 Años, Cena de Cumpleaños, Bautizo...):');
                           const limpio = (escrito || '').trim();
-                          if (!limpio) return; // sin texto: no cambia nada
+                          if (!limpio) return;
                           if (!tiposEventoPersonalizados.some(t => t.toLowerCase() === limpio.toLowerCase())) {
                             const actualizados = [...tiposEventoPersonalizados, limpio];
                             setTiposEventoPersonalizados(actualizados);
@@ -1400,7 +1581,7 @@ export default function App() {
                           setCotizacion(prev => ({ ...prev, tipoEvento: valor as CotizacionState['tipoEvento'] }));
                         }
                       }}
-                      className="bg-transparent focus:outline-hidden text-slate-800 font-medium w-full"
+                      className="bg-transparent focus:outline-hidden text-slate-900 font-semibold w-full text-xs cursor-pointer"
                     >
                       <option value="Boda">Boda</option>
                       <option value="Corporativo">Corporativo</option>
@@ -1414,97 +1595,79 @@ export default function App() {
                     </select>
                   </div>
                 </div>
-
-                {/* Acciones directas de la Ficha: Guardar y Nueva en Blanco */}
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleGuardarCotizacionActual}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-                    title="Guardar esta cotización en el historial y calendario"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Guardar Ficha</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNuevaCotizacionLimpia}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 font-bold text-xs rounded-xl border border-slate-300 transition-colors cursor-pointer"
-                    title="Iniciar cotización limpia en blanco lista para un nuevo cliente"
-                  >
-                    <FilePlus className="w-3.5 h-3.5 text-slate-600" />
-                    <span>En Blanco</span>
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Selector de Secciones Rápidas / Filtro de Módulos (Solo Vendibles) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-semibold">
-              <span className="text-slate-400 mr-1 hidden sm:inline">Ir al Módulo:</span>
+            {/* Selector de Secciones Rápidas / Navegación de Módulos (Diseño Armónico) */}
+            <div className="bg-slate-100/90 p-1.5 rounded-2xl border border-slate-200/90 shadow-2xs flex items-center gap-1.5 overflow-x-auto text-xs font-bold no-scrollbar">
+              <span className="text-slate-400 text-[11px] font-semibold px-2.5 hidden md:inline">Módulos:</span>
               <button
                 type="button"
                 onClick={() => setSeccionActiva('todos')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   seccionActiva === 'todos'
                     ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                Ver Todo el Cotizador
+                <LayoutList className="w-3.5 h-3.5" />
+                <span>Ver Todo el Cotizador</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSeccionActiva('1')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   seccionActiva === '1'
                     ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                01. Menú & Comensales
+                <Utensils className="w-3.5 h-3.5" />
+                <span>01. Menú & Comensales</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSeccionActiva('3')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   seccionActiva === '3'
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                02. Proveedores & Servicios
+                <Truck className="w-3.5 h-3.5" />
+                <span>02. Proveedores & Servicios</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSeccionActiva('4')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   seccionActiva === '4'
                     ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                03. Mesas & Salón
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>03. Mesas & Salón</span>
               </button>
               <button
                 type="button"
                 onClick={() => setSeccionActiva('5')}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                className={`px-3.5 py-2 rounded-xl whitespace-nowrap transition-all flex items-center gap-1.5 cursor-pointer ${
                   seccionActiva === '5'
                     ? 'bg-rose-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
                 }`}
               >
-                04. Decoración
+                <Palette className="w-3.5 h-3.5" />
+                <span>04. Decoración</span>
               </button>
             </div>
 
             {/* Split Principal: Formularios a la izquierda (col-span-2) + Dashboard a la derecha (col-span-1) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 items-start">
               
               {/* COLUMNA IZQUIERDA: Módulos de Ítems Vendibles para Clientes */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 space-y-6 sm:space-y-8">
                 
                 {/* Módulo 1: Menú & Invitados */}
                 {(seccionActiva === 'todos' || seccionActiva === '1') && (

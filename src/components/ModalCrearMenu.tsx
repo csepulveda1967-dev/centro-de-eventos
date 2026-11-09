@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { MenuOption, MenuItemRatio, InsumoMaestro, RecetaFichaTecnica } from '../types';
-import { Utensils, X, Plus, Sparkles, Check, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat, Eye, EyeOff } from 'lucide-react';
+import { Utensils, X, Plus, Sparkles, Check, Save, DollarSign, Trash2, ShoppingCart, Info, Tag, ChefHat, Eye, EyeOff } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 import { calcularCostoReceta } from '../config/insumosYRecetas';
 
@@ -317,13 +317,25 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer text-xs"
+              title="Guardar este menú ahora mismo"
+            >
+              <Save className="w-4 h-4" />
+              <span>{modoEdicion ? 'Guardar Cambios' : 'Guardar Menú'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+              title="Cerrar ventana"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-xs">
@@ -815,22 +827,29 @@ export const ModalCrearMenu: React.FC<ModalCrearMenuProps> = ({
             )}
           </div>
 
-          {/* Botones de acción */}
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Check className="w-4 h-4" />
-              <span>{modoEdicion ? 'Guardar Cambios del Menú' : 'Guardar y Crear Menú'}</span>
-            </button>
+          {/* Botones de acción inferiores fijos/visibles siempre */}
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-xs pt-3 pb-1 border-t border-slate-200 flex items-center justify-between gap-2 z-10 -mx-6 px-6 -mb-6 pb-5 rounded-b-3xl">
+            <div className="text-[11px] text-slate-500 hidden sm:flex items-center gap-2">
+              <span className="font-semibold text-slate-700">Costo Base: <strong>{formatMoneda(costoPersonaNum)}/pax</strong></span>
+              <span>·</span>
+              <span className="font-semibold text-amber-800">Precio Sugerido: <strong>{formatMoneda(precioSugerido)}/pax</strong></span>
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold cursor-pointer text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer text-xs sm:text-sm"
+              >
+                <Save className="w-4 h-4" />
+                <span>{modoEdicion ? 'Guardar Cambios del Menú' : 'Guardar y Crear Menú'}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

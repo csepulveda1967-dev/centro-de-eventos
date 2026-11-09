@@ -21,7 +21,8 @@ import {
   Search,
   CheckCircle2,
   X,
-  Coffee
+  Coffee,
+  Save
 } from 'lucide-react';
 
 interface Modulo1MenuProps {
@@ -466,6 +467,22 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
                         </button>
                       )}
                     </div>
+
+                    {isSelected && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onUpdateMenu) onUpdateMenu(menu);
+                          notificar(`✓ Menú "${menu.nombre}" guardado y confirmado en la propuesta`);
+                        }}
+                        className="mt-2 w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Guardar y confirmar este menú en la propuesta activa"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Guardar Menú en Cotización</span>
+                      </button>
+                    )}
 
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-slate-200/60 text-xs space-y-2.5 bg-slate-50/70 -mx-4 -mb-4 p-4 rounded-b-xl">

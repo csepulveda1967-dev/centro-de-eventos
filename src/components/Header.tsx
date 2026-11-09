@@ -61,12 +61,42 @@ export const Header: React.FC<HeaderProps> = ({
   onGuardarCotizacion,
   onAbrirFormularioEmpresa
 }) => {
+  const brandingStyle = (() => {
+    switch (empresaActiva.colorTema) {
+      case 'amber':
+        return {
+          bg: 'bg-gradient-to-tr from-stone-900 via-amber-600 to-amber-400 text-white shadow-amber-600/30 ring-1 ring-amber-400/40',
+          pill: 'bg-amber-50 text-amber-900 border-amber-300',
+          tag: 'DOMINGA'
+        };
+      case 'emerald':
+        return {
+          bg: 'bg-gradient-to-tr from-emerald-950 via-emerald-700 to-emerald-400 text-white shadow-emerald-700/30 ring-1 ring-emerald-400/40',
+          pill: 'bg-emerald-50 text-emerald-900 border-emerald-300',
+          tag: 'DAMARIS'
+        };
+      case 'rose':
+        return {
+          bg: 'bg-gradient-to-tr from-stone-900 via-rose-700 to-rose-400 text-white shadow-rose-700/30 ring-1 ring-rose-400/40',
+          pill: 'bg-rose-50 text-rose-900 border-rose-300',
+          tag: 'ISIDORA'
+        };
+      case 'blue':
+      default:
+        return {
+          bg: 'bg-gradient-to-tr from-indigo-950 via-indigo-700 to-sky-500 text-white shadow-indigo-700/30 ring-1 ring-sky-400/40',
+          pill: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          tag: 'CORPORATIVO'
+        };
+    }
+  })();
+
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3">
           
-          {/* Marca Principal SOLVI Flow + Switcher */}
+          {/* Marca Principal Dinámica por Empresa + Switcher */}
           <div className="flex items-center gap-3 shrink-0">
             <button
               type="button"
@@ -74,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-2.5 p-1 -ml-1 rounded-2xl hover:bg-slate-100 transition-colors text-left group"
               title="Información de la empresa y productora"
             >
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-950 via-indigo-700 to-sky-500 flex items-center justify-center text-white shadow-sm shadow-indigo-700/30 font-black text-base tracking-wider group-hover:scale-105 transition-transform shrink-0">
+              <div className={`w-10 h-10 rounded-2xl ${brandingStyle.bg} flex items-center justify-center font-black text-sm tracking-wider shadow-sm group-hover:scale-105 transition-transform shrink-0`}>
                 {empresaActiva.letraLogo || 'SF'}
               </div>
               <div className="hidden sm:block">
@@ -82,8 +112,8 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="font-black text-slate-950 text-sm tracking-tight leading-none truncate max-w-[150px]">
                     {empresaActiva.nombre}
                   </span>
-                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
-                    SOLVI
+                  <span className={`text-[9px] font-extrabold px-1.5 py-0.5 ${brandingStyle.pill} border rounded-full`}>
+                    {brandingStyle.tag}
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-0.5 truncate max-w-[170px]">

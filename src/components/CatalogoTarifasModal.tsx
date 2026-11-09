@@ -388,9 +388,14 @@ export const CatalogoTarifasModal: React.FC<CatalogoTarifasModalProps> = ({
     notificarGuardado(`Aplicado como costo real: ${formatMoneda(total)}`);
   };
 
-  // Restablecer valores de fábrica
+  // Restablecer valores de fábrica de los servicios base (conservando menús y fichas)
   const handleRestablecerTodo = () => {
-    if (window.confirm(`¿Deseas restablecer todos los precios y desgloses de los ${proveedores.length} servicios a sus valores predeterminados de fábrica?`)) {
+    if (
+      window.confirm(
+        `⚠️ ¿Deseas restablecer los precios y desgloses de los ${proveedores.length} servicios base a sus valores predeterminados de fábrica?\n\n` +
+        `✓ NOTA DE SEGURIDAD: Todos tus menús creados, fichas técnicas e insumos personalizados se CONSERVARÁN intactos.`
+      )
+    ) {
       const resetConPax: Record<string, DesgloseItem[]> = {};
       for (const [key, items] of Object.entries(DESGLOSES_INICIALES)) {
         const prov = proveedores.find(p => p.id === key);
@@ -407,7 +412,7 @@ export const CatalogoTarifasModal: React.FC<CatalogoTarifasModalProps> = ({
       setDesgloses(resetConPax);
       localStorage.setItem(STORAGE_KEY_DESGLOSE, JSON.stringify(resetConPax));
       onRestablecerDefecto();
-      notificarGuardado('Valores y desgloses restablecidos');
+      notificarGuardado('Tarifas base restablecidas (menús y fichas conservados)');
     }
   };
 
@@ -442,9 +447,10 @@ export const CatalogoTarifasModal: React.FC<CatalogoTarifasModalProps> = ({
             type="button"
             onClick={handleRestablecerTodo}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            title="Restablece las tarifas base de los servicios a valores de fábrica sin borrar tus menús ni fichas creadas"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Restablecer Valores Iniciales
+            Restablecer Tarifas Base (Conserva Menús y Fichas)
           </button>
         </div>
       </div>

@@ -11,11 +11,28 @@ export const EMPRESAS_INICIALES: EmpresaCliente[] = [
     telefono: '+56 9 9432 1890',
     email: 'contacto@donaisidoraeventos.cl',
     sitioWeb: 'www.donaisidoraeventos.cl',
-    letraLogo: 'I',
+    instagram: '@donaisidoraeventos',
+    letraLogo: 'DI',
     colorTema: 'rose',
     fechaRegistro: '2026-10-01',
     tituloCabecera: 'Doña Isidora Eventos · Banquetería & Producción de Matrimonios',
-    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).'
+    infraestructura: 'Servicio móvil e integral para matrimonios en parcelas privadas, centros de eventos externos y casas particulares (sin costos fijos de recinto).',
+    razonSocialLegal: 'Doña Isidora Banquetería SpA',
+    rutEmpresa: '76.512.987-3',
+    giroComercial: 'Servicios de Banquetería Itinerante y Catering para Bodas',
+    contactoResponsable: 'Isidora Valdés',
+    cargoResponsable: 'Chef Ejecutiva & Directora',
+    modalidadOperacion: 'domicilio',
+    capacidadMaxPax: 200,
+    datosBancarios: {
+      razonSocial: 'Doña Isidora Banquetería SpA',
+      banco: 'BancoEstado',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '00-543-21987-65',
+      rut: '76.512.987-3',
+      titular: 'Doña Isidora Banquetería SpA',
+      emailTransferencia: 'contacto@donaisidoraeventos.cl'
+    }
   },
   {
     id: 'emp-dominga',
@@ -27,11 +44,28 @@ export const EMPRESAS_INICIALES: EmpresaCliente[] = [
     telefono: '+56 9 6236 0766',
     email: 'info@domingaeventos.cl',
     sitioWeb: 'www.domingaeventos.cl',
-    letraLogo: 'D',
+    instagram: '@domingaeventos',
+    letraLogo: 'DE',
     colorTema: 'amber',
     fechaRegistro: '2026-10-10',
     tituloCabecera: 'Dominga Eventos by Mauge · Alta Banquetería & Matrimonios',
-    infraestructura: 'Salón exclusivo en Finca La Toscana, producción integral de bodas, graduaciones y eventos corporativos de alto estándar.'
+    infraestructura: 'Salón exclusivo en Finca La Toscana, producción integral de bodas, graduaciones y eventos corporativos de alto estándar.',
+    razonSocialLegal: 'Dominga Eventos y Banquetería SpA',
+    rutEmpresa: '77.348.910-2',
+    giroComercial: 'Servicios de Banquetería, Producción de Bodas y Eventos',
+    contactoResponsable: 'Mauge Valenzuela',
+    cargoResponsable: 'Directora Ejecutiva & Banquetera',
+    modalidadOperacion: 'recinto_fijo',
+    capacidadMaxPax: 250,
+    datosBancarios: {
+      razonSocial: 'Dominga Eventos y Banquetería SpA',
+      banco: 'Banco de Chile',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '00-158-94321-00',
+      rut: '77.348.910-2',
+      titular: 'Dominga Eventos y Banquetería SpA',
+      emailTransferencia: 'pagos@domingaeventos.cl'
+    }
   },
   {
     id: 'emp-damaris',
@@ -43,12 +77,29 @@ export const EMPRESAS_INICIALES: EmpresaCliente[] = [
     telefono: '+56 9 7123 4567',
     email: 'contacto@eventosdamaris.cl',
     sitioWeb: 'www.eventosdamaris.cl',
-    letraLogo: 'D',
+    instagram: '@eventosdamaris',
+    letraLogo: 'CD',
     colorTema: 'emerald',
     fechaRegistro: '2026-10-20',
     tituloCabecera: 'Centro de Eventos Damaris · Sistema Inteligente de Gestión & Banquetes',
     infraestructura: 'Salón Principal (hasta 300 personas), 10.000 m² de parque campestre con jardines, piscina y zona de juegos inflables.',
-    tarifaBaseArriendo: 1500000
+    tarifaBaseArriendo: 1500000,
+    razonSocialLegal: 'Centro de Eventos y Recreación Damaris SpA',
+    rutEmpresa: '76.924.815-K',
+    giroComercial: 'Centro de Eventos, Salones de Fiestas y Servicios Gastronómicos',
+    contactoResponsable: 'Damaris Sepúlveda',
+    cargoResponsable: 'Administradora General',
+    modalidadOperacion: 'recinto_fijo',
+    capacidadMaxPax: 300,
+    datosBancarios: {
+      razonSocial: 'Centro de Eventos y Recreación Damaris SpA',
+      banco: 'Banco Santander',
+      tipoCuenta: 'Cuenta Corriente',
+      numeroCuenta: '74-892-01934-8',
+      rut: '76.924.815-K',
+      titular: 'Centro de Eventos y Recreación Damaris SpA',
+      emailTransferencia: 'transferencias@eventosdamaris.cl'
+    }
   },
   {
     id: 'emp-nogales',
@@ -60,7 +111,7 @@ export const EMPRESAS_INICIALES: EmpresaCliente[] = [
     telefono: '+56 9 7890 1234',
     email: 'contacto@losnogalespirque.cl',
     sitioWeb: 'www.losnogalespirque.cl',
-    letraLogo: 'N',
+    letraLogo: 'LN',
     colorTema: 'emerald',
     fechaRegistro: '2026-10-10'
   },
@@ -74,7 +125,7 @@ export const EMPRESAS_INICIALES: EmpresaCliente[] = [
     telefono: '+56 9 8122 3344',
     email: 'eventos@parquesanfrancisco.cl',
     sitioWeb: 'www.parquesanfrancisco.cl',
-    letraLogo: 'S',
+    letraLogo: 'PS',
     colorTema: 'blue',
     fechaRegistro: '2026-10-15'
   }

@@ -898,7 +898,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Sugerencia ({margenGanancia}%)</span>
+            <span>Sugerencia del Sistema</span>
           </button>
 
           <button
