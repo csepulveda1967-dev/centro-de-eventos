@@ -95,8 +95,8 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
         </div>
       </div>
 
-      {/* Lista de Checkboxes interactivos: 1 y 1 en cada columna (2 columnas) */}
-      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Lista de Checkboxes interactivos: 4 por fila */}
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {proveedores.map((p) => {
           const isSelected = !!proveedoresSeleccionados[p.id];
           const costoCalculado = p.tipoCobro === 'por_persona' ? p.costo * invitados : p.costo;
@@ -106,29 +106,29 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
             <div
               key={p.id}
               onClick={() => onToggleProveedor(p.id)}
-              className={`rounded-2xl border p-4 sm:p-4.5 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
+              className={`rounded-2xl border p-3 cursor-pointer transition-all duration-150 flex flex-col justify-between ${
                 isSelected
                   ? 'border-indigo-500 bg-indigo-50/25 shadow-xs ring-1 ring-indigo-500'
                   : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'
               }`}
             >
               <div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="p-2 rounded-xl bg-slate-100/90 shrink-0">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1.5 rounded-lg bg-slate-100/90 shrink-0">
                       {renderIcon(p.iconName)}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug" title={p.nombre}>
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug truncate" title={p.nombre}>
                         {p.nombre}
                       </h3>
-                      <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                        <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          {p.tipoCobro === 'por_persona' ? `Por persona (${invitados} pax)` : 'Cobro fijo del evento'}
+                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                        <span className="text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                          {p.tipoCobro === 'por_persona' ? `Por persona (${invitados} pax)` : 'Cobro fijo'}
                         </span>
                         {p.recetaVinculadaNombre && (
-                          <span className="text-[9px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
-                            Ficha: {p.recetaVinculadaNombre}
+                          <span className="text-[8px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full truncate max-w-[100px]">
+                            {p.recetaVinculadaNombre}
                           </span>
                         )}
                       </div>
@@ -143,32 +143,32 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-500 mt-2.5 leading-relaxed">
+                <p className="text-[11px] text-slate-500 mt-2 line-clamp-2 leading-relaxed">
                   {p.descripcion}
                 </p>
 
                 {/* Datos de Contacto de Pedidos / Coordinación */}
                 {(p.contactoNombre || p.telefonoPedidos) && (
-                  <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-slate-700 font-semibold truncate text-[11px]" title={p.contactoNombre}>
-                        👤 {p.contactoNombre || 'Contacto Comercial'}
+                  <div className="mt-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200/80 text-[10px] space-y-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-slate-700 font-semibold truncate text-[10px]" title={p.contactoNombre}>
+                        👤 {p.contactoNombre || 'Contacto'}
                       </span>
                       {p.telefonoPedidos && (
                         <a
-                          href={`https://wa.me/${p.telefonoPedidos.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, te contacto desde Dominga Eventos para coordinar el servicio de ${p.nombre}.`)}`}
+                          href={`https://wa.me/${p.telefonoPedidos.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola, te contacto para coordinar el servicio de ${p.nombre}.`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md transition-colors shrink-0"
-                          title="Enviar WhatsApp de coordinación al proveedor"
+                          className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 rounded transition-colors shrink-0"
+                          title="Enviar WhatsApp de coordinación"
                         >
                           <span>💬 {p.telefonoPedidos}</span>
                         </a>
                       )}
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 gap-2">
-                      <span className="truncate">{p.emailPedidos || 'Sin correo registrado'}</span>
+                    <div className="flex items-center justify-between text-[9px] text-slate-500 gap-1">
+                      <span className="truncate">{p.emailPedidos || 'Sin correo'}</span>
                       {p.plazoAnticipacion && (
                         <span className="text-amber-800 font-medium shrink-0">{p.plazoAnticipacion}</span>
                       )}
@@ -178,22 +178,22 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
               </div>
 
               {/* Pie de Precios */}
-              <div className="mt-3.5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Costo Real Proveedor</span>
-                  <div className="font-bold text-slate-800 text-xs sm:text-sm tabular-nums">
+                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Costo Real</span>
+                  <div className="font-bold text-slate-800 text-[11px] tabular-nums">
                     {formatMoneda(costoCalculado)}{' '}
                     {p.tipoCobro === 'por_persona' && (
-                      <span className="font-normal text-slate-400 text-[10px]">
-                        ({formatMoneda(p.costo)}/pax)
+                      <span className="font-normal text-slate-400 text-[9px] block">
+                        ({formatMoneda(p.costo)}/p)
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Precio Sugerido Venta</span>
-                  <div className="font-bold text-indigo-900 text-xs sm:text-sm tabular-nums">
+                  <span className="text-slate-400 block text-[9px] uppercase font-semibold">Precio Venta</span>
+                  <div className="font-bold text-indigo-900 text-[11px] sm:text-xs tabular-nums">
                     {formatMoneda(precioVentaCalculado)}
                   </div>
                 </div>

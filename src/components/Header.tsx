@@ -35,11 +35,12 @@ interface HeaderProps {
   onAbrirGestionEmpresas: () => void;
   onAbrirComercial: () => void;
   onAbrirRespaldo: () => void;
-  onAbrirWhatsAppPropuesta: () => void;
   modoAdmin?: boolean;
   onToggleModoAdmin?: () => void;
   onGuardarCotizacion?: () => void;
   onAbrirFormularioEmpresa?: () => void;
+  onAbrirWhatsAppPropuesta?: () => void;
+  diasRestantesDemo?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -59,7 +60,8 @@ export const Header: React.FC<HeaderProps> = ({
   modoAdmin = false,
   onToggleModoAdmin,
   onGuardarCotizacion,
-  onAbrirFormularioEmpresa
+  onAbrirFormularioEmpresa,
+  diasRestantesDemo = 30
 }) => {
   const brandingStyle = (() => {
     switch (empresaActiva.colorTema) {
@@ -140,7 +142,9 @@ export const Header: React.FC<HeaderProps> = ({
                 {modoAdmin ? (
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Modo Administrador: Selector editable" />
                 ) : (
-                  <span className="text-[8.5px] font-black text-amber-300 bg-amber-950/90 px-1.5 py-0.2 rounded border border-amber-400/50">🔒 Demo Bloqueado</span>
+                  <span className="text-[8.5px] font-black text-amber-300 bg-amber-950/90 px-1.5 py-0.2 rounded border border-amber-400/50">
+                    🔒 Demo {diasRestantesDemo}d
+                  </span>
                 )}
               </label>
 

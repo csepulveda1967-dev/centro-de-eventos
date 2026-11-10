@@ -2,15 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, RotateCcw, Volume2, VolumeX, Sparkles, X, 
   ChevronRight, ChevronLeft, CheckCircle2, Copy, Check, Share2, 
-  ChefHat, Users, FileText, ArrowRight, ShieldCheck, Flame, Mic, MessageCircle
+  ChefHat, Users, FileText, ArrowRight, ShieldCheck, Flame, Mic, MessageCircle, Clock
 } from 'lucide-react';
-import { EmpresaCliente } from '../types';
+import { EmpresaCliente, PerfilClienteId } from '../types';
 
 interface DemoComercialModalProps {
   isOpen: boolean;
   onClose: () => void;
   empresa: EmpresaCliente;
   onIrAFuncion: (vista: 'cotizador' | 'recetas' | 'insumos' | 'calendario') => void;
+  onCambiarEmpresaDemo?: (id: PerfilClienteId) => void;
+  diasRestantesDemo?: number;
+  onReiniciarDemo30Dias?: () => void;
 }
 
 interface EscenaComercial {
@@ -30,7 +33,10 @@ export const DemoComercialModal: React.FC<DemoComercialModalProps> = ({
   isOpen,
   onClose,
   empresa,
-  onIrAFuncion
+  onIrAFuncion,
+  onCambiarEmpresaDemo,
+  diasRestantesDemo = 30,
+  onReiniciarDemo30Dias
 }) => {
   const [escenaActual, setEscenaActual] = useState(0);
   const [reproduciendo, setReproduciendo] = useState(false);
@@ -544,6 +550,71 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
           </div>
         </div>
 
+        {/* Barra de Selección de Centro de Eventos para Demostración */}
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-400 font-bold text-[11px] uppercase tracking-wider">Centro de Eventos Demo:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => onCambiarEmpresaDemo?.('damaris-eventos')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  empresa.id === 'emp-damaris'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950 ring-2 ring-emerald-400'
+                    : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <span>🌳 Damaris (Calera de Tango)</span>
+                {empresa.id === 'emp-damaris' && <Check className="w-3.5 h-3.5 text-emerald-200" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onCambiarEmpresaDemo?.('dominga-eventos')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  empresa.id === 'emp-dominga'
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-950 ring-2 ring-amber-400'
+                    : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <span>🍷 Dominga (La Toscana)</span>
+                {empresa.id === 'emp-dominga' && <Check className="w-3.5 h-3.5 text-amber-200" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onCambiarEmpresaDemo?.('modelo-base')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  empresa.id === 'emp-solvi'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-950 ring-2 ring-rose-400'
+                    : 'bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <span>💍 Doña Isidora</span>
+                {empresa.id === 'emp-solvi' && <Check className="w-3.5 h-3.5 text-rose-200" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-extrabold text-xs">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Evaluación: {diasRestantesDemo ?? 30} días restantes</span>
+            </span>
+
+            {onReiniciarDemo30Dias && (
+              <button
+                type="button"
+                onClick={onReiniciarDemo30Dias}
+                className="text-[11px] text-slate-400 hover:text-amber-300 underline font-semibold cursor-pointer"
+                title="Reiniciar contador a 30 días"
+              >
+                Reiniciar 30d
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* PESTAÑA 1: REPRODUCTOR COMERCIAL */}
         {pestañaActiva === 'video' && (
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -818,7 +889,7 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
                     return (
                       <>
                         <a
-                          href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Preparé esta propuesta para ${empresa.nombre}. Diseñé este sistema de cotizaciones y costeo en tiempo real. Puedes ver el demo funcionando en vivo aquí: ${demoUrl}`)}`}
+                          href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Preparé esta propuesta para ${empresa.nombre}. Diseñé este sistema de cotizaciones y costeo en tiempo real con 30 días de acceso de evaluación. Puedes ver el demo funcionando en vivo aquí: ${demoUrl}`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
@@ -829,7 +900,7 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
                         <button
                           type="button"
                           onClick={() => {
-                            const textoWsp = `Hola! Preparé una propuesta especial para ${empresa.nombre}. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta en PDF con tu membrete. Puedes probar el demo en vivo aquí: ${demoUrl}. Mi WhatsApp es +56 9 3118 1304.`;
+                            const textoWsp = `Hola! Preparé una propuesta especial para ${empresa.nombre} (${empresa.recintoPrincipal}). Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta en PDF con tu membrete oficial. Tienes 30 días de acceso de evaluación en vivo aquí: ${demoUrl}. Mi WhatsApp es +56 9 3118 1304.`;
                             navigator.clipboard.writeText(textoWsp);
                             setCopiado(true);
                             setTimeout(() => setCopiado(false), 2500);
@@ -850,7 +921,7 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
                 const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : 'enlace-demo';
                 return (
                   <div className="p-3.5 bg-slate-900 rounded-lg text-xs text-slate-300 leading-relaxed font-sans border border-slate-800">
-                    "Hola! Preparé una propuesta especial para <b>{empresa.nombre}</b>. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta de lujo en PDF con tu propio membrete de {empresa.recintoPrincipal}. Puedes probar el demo en vivo aquí: <span className="text-amber-400 underline font-mono break-all">{demoUrl}</span>. ¿Tienes 5 minutos para verlo? Me puedes responder directo a este WhatsApp: <b>+56 9 3118 1304</b>."
+                    "Hola! Preparé una propuesta especial para <b>{empresa.nombre}</b>. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta de lujo en PDF con tu propio membrete de {empresa.recintoPrincipal}. Tienes <b>30 días de acceso de evaluación</b> en vivo aquí: <span className="text-amber-400 underline font-mono break-all">{demoUrl}</span>. ¿Tienes 5 minutos para revisarlo? Me puedes responder directo a este WhatsApp: <b>+56 9 3118 1304</b>."
                   </div>
                 );
               })()}

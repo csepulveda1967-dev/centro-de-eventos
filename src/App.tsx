@@ -91,7 +91,9 @@ import {
   Utensils,
   Truck,
   LayoutGrid,
-  Palette
+  Palette,
+  Clock,
+  MessageCircle
 } from 'lucide-react';
 
 export default function App() {
@@ -258,6 +260,51 @@ export default function App() {
     });
   };
 
+  // ── Control de Tiempo Límite de Demostración (30 Días para Damaris y Centros) ──
+  const [diasRestantesDemo, setDiasRestantesDemo] = useState<number>(() => {
+    try {
+      const storageKey = `solvi_demo_inicio_${clienteActivoId}`;
+      let inicio = localStorage.getItem(storageKey);
+      if (!inicio) {
+        inicio = String(Date.now());
+        localStorage.setItem(storageKey, inicio);
+      }
+      const transcurridos = Math.floor((Date.now() - Number(inicio)) / (1000 * 60 * 60 * 24));
+      return Math.max(0, 30 - transcurridos);
+    } catch {
+      return 30;
+    }
+  });
+
+  // Re-evaluar días restantes cuando cambia de centro o se abre la app
+  useEffect(() => {
+    try {
+      const storageKey = `solvi_demo_inicio_${clienteActivoId}`;
+      let inicio = localStorage.getItem(storageKey);
+      if (!inicio) {
+        inicio = String(Date.now());
+        localStorage.setItem(storageKey, inicio);
+      }
+      const transcurridos = Math.floor((Date.now() - Number(inicio)) / (1000 * 60 * 60 * 24));
+      setDiasRestantesDemo(Math.max(0, 30 - transcurridos));
+    } catch {
+      setDiasRestantesDemo(30);
+    }
+  }, [clienteActivoId]);
+
+  const demoExpirado = diasRestantesDemo <= 0;
+
+  const handleReiniciarDemo30Dias = () => {
+    try {
+      const storageKey = `solvi_demo_inicio_${clienteActivoId}`;
+      localStorage.setItem(storageKey, String(Date.now()));
+      setDiasRestantesDemo(30);
+      mostrarToast(`✓ Período de demostración reiniciado a 30 días para ${empresaActiva.nombre}`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Atajos de teclado para el dueño/administrador:
   // Ctrl + Shift + D (o Cmd + Shift + D): Abre panel de GitHub & Respaldo directamente
   // Ctrl + Shift + A (o Cmd + Shift + A): Alterna modo administrador
@@ -336,8 +383,8 @@ export default function App() {
   }, [empresas]);
 
   // ── CAMBIO DE PERFIL / CLIENTE CON AISLAMIENTO TOTAL Y REACCIÓN INSTANTÁNEA ──
-  const handleCambiarCliente = (nuevoClienteId: PerfilClienteId) => {
-    if (!modoAdmin) {
+  const handleCambiarCliente = (nuevoClienteId: PerfilClienteId, forzar = false) => {
+    if (!modoAdmin && !forzar) {
       mostrarToast('🔒 El centro de eventos está protegido en Modo Demo. Abre el candado de Administrador para cambiar.');
       return;
     }
@@ -384,6 +431,39 @@ export default function App() {
 
     const config = PERFILES_CLIENTES_CATALOGO[nuevoClienteId];
     mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} (${nuevosDatos.cotizacion.invitados} Pax)`);
+  };
+
+  // ── Pasar Demo Comercial a Damaris u otro centro con límite de 30 días ──
+  const handleActivarDemoParaEmpresa = (perfilId: PerfilClienteId) => {
+    // 1. Forzar el cambio al centro de eventos solicitado
+    handleCambiarCliente(perfilId, true);
+
+    // 2. Activar período de 30 días en localStorage
+    const storageKey = `solvi_demo_inicio_${perfilId}`;
+    localStorage.setItem(storageKey, String(Date.now()));
+    setDiasRestantesDemo(30);
+
+    // 3. Bloquear candado en modo Demo para proteger la presentación comercial
+    setModoAdmin(false);
+    try {
+      localStorage.setItem('solvi_flow_modo_admin', 'false');
+    } catch {}
+
+    // 4. Actualizar URL para compartir o fijar el demo
+    if (typeof window !== 'undefined') {
+      try {
+        const newUrl = `${window.location.origin}${window.location.pathname}?centro=${perfilId}&demo=true`;
+        window.history.replaceState({}, '', newUrl);
+      } catch {}
+    }
+
+    const nombreCentro = perfilId === 'damaris-eventos'
+      ? 'Centro de Eventos Damaris (Calera de Tango)'
+      : perfilId === 'dominga-eventos'
+      ? 'Dominga Eventos (Finca La Toscana)'
+      : 'Doña Isidora Eventos';
+
+    mostrarToast(`🚀 Demo activado para ${nombreCentro} con 30 días de evaluación`);
   };
 
   const handleRestaurarDatos = (datos: PaqueteRespaldoCompleto) => {
@@ -1328,6 +1408,83 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Banner Superior de Demo Comercial con Límite de 30 Días ── */}
+      {!modoAdmin && (
+        <div className="no-print bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-b border-emerald-500/40 text-white px-4 py-2 text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 shadow-sm">
+          <div className="flex items-center gap-2 text-center sm:text-left flex-wrap">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0 hidden sm:inline-block" />
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 bg-emerald-900/90 px-2 py-0.5 rounded border border-emerald-500/40">
+              Demo Comercial 30 Días
+            </span>
+            <span className="text-slate-200 text-xs">
+              Acceso de evaluación para <strong className="text-white font-bold">{empresaActiva.nombre}</strong> ({empresaActiva.recintoPrincipal})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
+              diasRestantesDemo <= 5
+                ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                : 'bg-emerald-900/70 text-emerald-300 border-emerald-500/40'
+            }`}>
+              <Clock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+              <span>{diasRestantesDemo > 0 ? `Quedan ${diasRestantesDemo} días de prueba` : 'Prueba finalizada'}</span>
+            </div>
+
+            <a
+              href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Estoy usando el demo de 30 días para ${empresaActiva.nombre} y quiero consultar por la licencia completa del sistema.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-400 hover:bg-emerald-300 active:scale-95 text-slate-950 font-black text-xs rounded-lg shadow-xs transition-transform cursor-pointer"
+            >
+              <span>Activar Licencia Completa</span>
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Expiración de los 30 Días de Prueba */}
+      {demoExpirado && !modoAdmin && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl border-2 border-amber-400 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-3xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-2xl font-bold shadow-xs">
+              <Clock className="w-8 h-8 text-amber-700" />
+            </div>
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                Período de Evaluación Finalizado
+              </span>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                El demo de 30 días para {empresaActiva.nombre} ha concluido
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                Esperamos que hayas disfrutado la demostración de <strong>SOLVI Flow</strong>. Para renovar este período de evaluación o activar la licencia definitiva para tu centro de eventos:
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              <a
+                href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Concluyeron los 30 días del demo para ${empresaActiva.nombre}. Deseo solicitar la activación de la licencia completa de SOLVI Flow.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white font-extrabold text-sm rounded-xl shadow-lg transition-transform cursor-pointer"
+              >
+                <MessageCircle className="w-5 h-5 fill-white" />
+                <span>Contactar por WhatsApp (+56 9 3118 1304)</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={toggleModoAdmin}
+                className="w-full py-2 px-3 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Soy el Administrador / Desarrollador (Ingresar clave)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Principal con navegación de vistas y selector de cliente */}
       <Header
         vistaActual={vistaActual}
@@ -1347,6 +1504,7 @@ export default function App() {
         modoAdmin={modoAdmin}
         onToggleModoAdmin={toggleModoAdmin}
         onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
+        diasRestantesDemo={diasRestantesDemo}
       />
 
       {/* Contenido Principal */}
@@ -2127,6 +2285,8 @@ export default function App() {
           onToggleModoAdmin={toggleModoAdmin}
           onAbrirRespaldo={() => setModalRespaldoOpen(true)}
           onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
+          onActivarDemoEmpresa={handleActivarDemoParaEmpresa}
+          diasRestantesDemo={diasRestantesDemo}
         />
       )}
 
@@ -2149,6 +2309,9 @@ export default function App() {
             setVistaActual(vista);
             setModalComercialOpen(false);
           }}
+          onCambiarEmpresaDemo={handleActivarDemoParaEmpresa}
+          diasRestantesDemo={diasRestantesDemo}
+          onReiniciarDemo30Dias={handleReiniciarDemo30Dias}
         />
       )}
 

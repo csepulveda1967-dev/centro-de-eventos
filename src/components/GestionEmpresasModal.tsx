@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { EmpresaCliente } from '../types';
+import { EmpresaCliente, PerfilClienteId } from '../types';
 import {
   Building2,
   Plus,
@@ -15,7 +15,9 @@ import {
   Lock,
   Unlock,
   FolderGit2,
-  Share2
+  Share2,
+  Clock,
+  Rocket
 } from 'lucide-react';
 
 interface GestionEmpresasModalProps {
@@ -28,6 +30,8 @@ interface GestionEmpresasModalProps {
   onToggleModoAdmin?: () => void;
   onAbrirRespaldo?: () => void;
   onAbrirFormularioEmpresa?: () => void;
+  onActivarDemoEmpresa?: (perfilId: PerfilClienteId) => void;
+  diasRestantesDemo?: number;
 }
 
 export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
@@ -39,7 +43,9 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   modoAdmin = false,
   onToggleModoAdmin,
   onAbrirRespaldo,
-  onAbrirFormularioEmpresa
+  onAbrirFormularioEmpresa,
+  onActivarDemoEmpresa,
+  diasRestantesDemo = 30
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
 
@@ -277,43 +283,68 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
-                              const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(url);
-                              }
-                              alert(`✓ Enlace de Demo para "${emp.nombre}" copiado al portapapeles:\n\n${url}\n\nEste enlace abrirá directamente este centro con el candado cerrado para que tu cliente NO pueda cambiar de centro.`);
-                            }}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                            title="Copiar enlace directo de demo protegido para este centro de eventos"
-                          >
-                            <Share2 className="w-3 h-3 text-indigo-600" />
-                            <span>Copiar Enlace Demo</span>
-                          </button>
-                        </div>
+                      <div className="mt-4 pt-2.5 border-t border-slate-100 flex flex-col gap-2 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {onActivarDemoEmpresa && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const perfilKey: PerfilClienteId = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                                  onActivarDemoEmpresa(perfilKey);
+                                  onClose();
+                                }}
+                                className={`inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-1.5 rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 ${
+                                  emp.id === 'emp-damaris'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    : emp.id === 'emp-dominga'
+                                    ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                    : 'bg-slate-900 hover:bg-slate-800 text-white'
+                                }`}
+                                title={`Activar demostración comercial de 30 días para ${emp.nombre}`}
+                              >
+                                <Rocket className="w-3.5 h-3.5" />
+                                <span>{emp.id === 'emp-damaris' ? '🚀 Pasar Demo a Damaris (30 Días)' : '🚀 Activar Demo 30 Días'}</span>
+                              </button>
+                            )}
 
-                        <div>
-                          {isActiva ? (
-                            <span className="font-bold text-emerald-800 text-[11px] flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              Espacio en uso
-                            </span>
-                          ) : modoAdmin ? (
-                            <span className="font-bold text-amber-900 hover:underline text-[11px] cursor-pointer">
-                              Cambiar a este centro →
-                            </span>
-                          ) : (
-                            <span className="font-bold text-slate-400 text-[11px] flex items-center gap-1">
-                              <Lock className="w-3 h-3 text-slate-400" />
-                              Fijado en Demo
-                            </span>
-                          )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
+                                if (navigator.clipboard) {
+                                  navigator.clipboard.writeText(url);
+                                }
+                                alert(`✓ Enlace de Demo para "${emp.nombre}" (30 Días) copiado al portapapeles:\n\n${url}\n\nEste enlace abrirá directamente este centro con el candado cerrado y los 30 días de evaluación activos.`);
+                              }}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                              title="Copiar enlace directo de demo protegido para este centro de eventos"
+                            >
+                              <Share2 className="w-3 h-3 text-indigo-600" />
+                              <span>Copiar Link Demo</span>
+                            </button>
+                          </div>
+
+                          <div>
+                            {isActiva ? (
+                              <span className="font-bold text-emerald-800 text-[11px] flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>Activo {!modoAdmin && `(${diasRestantesDemo ?? 30}d)`}</span>
+                              </span>
+                            ) : modoAdmin ? (
+                              <span className="font-bold text-amber-900 hover:underline text-[11px] cursor-pointer">
+                                Seleccionar →
+                              </span>
+                            ) : (
+                              <span className="font-bold text-slate-400 text-[11px] flex items-center gap-1">
+                                <Lock className="w-3 h-3 text-slate-400" />
+                                Fijado en Demo
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
