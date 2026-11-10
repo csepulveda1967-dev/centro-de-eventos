@@ -241,12 +241,12 @@ export default function App() {
 
   const toggleModoAdmin = () => {
     if (!modoAdmin) {
-      // Si el candado está cerrado y se quiere abrir, solicitar clave o confirmación de administrador
-      const clave = window.prompt('🔒 Modo Administrador:\nIngresa la clave para desbloquear el cambio de centros de eventos y herramientas de configuración:\n(Escribe "admin" o presiona Aceptar)');
+      const claveMaestra = localStorage.getItem('solvi_admin_master_pin') || '1967';
+      const clave = window.prompt('🔒 Modo Administrador:\nIngresa tu clave maestra para desbloquear el cambio de centros de eventos y configuración:\n(Clave inicial por defecto: 1967)');
       if (clave === null) return; // Cancelado por el usuario
-      const claveLimpia = clave.trim().toLowerCase();
-      if (claveLimpia !== 'admin' && claveLimpia !== 'solvi' && claveLimpia !== '') {
-        alert('❌ Clave no válida. El centro de eventos continúa protegido en Modo Demo.');
+      const claveLimpia = clave.trim();
+      if (claveLimpia !== claveMaestra && claveLimpia.toLowerCase() !== 'admin') {
+        alert('❌ Clave incorrecta. El centro de eventos continúa protegido en Modo Demo.');
         return;
       }
     }
@@ -260,7 +260,23 @@ export default function App() {
     });
   };
 
-  // ── Control de Tiempo Límite de Demostración (30 Días para Damaris y Centros) ──
+  // ── Licencia Definitiva (Ilimitada sin caducidad) & Control de Demo de 30 Días ──
+  const [licenciaDefinitiva, setLicenciaDefinitiva] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`solvi_licencia_definitiva_${clienteActivoId}`) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      setLicenciaDefinitiva(localStorage.getItem(`solvi_licencia_definitiva_${clienteActivoId}`) === 'true');
+    } catch {
+      setLicenciaDefinitiva(false);
+    }
+  }, [clienteActivoId]);
+
   const [diasRestantesDemo, setDiasRestantesDemo] = useState<number>(() => {
     try {
       const storageKey = `solvi_demo_inicio_${clienteActivoId}`;
@@ -292,14 +308,31 @@ export default function App() {
     }
   }, [clienteActivoId]);
 
-  const demoExpirado = diasRestantesDemo <= 0;
+  const demoExpirado = !licenciaDefinitiva && diasRestantesDemo <= 0;
 
-  const handleReiniciarDemo30Dias = () => {
+  // ── Liberar Demo Permanentemente (Licencia Definitiva de por vida) ──
+  const handleLiberarLicenciaDefinitiva = (perfilId?: PerfilClienteId) => {
+    const targetId = perfilId || clienteActivoId;
     try {
-      const storageKey = `solvi_demo_inicio_${clienteActivoId}`;
+      localStorage.setItem(`solvi_licencia_definitiva_${targetId}`, 'true');
+      if (targetId === clienteActivoId) {
+        setLicenciaDefinitiva(true);
+      }
+      mostrarToast(`✨ ¡Licencia Definitiva Activada! El sistema queda liberado de por vida sin límite de tiempo.`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleReiniciarDemo30Dias = (perfilId?: PerfilClienteId) => {
+    const targetId = perfilId || clienteActivoId;
+    try {
+      const storageKey = `solvi_demo_inicio_${targetId}`;
       localStorage.setItem(storageKey, String(Date.now()));
-      setDiasRestantesDemo(30);
-      mostrarToast(`✓ Período de demostración reiniciado a 30 días para ${empresaActiva.nombre}`);
+      if (targetId === clienteActivoId) {
+        setDiasRestantesDemo(30);
+      }
+      mostrarToast(`✓ Período de demostración reiniciado a 30 días`);
     } catch (e) {
       console.error(e);
     }
@@ -1414,31 +1447,43 @@ export default function App() {
           <div className="flex items-center gap-2 text-center sm:text-left flex-wrap">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0 hidden sm:inline-block" />
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300 bg-emerald-900/90 px-2 py-0.5 rounded border border-emerald-500/40">
-              Demo Comercial 30 Días
+              {licenciaDefinitiva ? '✨ Licencia Definitiva Activa' : 'Demo Comercial 30 Días'}
             </span>
             <span className="text-slate-200 text-xs">
-              Acceso de evaluación para <strong className="text-white font-bold">{empresaActiva.nombre}</strong> ({empresaActiva.recintoPrincipal})
+              {licenciaDefinitiva ? (
+                <>Sistema liberado de por vida para <strong className="text-white font-bold">{empresaActiva.nombre}</strong></>
+              ) : (
+                <>Acceso de evaluación para <strong className="text-white font-bold">{empresaActiva.nombre}</strong> ({empresaActiva.recintoPrincipal})</>
+              )}
             </span>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
-              diasRestantesDemo <= 5
-                ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
-                : 'bg-emerald-900/70 text-emerald-300 border-emerald-500/40'
-            }`}>
-              <Clock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-              <span>{diasRestantesDemo > 0 ? `Quedan ${diasRestantesDemo} días de prueba` : 'Prueba finalizada'}</span>
-            </div>
+            {!licenciaDefinitiva ? (
+              <>
+                <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
+                  diasRestantesDemo <= 5
+                    ? 'bg-rose-950/80 text-rose-300 border-rose-500/40'
+                    : 'bg-emerald-900/70 text-emerald-300 border-emerald-500/40'
+                }`}>
+                  <Clock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span>{diasRestantesDemo > 0 ? `Quedan ${diasRestantesDemo} días de prueba` : 'Prueba finalizada'}</span>
+                </div>
 
-            <a
-              href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Estoy usando el demo de 30 días para ${empresaActiva.nombre} y quiero consultar por la licencia completa del sistema.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-400 hover:bg-emerald-300 active:scale-95 text-slate-950 font-black text-xs rounded-lg shadow-xs transition-transform cursor-pointer"
-            >
-              <span>Activar Licencia Completa</span>
-            </a>
+                <a
+                  href={`https://wa.me/56931181304?text=${encodeURIComponent(`Hola! Estoy usando el demo de 30 días para ${empresaActiva.nombre} y quiero consultar por la licencia completa del sistema.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-400 hover:bg-emerald-300 active:scale-95 text-slate-950 font-black text-xs rounded-lg shadow-xs transition-transform cursor-pointer"
+                >
+                  <span>Activar Licencia Completa</span>
+                </a>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-bold">
+                ✓ Acceso Ilimitado
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -1473,13 +1518,37 @@ export default function App() {
                 <span>Contactar por WhatsApp (+56 9 3118 1304)</span>
               </a>
 
-              <button
-                type="button"
-                onClick={toggleModoAdmin}
-                className="w-full py-2 px-3 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-              >
-                Soy el Administrador / Desarrollador (Ingresar clave)
-              </button>
+              {/* Botón directo para el desarrollador/administrador para liberar o dar más días */}
+              <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const claveMaestra = localStorage.getItem('solvi_admin_master_pin') || '1967';
+                    const clave = window.prompt('🔒 Clave Maestra de Administrador:\nIngresa tu clave para desbloquear el sistema (Por defecto: 1967):');
+                    if (clave && (clave.trim() === claveMaestra || clave.trim().toLowerCase() === 'admin')) {
+                      const opcion = window.confirm(`✨ ¿Deseas LIBERAR LA LICENCIA DEFINITIVA para "${empresaActiva.nombre}"?\n\n- Presiona [Aceptar] para ACTIVAR LICENCIA DEFINITIVA (Ilimitada de por vida sin caducidad).\n- Presiona [Cancelar] para renovar 30 días adicionales de prueba.`);
+                      if (opcion) {
+                        handleLiberarLicenciaDefinitiva();
+                      } else {
+                        handleReiniciarDemo30Dias();
+                      }
+                    } else if (clave !== null) {
+                      alert('❌ Clave incorrecta.');
+                    }
+                  }}
+                  className="w-full py-2.5 px-3 text-xs font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors cursor-pointer"
+                >
+                  🔓 Liberar Demo / Activar Licencia (Solo Administrador)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleModoAdmin}
+                  className="w-full py-1.5 px-3 text-[11px] font-bold text-slate-500 hover:text-slate-800 rounded-lg transition-colors cursor-pointer"
+                >
+                  Abrir Modo Administrador con Clave
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2286,6 +2355,8 @@ export default function App() {
           onAbrirRespaldo={() => setModalRespaldoOpen(true)}
           onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
           onActivarDemoEmpresa={handleActivarDemoParaEmpresa}
+          onLiberarLicenciaDefinitiva={handleLiberarLicenciaDefinitiva}
+          onReiniciarDemo30Dias={handleReiniciarDemo30Dias}
           diasRestantesDemo={diasRestantesDemo}
         />
       )}

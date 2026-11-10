@@ -17,7 +17,8 @@ import {
   FolderGit2,
   Share2,
   Clock,
-  Rocket
+  Rocket,
+  Key
 } from 'lucide-react';
 
 interface GestionEmpresasModalProps {
@@ -31,6 +32,8 @@ interface GestionEmpresasModalProps {
   onAbrirRespaldo?: () => void;
   onAbrirFormularioEmpresa?: () => void;
   onActivarDemoEmpresa?: (perfilId: PerfilClienteId) => void;
+  onLiberarLicenciaDefinitiva?: (perfilId: PerfilClienteId) => void;
+  onReiniciarDemo30Dias?: (perfilId: PerfilClienteId) => void;
   diasRestantesDemo?: number;
 }
 
@@ -45,9 +48,22 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   onAbrirRespaldo,
   onAbrirFormularioEmpresa,
   onActivarDemoEmpresa,
+  onLiberarLicenciaDefinitiva,
+  onReiniciarDemo30Dias,
   diasRestantesDemo = 30
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
+
+  // Clave maestra de administrador
+  const [claveAdmin, setClaveAdmin] = useState<string>(() => {
+    try {
+      return localStorage.getItem('solvi_admin_master_pin') || '1967';
+    } catch {
+      return '1967';
+    }
+  });
+  const [editandoClave, setEditandoClave] = useState(false);
+  const [nuevaClave, setNuevaClave] = useState('');
 
   // Formulario nueva empresa
   const [nombre, setNombre] = useState('');
@@ -210,6 +226,73 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Configuración y cambio de Clave Maestra de Administrador */}
+            <div className="w-full mt-2 pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center gap-1.5 text-slate-700">
+                <Key className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span className="font-extrabold">Clave Maestra Administrador:</span>
+                <span className="font-mono bg-white border border-slate-300 px-2 py-0.5 rounded-md text-slate-900 font-black tracking-wider shadow-2xs">
+                  {editandoClave ? nuevaClave || 'Escribe tu nueva clave...' : claveAdmin}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  (Sirve para abrir candado y liberar licencias)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {!editandoClave ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNuevaClave(claveAdmin);
+                      setEditandoClave(true);
+                    }}
+                    className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
+                  >
+                    🔑 Cambiar Clave
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      value={nuevaClave}
+                      onChange={(e) => setNuevaClave(e.target.value)}
+                      placeholder="Nueva clave..."
+                      className="px-2 py-0.5 border-2 border-amber-500 rounded-lg bg-white text-xs font-bold w-32 focus:outline-hidden"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!nuevaClave.trim()) {
+                          alert('Por favor escribe una clave válida.');
+                          return;
+                        }
+                        try {
+                          localStorage.setItem('solvi_admin_master_pin', nuevaClave.trim());
+                          setClaveAdmin(nuevaClave.trim());
+                          setEditandoClave(false);
+                          alert(`✓ Clave de Administrador guardada exitosamente:\n\n"${nuevaClave.trim()}"\n\nGuárdala bien: con esta clave podrás abrir el candado de cualquier demo y liberar licencias.`);
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] cursor-pointer shadow-xs"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditandoClave(false)}
+                      className="px-2 py-1 text-slate-500 hover:text-slate-800 text-[10px] cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* TAB 1: LISTADO DE EMPRESAS */}
@@ -326,6 +409,21 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                               <Share2 className="w-3 h-3 text-indigo-600" />
                               <span>Copiar Link Demo</span>
                             </button>
+
+                            {modoAdmin && onLiberarLicenciaDefinitiva && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                                  onLiberarLicenciaDefinitiva(perfilKey);
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+                                title="Liberar licencia definitiva sin límite de tiempo para este centro"
+                              >
+                                <span>✨ Liberar Ilimitado</span>
+                              </button>
+                            )}
                           </div>
 
                           <div>
