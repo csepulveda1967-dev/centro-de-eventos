@@ -9,7 +9,7 @@ interface BotonFlotanteWhatsAppProps {
 export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ empresa }) => {
   const [abierto, setAbierto] = useState(false);
   const telefonoLimpio = '56931181304';
-  const telefonoFormateado = '+56 9 49209398';
+  const telefonoFormateado = '+56 9 3118 1304';
 
   const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
   const demoUrl = typeof window !== 'undefined'
