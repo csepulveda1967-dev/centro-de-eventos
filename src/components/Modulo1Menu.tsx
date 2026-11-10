@@ -22,8 +22,10 @@ import {
   CheckCircle2,
   X,
   Coffee,
-  Save
+  Save,
+  FileSpreadsheet
 } from 'lucide-react';
+import { ModalCargaMasivaRecetas } from './ModalCargaMasivaRecetas';
 
 interface Modulo1MenuProps {
   menus: MenuOption[];
@@ -40,6 +42,10 @@ interface Modulo1MenuProps {
   onUpdateBebestibles?: (nuevos: MenuItemRatio[]) => void;
   recetas?: RecetaFichaTecnica[];
   insumos?: InsumoMaestro[];
+  esDemoIsidora?: boolean;
+  onImportarRecetas?: (nuevasRecetas: RecetaFichaTecnica[], modo: 'agregar' | 'reemplazar') => void;
+  onRestablecerRecetas?: () => void;
+  nombreEmpresa?: string;
 }
 
 export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
@@ -54,10 +60,15 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
   onUpdateReceta,
   costoFijoPorPersona = 0,
   recetas = [],
-  insumos = []
+  insumos = [],
+  esDemoIsidora = false,
+  onImportarRecetas,
+  onRestablecerRecetas,
+  nombreEmpresa = 'Doña Isidora Eventos'
 }) => {
   const [menuExpandido, setMenuExpandido] = useState<string | null>(menuSeleccionadoId);
   const [modalNuevoMenuOpen, setModalNuevoMenuOpen] = useState(false);
+  const [isModalCargaRecetasOpen, setIsModalCargaRecetasOpen] = useState(false);
   const [menuAEditar, setMenuAEditar] = useState<MenuOption | null>(null);
 
   // Modal para Incorporar Recetas al Menú (Menú Mixto / Agregar de otros menús o libres)
@@ -249,6 +260,30 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Barra exclusiva para Demo Isidora: Carga Masiva de Fichas & Recetas / Plantilla Excel */}
+        {esDemoIsidora && (
+          <div className="mt-4 pt-3.5 pb-1 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-rose-50/40 via-amber-50/25 to-transparent -mx-5 sm:-mx-6 px-5 sm:px-6">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 font-extrabold text-[10px] uppercase tracking-wider">
+                💍 Demo Doña Isidora
+              </span>
+              <span className="text-[11px] text-slate-500 hidden sm:inline">
+                Herramienta exclusiva de pruebas para este perfil:
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsModalCargaRecetasOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-amber-50/80 text-amber-950 border border-amber-300 hover:border-amber-400 text-xs font-bold shadow-2xs transition-all cursor-pointer hover:shadow-xs"
+              title="Abrir asistente de Carga Masiva de Fichas Técnicas & Recetas / Plantilla Excel para Doña Isidora"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>📥 Carga Masiva de Fichas & Recetas / Plantilla Excel</span>
+            </button>
+          </div>
+        )}
 
         {/* Control de Invitados */}
         <div className="my-6 p-4 bg-slate-50 border border-slate-200/80 rounded-xl">
@@ -836,6 +871,24 @@ export const Modulo1Menu: React.FC<Modulo1MenuProps> = ({
           recetasDisponibles={recetas}
           insumosDisponibles={insumos}
           invitadosReferencia={invitados}
+        />
+      )}
+
+      {/* Modal de Carga Masiva de Fichas & Recetas exclusivo para Demo Isidora */}
+      {esDemoIsidora && isModalCargaRecetasOpen && (
+        <ModalCargaMasivaRecetas
+          isOpen={isModalCargaRecetasOpen}
+          onClose={() => setIsModalCargaRecetasOpen(false)}
+          recetasActuales={recetas}
+          insumosDisponibles={insumos}
+          menusDisponibles={menus}
+          onImportarRecetas={(nuevas, modo) => {
+            if (onImportarRecetas) {
+              onImportarRecetas(nuevas, modo);
+            }
+          }}
+          onRestablecerRecetas={onRestablecerRecetas}
+          nombreEmpresa={nombreEmpresa}
         />
       )}
     </div>

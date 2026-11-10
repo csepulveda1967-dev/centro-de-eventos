@@ -872,6 +872,28 @@ export default function App() {
     mostrarToast('✓ Ficha técnica eliminada');
   };
 
+  const handleImportarRecetas = (nuevasRecetas: RecetaFichaTecnica[], modo: 'agregar' | 'reemplazar') => {
+    if (modo === 'agregar') {
+      setRecetas(prev => {
+        const mapa = new Map(prev.map(r => [r.id, r]));
+        nuevasRecetas.forEach(r => mapa.set(r.id, r));
+        return Array.from(mapa.values());
+      });
+      mostrarToast(`✓ Se agregaron ${nuevasRecetas.length} fichas técnicas a Doña Isidora.`);
+    } else {
+      setRecetas(nuevasRecetas);
+      mostrarToast(`✓ Se reemplazó el catálogo con ${nuevasRecetas.length} fichas técnicas.`);
+    }
+  };
+
+  const handleRestablecerRecetasIsidora = () => {
+    const def = PERFILES_CLIENTES_CATALOGO['modelo-base']?.crearDatosIniciales();
+    if (def?.recetas) {
+      setRecetas(def.recetas);
+      mostrarToast('✓ Fichas técnicas restablecidas al catálogo original de Doña Isidora.');
+    }
+  };
+
   const handleAddMenu = (nuevoMenu: MenuOption) => {
     setMenus(prev => [nuevoMenu, ...prev]);
     // Vinculación automática TOTAL al crear un menú:
@@ -1949,6 +1971,10 @@ export default function App() {
                     onUpdateReceta={handleUpdateReceta}
                     bebestibles={cotizacion.bebestibles}
                     onUpdateBebestibles={handleUpdateBebestibles}
+                    esDemoIsidora={clienteActivoId === 'modelo-base' || empresaActiva.id === 'emp-isidora'}
+                    nombreEmpresa={empresaActiva.nombre}
+                    onImportarRecetas={handleImportarRecetas}
+                    onRestablecerRecetas={handleRestablecerRecetasIsidora}
                   />
                 )}
 
@@ -1959,6 +1985,28 @@ export default function App() {
                     proveedoresSeleccionados={cotizacion.proveedoresSeleccionados}
                     onToggleProveedor={handleToggleProveedor}
                     invitados={cotizacion.invitados}
+                    esDemoIsidora={clienteActivoId === 'modelo-base' || empresaActiva.id === 'emp-isidora'}
+                    nombreEmpresa={empresaActiva.nombre}
+                    onImportarProveedores={(nuevosProveedores, modo) => {
+                      if (modo === 'agregar') {
+                        setProveedores(prev => {
+                          const mapa = new Map(prev.map(p => [p.id, p]));
+                          nuevosProveedores.forEach(p => mapa.set(p.id, p));
+                          return Array.from(mapa.values());
+                        });
+                        mostrarToast(`✓ Se agregaron ${nuevosProveedores.length} proveedores a Doña Isidora.`);
+                      } else {
+                        setProveedores(nuevosProveedores);
+                        mostrarToast(`✓ Se reemplazó el catálogo con ${nuevosProveedores.length} proveedores.`);
+                      }
+                    }}
+                    onRestablecerProveedores={() => {
+                      const def = PERFILES_CLIENTES_CATALOGO['modelo-base']?.crearDatosIniciales();
+                      if (def?.proveedores) {
+                        setProveedores(def.proveedores);
+                        mostrarToast('✓ Proveedores restablecidos al catálogo original de Doña Isidora.');
+                      }
+                    }}
                   />
                 )}
 
@@ -2199,6 +2247,10 @@ export default function App() {
             onChangePersonal={handleChangePersonal}
             bebestibles={cotizacion.bebestibles}
             onUpdateBebestibles={handleUpdateBebestibles}
+            esDemoIsidora={clienteActivoId === 'modelo-base' || empresaActiva.id === 'emp-isidora'}
+            nombreEmpresa={empresaActiva.nombre}
+            onImportarRecetas={handleImportarRecetas}
+            onRestablecerRecetas={handleRestablecerRecetasIsidora}
           />
         )}
 

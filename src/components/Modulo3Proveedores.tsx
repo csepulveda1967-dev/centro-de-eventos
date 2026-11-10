@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ProveedorServicio } from '../types';
 import { formatMoneda } from '../utils/formatters';
 import {
@@ -11,22 +11,33 @@ import {
   Sparkles,
   Zap,
   Coffee,
-  Check
+  Check,
+  FileSpreadsheet
 } from 'lucide-react';
+import { ModalCargaMasivaProveedores } from './ModalCargaMasivaProveedores';
 
 interface Modulo3ProveedoresProps {
   proveedores: ProveedorServicio[];
   proveedoresSeleccionados: Record<string, boolean>;
   onToggleProveedor: (id: string) => void;
   invitados: number;
+  esDemoIsidora?: boolean;
+  onImportarProveedores?: (nuevosProveedores: ProveedorServicio[], modo: 'agregar' | 'reemplazar') => void;
+  onRestablecerProveedores?: () => void;
+  nombreEmpresa?: string;
 }
 
 export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
   proveedores,
   proveedoresSeleccionados,
   onToggleProveedor,
-  invitados
+  invitados,
+  esDemoIsidora = false,
+  onImportarProveedores,
+  onRestablecerProveedores,
+  nombreEmpresa = 'Doña Isidora Eventos'
 }) => {
+  const [isModalCargaOpen, setIsModalCargaOpen] = useState(false);
   // Mapeo dinámico de iconos
   const renderIcon = (iconName: string) => {
     switch (iconName) {
@@ -94,6 +105,30 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Barra exclusiva para Demo Isidora: Carga Masiva de Proveedores / Plantilla Excel */}
+      {esDemoIsidora && (
+        <div className="mt-4 pt-3.5 pb-1 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-rose-50/40 via-indigo-50/25 to-transparent -mx-5 sm:-mx-6 px-5 sm:px-6">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 font-extrabold text-[10px] uppercase tracking-wider">
+              💍 Demo Doña Isidora
+            </span>
+            <span className="text-[11px] text-slate-500 hidden sm:inline">
+              Herramienta exclusiva de pruebas para este perfil:
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsModalCargaOpen(true)}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-indigo-50/80 text-indigo-900 border border-indigo-200 hover:border-indigo-300 text-xs font-bold shadow-2xs transition-all cursor-pointer hover:shadow-xs"
+            title="Abrir asistente de Carga Masiva de Proveedores / Plantilla Excel para Doña Isidora"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>📥 Carga Masiva de Proveedores / Plantilla Excel</span>
+          </button>
+        </div>
+      )}
 
       {/* Lista de Checkboxes interactivos: 4 por fila */}
       <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -202,6 +237,22 @@ export const Modulo3Proveedores: React.FC<Modulo3ProveedoresProps> = ({
           );
         })}
       </div>
+
+      {/* Modal de Carga Masiva de Proveedores exclusivo para Demo Isidora */}
+      {esDemoIsidora && isModalCargaOpen && (
+        <ModalCargaMasivaProveedores
+          isOpen={isModalCargaOpen}
+          onClose={() => setIsModalCargaOpen(false)}
+          proveedoresActuales={proveedores}
+          onImportarProveedores={(nuevos, modo) => {
+            if (onImportarProveedores) {
+              onImportarProveedores(nuevos, modo);
+            }
+          }}
+          onRestablecerProveedores={onRestablecerProveedores}
+          nombreEmpresa={nombreEmpresa}
+        />
+      )}
     </div>
   );
 };

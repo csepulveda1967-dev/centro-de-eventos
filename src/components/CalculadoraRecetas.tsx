@@ -37,10 +37,12 @@ import {
   ListPlus,
   X,
   Check,
-  Save
+  Save,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Modulo2Personal } from './Modulo2Personal';
 import { StaffTarifas } from '../types';
+import { ModalCargaMasivaRecetas } from './ModalCargaMasivaRecetas';
 
 interface CalculadoraRecetasProps {
   recetas: RecetaFichaTecnica[];
@@ -75,6 +77,10 @@ interface CalculadoraRecetasProps {
   menuSeleccionadoId?: string;
   onSelectMenu?: (menuId: string) => void;
   onIrACotizador?: () => void;
+  esDemoIsidora?: boolean;
+  onImportarRecetas?: (nuevasRecetas: RecetaFichaTecnica[], modo: 'agregar' | 'reemplazar') => void;
+  onRestablecerRecetas?: () => void;
+  nombreEmpresa?: string;
 }
 
 interface InputNumeroCeldaRecetasProps {
@@ -178,10 +184,15 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onChangePersonal,
   menuSeleccionadoId,
   onSelectMenu,
-  onIrACotizador
+  onIrACotizador,
+  esDemoIsidora = false,
+  onImportarRecetas,
+  onRestablecerRecetas,
+  nombreEmpresa = 'Doña Isidora Eventos'
 }) => {
   const [recetaSeleccionadaId, setRecetaSeleccionadaId] = useState<string>(recetas[0]?.id || '');
   const [toastSync, setToastSync] = useState<string | null>(null);
+  const [isModalCargaRecetasOpen, setIsModalCargaRecetasOpen] = useState<boolean>(false);
 
   // Insumo a añadir en la receta activa
   const insumosMap = new Map<string, InsumoMaestro>(insumos.map(i => [i.id, i]));
@@ -982,6 +993,30 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
             <span>Crear Nueva Ficha / Receta</span>
           </button>
         </div>
+
+        {/* Barra exclusiva para Demo Isidora: Carga Masiva de Fichas Técnicas & Recetas / Plantilla Excel */}
+        {esDemoIsidora && (
+          <div className="w-full mt-4 pt-3.5 pb-1 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-rose-50/40 via-amber-50/30 to-transparent -mx-5 sm:-mx-6 px-5 sm:px-6">
+            <div className="flex items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 font-extrabold text-[10px] uppercase tracking-wider">
+                💍 Demo Doña Isidora
+              </span>
+              <span className="text-[11px] text-slate-500 hidden sm:inline">
+                Herramienta exclusiva de pruebas para este perfil:
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsModalCargaRecetasOpen(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-amber-50/80 text-amber-950 border border-amber-300 hover:border-amber-400 text-xs font-bold shadow-2xs transition-all cursor-pointer hover:shadow-xs"
+              title="Abrir asistente de Carga Masiva de Fichas Técnicas & Recetas / Plantilla Excel para Doña Isidora"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>📥 Carga Masiva de Fichas & Recetas / Plantilla Excel</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── SECCIÓN DE MENÚS EN CARTA CON OPCIÓN DE CREACIÓN & ELIMINACIÓN ── */}
@@ -2626,6 +2661,24 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         recetasDisponibles={recetas}
         insumosDisponibles={insumos}
       />
+
+      {/* Modal de Carga Masiva de Fichas & Recetas exclusivo para Demo Isidora */}
+      {esDemoIsidora && isModalCargaRecetasOpen && (
+        <ModalCargaMasivaRecetas
+          isOpen={isModalCargaRecetasOpen}
+          onClose={() => setIsModalCargaRecetasOpen(false)}
+          recetasActuales={recetas}
+          insumosDisponibles={insumos}
+          menusDisponibles={menus}
+          onImportarRecetas={(nuevas, modo) => {
+            if (onImportarRecetas) {
+              onImportarRecetas(nuevas, modo);
+            }
+          }}
+          onRestablecerRecetas={onRestablecerRecetas}
+          nombreEmpresa={nombreEmpresa}
+        />
+      )}
     </div>
   );
 };
