@@ -77,7 +77,7 @@ export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ em
             className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 shadow-md py-1.5 px-3 rounded-full text-xs font-semibold cursor-pointer hover:bg-slate-50 transition-colors"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>WhatsApp Demo: {telefonoFormateado}</span>
+                       <span>Soporte Téc.: {telefonoFormateado}</span>
           </div>
         )}
 
