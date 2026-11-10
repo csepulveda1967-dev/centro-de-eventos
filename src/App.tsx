@@ -62,6 +62,13 @@ import { ModalRespaldoSupabase } from './components/ModalRespaldoSupabase';
 import { ModuloExplosionInsumos } from './components/ModuloExplosionInsumos';
 import { ModalPropuestaWhatsApp } from './components/ModalPropuestaWhatsApp';
 import { ModalFormularioEmpresaContacto } from './components/ModalFormularioEmpresaContacto';
+import { ModalDireccionesWeb } from './components/ModalDireccionesWeb';
+import {
+  resolverPerfilDesdeUrl,
+  sincronizarUrlNavegador,
+  obtenerSlugEmpresa,
+  obtenerUrlDirectaEmpresa
+} from './utils/empresaUrlHelper';
 import {
   guardarInsumoEnSupabase,
   eliminarInsumoEnSupabase,
@@ -105,24 +112,21 @@ export default function App() {
 
   // ── Gestión de Perfil de Operación / Cliente con Aislamiento en localStorage ──
   const [clienteActivoId, setClienteActivoId] = useState<PerfilClienteId>(() => {
-    // 1. Prioridad: Parámetro en la URL (ej: ?centro=toscana o ?empresa=dominga-eventos)
+    // 1. Prioridad Absoluta: Dirección en la URL actual (ej: ?centro=damaris, ?empresa=damaris, /damaris, #damaris)
+    const desdeUrl = resolverPerfilDesdeUrl();
+    if (desdeUrl) {
+      return desdeUrl.perfilId;
+    }
+    // 2. LocalStorage si ya estaba trabajando en una empresa previamente
     if (typeof window !== 'undefined') {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const param = params.get('centro') || params.get('empresa') || params.get('cliente') || params.get('perfil');
-        if (param) {
-          const p = param.toLowerCase();
-          if (p.includes('toscana') || p.includes('dominga') || p.includes('emp-dominga')) return 'dominga-eventos';
-          if (p.includes('damaris') || p.includes('emp-damaris')) return 'damaris-eventos';
-          if (p.includes('isidora') || p.includes('base') || p.includes('emp-solvi')) return 'modelo-base';
+        const saved = localStorage.getItem('hlr_perfil_cliente_activo') as PerfilClienteId;
+        if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos')) {
+          return saved;
         }
       } catch {}
     }
-    const saved = localStorage.getItem('hlr_perfil_cliente_activo') as PerfilClienteId;
-    if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos')) {
-      return saved;
-    }
-    return 'modelo-base'; // Doña Isidora Eventos como predeterminado de operación
+    return 'damaris-eventos'; // Damaris como predeterminado si no hay parámetro especificado
   });
 
   // Carga inicial de datos según el perfil activo
@@ -180,6 +184,7 @@ export default function App() {
   const [modalComercialOpen, setModalComercialOpen] = useState(false);
   const [modalRespaldoOpen, setModalRespaldoOpen] = useState(false);
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
+  const [modalDireccionesOpen, setModalDireccionesOpen] = useState(false);
   const [toastMensaje, setToastMensaje] = useState<string | null>(null);
 
   const handleGuardarEmpresaContacto = (empresaActualizada: EmpresaCliente, crearComoNueva?: boolean) => {
@@ -415,6 +420,21 @@ export default function App() {
     localStorage.setItem('hlr_empresas_clientes', JSON.stringify(empresas));
   }, [empresas]);
 
+  // ── SINCRONIZACIÓN AUTOMÁTICA DE URL CON LA DIRECCIÓN PROPIA DE LA EMPRESA ──
+  useEffect(() => {
+    sincronizarUrlNavegador(clienteActivoId, empresaActiva.id, !modoAdmin);
+    document.title = `${empresaActiva.nombre} · Sistema de Gestión & Cotizaciones`;
+
+    const handlePopState = () => {
+      const res = resolverPerfilDesdeUrl();
+      if (res && res.perfilId !== clienteActivoId) {
+        handleCambiarCliente(res.perfilId, true);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [clienteActivoId, empresaActiva.id, empresaActiva.nombre, modoAdmin]);
+
   // ── CAMBIO DE PERFIL / CLIENTE CON AISLAMIENTO TOTAL Y REACCIÓN INSTANTÁNEA ──
   const handleCambiarCliente = (nuevoClienteId: PerfilClienteId, forzar = false) => {
     if (!modoAdmin && !forzar) {
@@ -462,8 +482,13 @@ export default function App() {
       return [nuevosDatos.empresa, ...prev];
     });
 
+    // 5. ¡CRÍTICO! Actualizar URL del navegador al instante con la dirección propia de la empresa
+    sincronizarUrlNavegador(nuevoClienteId, nuevosDatos.empresa.id, !modoAdmin);
+    document.title = `${nuevosDatos.empresa.nombre} · Sistema de Gestión & Cotizaciones`;
+
     const config = PERFILES_CLIENTES_CATALOGO[nuevoClienteId];
-    mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} (${nuevosDatos.cotizacion.invitados} Pax)`);
+    const slug = obtenerSlugEmpresa(nuevoClienteId, nuevosDatos.empresa.id);
+    mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} · Dirección: ?centro=${slug}`);
   };
 
   // ── Pasar Demo Comercial a Damaris u otro centro con límite de 30 días ──
@@ -483,12 +508,7 @@ export default function App() {
     } catch {}
 
     // 4. Actualizar URL para compartir o fijar el demo
-    if (typeof window !== 'undefined') {
-      try {
-        const newUrl = `${window.location.origin}${window.location.pathname}?centro=${perfilId}&demo=true`;
-        window.history.replaceState({}, '', newUrl);
-      } catch {}
-    }
+    sincronizarUrlNavegador(perfilId, undefined, true);
 
     const nombreCentro = perfilId === 'damaris-eventos'
       ? 'Centro de Eventos Damaris (Calera de Tango)'
