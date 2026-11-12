@@ -396,8 +396,8 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
-                                const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
+                                const slug = emp.id === 'emp-dominga' ? 'dominga' : emp.id === 'emp-damaris' ? 'damaris' : 'demo';
+                                const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${slug}&demo=true` : '';
                                 if (navigator.clipboard) {
                                   navigator.clipboard.writeText(url);
                                 }

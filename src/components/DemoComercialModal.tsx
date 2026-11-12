@@ -884,8 +884,8 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
                 </div>
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   {(() => {
-                    const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
-                    const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : '';
+                    const slug = empresa.id === 'emp-dominga' ? 'dominga' : empresa.id === 'emp-damaris' ? 'damaris' : 'demo';
+                    const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${slug}&demo=true` : '';
                     return (
                       <>
                         <a
@@ -917,8 +917,8 @@ Locutora: "Haz crecer tu centro de eventos con tecnología confiable de Google. 
               </div>
 
               {(() => {
-                const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
-                const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true` : 'enlace-demo';
+                const slug = empresa.id === 'emp-dominga' ? 'dominga' : empresa.id === 'emp-damaris' ? 'damaris' : 'demo';
+                const demoUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${slug}&demo=true` : 'enlace-demo';
                 return (
                   <div className="p-3.5 bg-slate-900 rounded-lg text-xs text-slate-300 leading-relaxed font-sans border border-slate-800">
                     "Hola! Preparé una propuesta especial para <b>{empresa.nombre}</b>. Diseñé un sistema digital donde puedes cotizar bodas y eventos en 2 minutos, con costeo de recetas al 33% gastronómico, cálculo automático de garzones y fichas de venta de lujo en PDF con tu propio membrete de {empresa.recintoPrincipal}. Tienes <b>30 días de acceso de evaluación</b> en vivo aquí: <span className="text-amber-400 underline font-mono break-all">{demoUrl}</span>. ¿Tienes 5 minutos para revisarlo? Me puedes responder directo a este WhatsApp: <b>+56 9 3118 1304</b>."

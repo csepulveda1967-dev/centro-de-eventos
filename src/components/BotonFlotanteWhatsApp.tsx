@@ -8,15 +8,26 @@ interface BotonFlotanteWhatsAppProps {
 
 export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ empresa }) => {
   const [abierto, setAbierto] = useState(false);
-  const telefonoLimpio = '56931181304';
-  const telefonoFormateado = '+56 9 3118 1304';
 
-  const perfilKey = empresa.id === 'emp-dominga' ? 'dominga-eventos' : empresa.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+  const esDamaris = empresa.id === 'emp-damaris' || empresa.nombre.toLowerCase().includes('damaris');
+  const esDominga = empresa.id === 'emp-dominga' || empresa.nombre.toLowerCase().includes('dominga');
+
+  const telefonoFormateado = esDamaris
+    ? '+56 9 6841 1419'
+    : (empresa.telefono || (esDominga ? '+56 9 6236 0766' : '+56 9 3118 1304'));
+
+  const telefonoLimpio = esDamaris
+    ? '56968411419'
+    : (telefonoFormateado.replace(/\D/g, '') || '56931181304');
+
+  const slug = esDamaris ? 'damaris' : esDominga ? 'dominga' : 'demo';
   const demoUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}?centro=${perfilKey}&demo=true`
-    : 'https://domingaeventos.cl';
+    ? `${window.location.origin}${window.location.pathname}?centro=${slug}&demo=true`
+    : 'https://csepulveda1967-dev.github.io/centro-de-eventos/?centro=demo';
 
-  const mensajeWhatsApp = `Hola! Quiero consultar por el Sistema de Cotizaciones y Costeo para Centros de Eventos (${empresa.nombre}). Puedes ver el demo funcionando aquí: ${demoUrl}`;
+  const mensajeWhatsApp = esDamaris
+    ? `Hola Damaris! Quiero consultar por el Centro de Eventos Damaris y el sistema de cotizaciones.`
+    : `Hola! Quiero consultar por el Sistema de Cotizaciones y Costeo para Centros de Eventos (${empresa.nombre}). Puedes ver el demo funcionando aquí: ${demoUrl}`;
   const enlaceWsp = `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensajeWhatsApp)}`;
 
   return (
@@ -77,7 +88,7 @@ export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ em
             className="hidden sm:flex items-center gap-1.5 bg-white border border-slate-200 text-slate-700 shadow-md py-1.5 px-3 rounded-full text-xs font-semibold cursor-pointer hover:bg-slate-50 transition-colors"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                       <span>Sop-Téc.: {telefonoFormateado}</span>
+            <span>WhatsApp {esDamaris ? 'Damaris' : empresa.letraLogo || 'Directo'}: {telefonoFormateado}</span>
           </div>
         )}
 
@@ -85,7 +96,7 @@ export const BotonFlotanteWhatsApp: React.FC<BotonFlotanteWhatsAppProps> = ({ em
           type="button"
           onClick={() => setAbierto(!abierto)}
           className="w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-90 text-white flex items-center justify-center shadow-xl shadow-emerald-500/30 transition-transform duration-200 group ring-4 ring-emerald-500/20"
-          title={`Abrir WhatsApp Asesoría (${telefonoFormateado})`}
+          title={`Abrir WhatsApp (${esDamaris ? 'Centro Damaris ' : ''}${telefonoFormateado})`}
         >
           <MessageCircle className="w-7 h-7 fill-white group-hover:scale-110 transition-transform" />
         </button>

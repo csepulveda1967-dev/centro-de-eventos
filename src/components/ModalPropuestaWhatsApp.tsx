@@ -41,21 +41,22 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   );
   const [incluirDatosBanco, setIncluirDatosBanco] = useState(true);
   
-  // Destinatario: cliente (+56 9 ...), Empresa Activa (Comercial) o personalizado
+  // Destinatario: cliente (+56 9 ...), Empresa activa (ej: Damaris +56 9 6841 1419 o Dominga) o personalizado
   const [tipoDestino, setTipoDestino] = useState<'cliente' | 'empresa' | 'manual'>('cliente');
   const [telefonoManual, setTelefonoManual] = useState(cotizacion.telefonoCliente || '');
   const [copiado, setCopiado] = useState(false);
 
-  // Limpiar número de teléfono para wa.me (remover +, espacios, guiones) — definido antes de uso
-  const limpiarNumero = (num: string) => {
-    const digitos = (num || '').replace(/\D/g, '');
-    if (digitos.startsWith('56') && digitos.length >= 11) return digitos;
-    if (digitos.length === 9) return `56${digitos}`;
-    return digitos;
-  };
+  const esDamaris = empresaActiva.id === 'emp-damaris' || empresaActiva.nombre.toLowerCase().includes('damaris');
+  const esDominga = empresaActiva.id === 'emp-dominga' || empresaActiva.nombre.toLowerCase().includes('dominga');
 
-  // Teléfono comercial de la empresa ACTIVA (no más hardcoded a Dominga)
-  const telefonoEmpresaActiva = limpiarNumero(empresaActiva.telefono || '');
+  const telefonoEmpresaFormateado = esDamaris
+    ? '+56 9 6841 1419'
+    : (empresaActiva.telefono || (esDominga ? '+56 9 6236 0766' : '+56 9 3118 1304'));
+
+  const telefonoEmpresaLimpio = esDamaris
+    ? '56968411419'
+    : (telefonoEmpresaFormateado.replace(/\D/g, '') || '56931181304');
+
   const proveedoresActivos = proveedores.filter(p => cotizacion.proveedoresSeleccionados[p.id]);
 
   const porcentajeAnticipo = cotizacion.porcentajeAnticipo ?? 40;
@@ -90,12 +91,18 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
   const saldoRestante = esUnPago ? 0 : Math.max(0, totalAPagar - montoPie - montoHito2);
   const cuotaCuatroPagos = Math.round(Math.max(0, totalAPagar - montoPie) / 3);
 
-  // Limpiar número de teléfono para wa.me (remover +, espacios, guiones) — función ya definida arriba
+  // Limpiar número de teléfono para wa.me (remover +, espacios, guiones)
+  const limpiarNumero = (num: string) => {
+    const digitos = num.replace(/\D/g, '');
+    if (digitos.startsWith('56') && digitos.length >= 11) return digitos;
+    if (digitos.length === 9) return `56${digitos}`;
+    return digitos;
+  };
 
   const getNumeroDestino = () => {
-    if (tipoDestino === 'empresa') return telefonoEmpresaActiva;
+    if (tipoDestino === 'empresa') return telefonoEmpresaLimpio;
     if (tipoDestino === 'cliente') {
-      return limpiarNumero(cotizacion.telefonoCliente) || telefonoEmpresaActiva;
+      return limpiarNumero(cotizacion.telefonoCliente) || telefonoEmpresaLimpio;
     }
     return limpiarNumero(telefonoManual);
   };
@@ -261,7 +268,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
     msg += `¿Coordinamos una llamada o visita técnica al recinto para degustación?\n`;
     msg += `Quedamos a su entera disposición,\n`;
     msg += `*${empresaActiva.nombre}*\n`;
-    msg += `📲 WhatsApp Directo: ${empresaActiva.telefono}\n`;
+    msg += `📲 WhatsApp Directo: ${telefonoEmpresaFormateado}\n`;
     msg += `✉️ ${empresaActiva.email}`;
 
     return msg;
@@ -361,7 +368,7 @@ export const ModalPropuestaWhatsApp: React.FC<ModalPropuestaWhatsAppProps> = ({
                   />
                   <div>
                     <span className="font-semibold block">{empresaActiva.nombre} (Comercial)</span>
-                    <span className="text-[11px] text-emerald-700 font-bold">{empresaActiva.telefono}</span>
+                    <span className="text-[11px] text-emerald-700 font-bold">{telefonoEmpresaFormateado}</span>
                   </div>
                 </label>
 

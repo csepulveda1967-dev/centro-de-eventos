@@ -199,7 +199,7 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
     recintoPrincipal: 'Salón Principal & Parque Campestre Damaris',
     direccion: 'Camino Lonquén Sur s/n, Calera de Tango',
     ciudad: 'Calera de Tango, Región Metropolitana',
-    telefono: '+56 9 7123 4567',
+    telefono: '+56 9 6841 1419',
     email: 'contacto@eventosdamaris.cl',
     sitioWeb: 'www.eventosdamaris.cl',
     instagram: '@eventosdamaris',
@@ -701,7 +701,9 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
         instagram: (empresaGuardada.instagram && empresaGuardada.instagram.trim().length > 0) ? empresaGuardada.instagram : empresaBase.instagram,
         sitioWeb: (empresaGuardada.sitioWeb && empresaGuardada.sitioWeb.trim().length > 0) ? empresaGuardada.sitioWeb : empresaBase.sitioWeb,
         email: (empresaGuardada.email && empresaGuardada.email.trim().length > 0) ? empresaGuardada.email : empresaBase.email,
-        telefono: (empresaGuardada.telefono && empresaGuardada.telefono.trim().length > 0) ? empresaGuardada.telefono : empresaBase.telefono,
+        telefono: (empresaBase.id === 'emp-damaris' && (!empresaGuardada.telefono || empresaGuardada.telefono.includes('7123') || empresaGuardada.telefono.includes('3118')))
+          ? '+56 9 6841 1419'
+          : ((empresaGuardada.telefono && empresaGuardada.telefono.trim().length > 0) ? empresaGuardada.telefono : empresaBase.telefono),
         direccion: (empresaGuardada.direccion && empresaGuardada.direccion.trim().length > 0) ? empresaGuardada.direccion : empresaBase.direccion,
         ciudad: (empresaGuardada.ciudad && empresaGuardada.ciudad.trim().length > 0) ? empresaGuardada.ciudad : empresaBase.ciudad,
         datosBancarios: {

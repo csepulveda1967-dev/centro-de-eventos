@@ -316,7 +316,7 @@ export const ModuloExplosionInsumos: React.FC<ModuloExplosionInsumosProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div>
               <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider block">
-                Agenda Comercial Dominga Eventos
+                Agenda Comercial {empresaActiva.nombre}
               </span>
               <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <Building className="w-5 h-5 text-amber-400" />

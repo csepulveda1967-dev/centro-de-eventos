@@ -6,7 +6,7 @@ import { PerfilClienteId, EmpresaCliente } from '../types';
 export const SLUG_POR_PERFIL: Record<PerfilClienteId, string> = {
   'damaris-eventos': 'damaris',
   'dominga-eventos': 'dominga',
-  'modelo-base': 'isidora'
+  'modelo-base': 'demo'
 };
 
 export const PERFIL_POR_SLUG: Record<string, PerfilClienteId> = {
@@ -21,6 +21,8 @@ export const PERFIL_POR_SLUG: Record<string, PerfilClienteId> = {
   'linderos': 'dominga-eventos',
   'emp-dominga': 'dominga-eventos',
 
+  'demo': 'modelo-base',
+  'demo-base': 'modelo-base',
   'isidora': 'modelo-base',
   'dona-isidora': 'modelo-base',
   'donaisidora': 'modelo-base',
@@ -31,12 +33,12 @@ export const PERFIL_POR_SLUG: Record<string, PerfilClienteId> = {
 };
 
 /**
- * Obtiene el slug limpio de una empresa (ej: 'damaris', 'dominga', 'isidora')
+ * Obtiene el slug limpio de una empresa (ej: 'damaris', 'dominga', 'demo')
  */
 export function obtenerSlugEmpresa(clienteId: string, empresaId?: string): string {
   if (clienteId === 'damaris-eventos' || empresaId === 'emp-damaris') return 'damaris';
   if (clienteId === 'dominga-eventos' || empresaId === 'emp-dominga') return 'dominga';
-  if (clienteId === 'modelo-base' || empresaId === 'emp-isidora') return 'isidora';
+  if (clienteId === 'modelo-base' || empresaId === 'emp-isidora') return 'demo';
   if (empresaId === 'emp-nogales') return 'nogales';
   if (empresaId === 'emp-sanfrancisco') return 'sanfrancisco';
   
@@ -70,9 +72,9 @@ export function obtenerUrlDirectaEmpresa(
  * Resuelve qué perfil de empresa corresponde a la URL actual
  * Busca en:
  * 1. Query params: ?centro=damaris, ?empresa=damaris, ?cliente=damaris, ?perfil=damaris
- * 2. Query param directo: ?damaris, ?dominga, ?isidora
- * 3. Pathname: /damaris, /dominga, /isidora
- * 4. Hash: #damaris, #/damaris, #centro=damaris
+ * 2. Query param directo: ?damaris, ?dominga, ?demo, ?isidora
+ * 3. Pathname: /damaris, /dominga, /demo, /isidora
+ * 4. Hash: #damaris, #/damaris, #centro=damaris, #demo
  */
 export function resolverPerfilDesdeUrl(): { perfilId: PerfilClienteId; esDemo: boolean; slug: string } | null {
   if (typeof window === 'undefined') return null;
@@ -90,38 +92,38 @@ export function resolverPerfilDesdeUrl(): { perfilId: PerfilClienteId; esDemo: b
     if (valorParam) {
       const v = valorParam.toLowerCase().trim();
       if (PERFIL_POR_SLUG[v]) {
-        return { perfilId: PERFIL_POR_SLUG[v], esDemo, slug: v };
+        return { perfilId: PERFIL_POR_SLUG[v], esDemo, slug: SLUG_POR_PERFIL[PERFIL_POR_SLUG[v]] || v };
       }
       if (v.includes('damaris')) return { perfilId: 'damaris-eventos', esDemo, slug: 'damaris' };
       if (v.includes('dominga') || v.includes('toscana')) return { perfilId: 'dominga-eventos', esDemo, slug: 'dominga' };
-      if (v.includes('isidora')) return { perfilId: 'modelo-base', esDemo, slug: 'isidora' };
+      if (v.includes('demo') || v.includes('isidora')) return { perfilId: 'modelo-base', esDemo, slug: 'demo' };
     }
 
-    // 2. Query string directo (ej: ?damaris o ?dominga)
+    // 2. Query string directo (ej: ?damaris o ?dominga o ?demo)
     const searchLimpio = search.replace(/^\?/, '').toLowerCase();
     for (const [claveSlug, idPerfil] of Object.entries(PERFIL_POR_SLUG)) {
       if (searchLimpio.startsWith(claveSlug) || searchLimpio.includes(`&${claveSlug}`)) {
-        return { perfilId: idPerfil, esDemo, slug: claveSlug };
+        return { perfilId: idPerfil, esDemo, slug: SLUG_POR_PERFIL[idPerfil] || claveSlug };
       }
     }
 
-    // 3. Pathname (ej: /damaris o /dominga o /isidora)
+    // 3. Pathname (ej: /damaris o /dominga o /demo o /isidora)
     const segmentosPath = pathname.toLowerCase().split('/').filter(Boolean);
     for (const seg of segmentosPath) {
       if (PERFIL_POR_SLUG[seg]) {
-        return { perfilId: PERFIL_POR_SLUG[seg], esDemo, slug: seg };
+        return { perfilId: PERFIL_POR_SLUG[seg], esDemo, slug: SLUG_POR_PERFIL[PERFIL_POR_SLUG[seg]] || seg };
       }
     }
 
-    // 4. Hash (ej: #damaris o #/damaris o #centro=damaris)
+    // 4. Hash (ej: #damaris o #/damaris o #centro=damaris o #demo)
     const hashLimpio = hash.replace(/^#\/?/, '').toLowerCase();
     if (hashLimpio) {
       if (hashLimpio.includes('damaris')) return { perfilId: 'damaris-eventos', esDemo, slug: 'damaris' };
       if (hashLimpio.includes('dominga') || hashLimpio.includes('toscana')) return { perfilId: 'dominga-eventos', esDemo, slug: 'dominga' };
-      if (hashLimpio.includes('isidora')) return { perfilId: 'modelo-base', esDemo, slug: 'isidora' };
+      if (hashLimpio.includes('demo') || hashLimpio.includes('isidora')) return { perfilId: 'modelo-base', esDemo, slug: 'demo' };
       for (const [claveSlug, idPerfil] of Object.entries(PERFIL_POR_SLUG)) {
         if (hashLimpio.includes(claveSlug)) {
-          return { perfilId: idPerfil, esDemo, slug: claveSlug };
+          return { perfilId: idPerfil, esDemo, slug: SLUG_POR_PERFIL[idPerfil] || claveSlug };
         }
       }
     }

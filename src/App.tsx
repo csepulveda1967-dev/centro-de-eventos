@@ -142,7 +142,10 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map(p => {
             const match = EMPRESAS_INICIALES.find(init => init.id === p.id);
-            return match ? { ...match, ...p, datosBancarios: { ...match.datosBancarios, ...(p.datosBancarios || {}) } } : p;
+            const telefonoActualizado = p.id === 'emp-damaris' ? '+56 9 6841 1419' : p.telefono;
+            return match
+              ? { ...match, ...p, telefono: telefonoActualizado, datosBancarios: { ...match.datosBancarios, ...(p.datosBancarios || {}) } }
+              : { ...p, telefono: telefonoActualizado };
           });
         }
       }
@@ -150,7 +153,13 @@ export default function App() {
     return EMPRESAS_INICIALES;
   });
 
-  const [empresaActiva, setEmpresaActiva] = useState<EmpresaCliente>(() => datosIniciales.empresa);
+  const [empresaActiva, setEmpresaActiva] = useState<EmpresaCliente>(() => {
+    const emp = datosIniciales.empresa;
+    if (emp.id === 'emp-damaris') {
+      return { ...emp, telefono: '+56 9 6841 1419' };
+    }
+    return emp;
+  });
   const [insumos, setInsumos] = useState<InsumoMaestro[]>(() => datosIniciales.insumos);
   const [recetas, setRecetas] = useState<RecetaFichaTecnica[]>(() => datosIniciales.recetas);
   const [menus, setMenus] = useState<MenuOption[]>(() => datosIniciales.menus);

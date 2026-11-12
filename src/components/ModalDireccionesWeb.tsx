@@ -81,9 +81,9 @@ export const ModalDireccionesWeb: React.FC<ModalDireccionesWebProps> = ({
     {
       perfilId: 'modelo-base' as PerfilClienteId,
       empresaId: 'emp-isidora',
-      nombre: 'Doña Isidora Eventos',
+      nombre: 'Demo General (Doña Isidora Eventos)',
       subtitulo: 'Banquetería Itinerante & Matrimonios en Parcelas',
-      slug: 'isidora',
+      slug: 'demo',
       color: 'rose',
       letra: 'DI'
     }
@@ -293,7 +293,7 @@ export const ModalDireccionesWeb: React.FC<ModalDireccionesWebProps> = ({
               <span>💡 ¿Cómo compartir con clientes o socios?</span>
             </div>
             <p className="text-[11px] leading-relaxed">
-              Para mandar <strong>Damaris</strong>, envía el enlace que termina en <code>?centro=damaris</code>. Para <strong>Dominga</strong>, el que termina en <code>?centro=dominga</code>. Cada dirección es fija, aislada y jamás se cruza con otra empresa.
+              Para mandar <strong>Damaris</strong>, envía el enlace que termina en <code>?centro=damaris</code>. Para <strong>Dominga</strong>, el que termina en <code>?centro=dominga</code>. Para el <strong>Demo</strong>, el que termina en <code>?centro=demo</code>. Cada dirección es fija, aislada y jamás se cruza con otra empresa.
             </p>
           </div>
 
