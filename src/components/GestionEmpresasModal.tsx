@@ -18,8 +18,16 @@ import {
   Share2,
   Clock,
   Rocket,
-  Key
+  Key,
+  Activity,
+  Gauge,
+  TrendingUp
 } from 'lucide-react';
+import {
+  obtenerMetricasDemo,
+  calcularNivelUso,
+  formatearTiempoRelativo
+} from '../utils/medidorDemoHelper';
 
 interface GestionEmpresasModalProps {
   empresas: EmpresaCliente[];
@@ -34,6 +42,7 @@ interface GestionEmpresasModalProps {
   onActivarDemoEmpresa?: (perfilId: PerfilClienteId) => void;
   onLiberarLicenciaDefinitiva?: (perfilId: PerfilClienteId) => void;
   onReiniciarDemo30Dias?: (perfilId: PerfilClienteId) => void;
+  onAbrirMedidorDemo?: () => void;
   diasRestantesDemo?: number;
 }
 
@@ -50,6 +59,7 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   onActivarDemoEmpresa,
   onLiberarLicenciaDefinitiva,
   onReiniciarDemo30Dias,
+  onAbrirMedidorDemo,
   diasRestantesDemo = 30
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
@@ -294,6 +304,86 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Medidor de Uso del Demo en Tiempo Real (Exclusivo Administrador) */}
+          {modoAdmin && (() => {
+            const metricasDemo = obtenerMetricasDemo();
+            const evaluacionDemo = calcularNivelUso(metricasDemo);
+            const totalCot = Object.values(metricasDemo.porCentro).reduce((a, c) => a + c.cotizacionesCalculadas, 0);
+            const totalPdf = Object.values(metricasDemo.porCentro).reduce((a, c) => a + c.fichasPdfVistas, 0);
+            const totalWsp = Object.values(metricasDemo.porCentro).reduce((a, c) => a + c.propuestasWhatsApp, 0);
+
+            return (
+              <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white border border-indigo-800/80 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-900/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center justify-center shrink-0">
+                      <Gauge className="w-5 h-5 text-indigo-300" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-black tracking-tight text-white flex items-center gap-1.5">
+                          <span>Medidor de Uso del Demo Comercial</span>
+                        </h4>
+                        <span className={`text-[9.5px] font-black px-2 py-0.2 rounded-full ${
+                          evaluacionDemo.estaActivoAhora
+                            ? 'bg-emerald-500 text-white animate-pulse'
+                            : 'bg-indigo-900/80 text-indigo-200 border border-indigo-500/40'
+                        }`}>
+                          {evaluacionDemo.estaActivoAhora ? '🟢 En uso ahora' : evaluacionDemo.nivelTexto}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 mt-0.5">
+                        Última acción: <strong className="text-amber-300">{formatearTiempoRelativo(metricasDemo.ultimaActividad)}</strong> · {metricasDemo.totalInteracciones} interacciones en total
+                      </p>
+                    </div>
+                  </div>
+
+                  {onAbrirMedidorDemo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onAbrirMedidorDemo();
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 rounded-xl text-xs font-black transition-all shadow-xs cursor-pointer shrink-0"
+                    >
+                      <Activity className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Ver Medidor Completo</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Barra de Progreso del Nivel de Uso */}
+                <div className="pt-3">
+                  <div className="flex justify-between text-[11px] mb-1 font-semibold">
+                    <span className="text-indigo-200">Intensidad de uso del cliente:</span>
+                    <span className="text-amber-300 font-mono font-bold">{evaluacionDemo.porcentaje}% ({evaluacionDemo.nivelTexto})</span>
+                  </div>
+                  <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                    <div
+                      className={`h-full transition-all duration-500 rounded-full ${
+                        evaluacionDemo.porcentaje >= 75
+                          ? 'bg-emerald-400'
+                          : evaluacionDemo.porcentaje >= 40
+                          ? 'bg-blue-400'
+                          : evaluacionDemo.porcentaje >= 15
+                          ? 'bg-amber-400'
+                          : 'bg-slate-600'
+                      }`}
+                      style={{ width: `${Math.max(5, evaluacionDemo.porcentaje)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5">
+                    <span>Cotizaciones: <strong className="text-white">{totalCot}</strong></span>
+                    <span>Fichas PDF: <strong className="text-white">{totalPdf}</strong></span>
+                    <span>WhatsApp: <strong className="text-white">{totalWsp}</strong></span>
+                    <span>Sesiones: <strong className="text-white">{metricasDemo.sesionesIniciadas || 1}</strong></span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* TAB 1: LISTADO DE EMPRESAS */}
           {tab === 'empresas' && (

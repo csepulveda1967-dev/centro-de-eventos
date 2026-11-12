@@ -18,7 +18,8 @@ import {
   Unlock,
   FilePlus,
   Save,
-  Martini
+  Martini,
+  Gauge
 } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 
@@ -40,6 +41,7 @@ interface HeaderProps {
   onGuardarCotizacion?: () => void;
   onAbrirFormularioEmpresa?: () => void;
   onAbrirWhatsAppPropuesta?: () => void;
+  onAbrirMedidorDemo?: () => void;
   diasRestantesDemo?: number;
 }
 
@@ -57,6 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirComercial,
   onAbrirRespaldo,
   onAbrirWhatsAppPropuesta,
+  onAbrirMedidorDemo,
   modoAdmin = false,
   onToggleModoAdmin,
   onGuardarCotizacion,
@@ -403,6 +406,21 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="hidden xl:inline">Demo</span>
                   </>
                 )}
+              </button>
+            )}
+
+            {/* Medidor de Uso del Demo para Administrador */}
+            {modoAdmin && onAbrirMedidorDemo && (
+              <button
+                type="button"
+                onClick={onAbrirMedidorDemo}
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-black text-indigo-950 bg-indigo-100 hover:bg-indigo-200 active:scale-95 rounded-lg border border-indigo-300 transition-all shadow-xs cursor-pointer"
+                title="Medidor de Uso del Demo: Consulta en vivo si el cliente está usando el demo y cuántas cotizaciones ha calculado"
+              >
+                <Gauge className="w-3.5 h-3.5 text-indigo-700" />
+                <span className="hidden md:inline">Medidor Demo</span>
+                <span className="md:hidden">Medidor</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </button>
             )}
 

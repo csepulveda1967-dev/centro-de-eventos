@@ -63,6 +63,12 @@ import { ModuloExplosionInsumos } from './components/ModuloExplosionInsumos';
 import { ModalPropuestaWhatsApp } from './components/ModalPropuestaWhatsApp';
 import { ModalFormularioEmpresaContacto } from './components/ModalFormularioEmpresaContacto';
 import { ModalDireccionesWeb } from './components/ModalDireccionesWeb';
+import { MedidorUsoDemoModal } from './components/MedidorUsoDemoModal';
+import {
+  registrarActividadDemo,
+  registrarSesionDemo,
+  acumularTiempoActivoDemo
+} from './utils/medidorDemoHelper';
 import {
   resolverPerfilDesdeUrl,
   sincronizarUrlNavegador,
@@ -194,6 +200,7 @@ export default function App() {
   const [modalRespaldoOpen, setModalRespaldoOpen] = useState(false);
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
   const [modalDireccionesOpen, setModalDireccionesOpen] = useState(false);
+  const [modalMedidorDemoOpen, setModalMedidorDemoOpen] = useState(false);
   const [toastMensaje, setToastMensaje] = useState<string | null>(null);
 
   const handleGuardarEmpresaContacto = (empresaActualizada: EmpresaCliente, crearComoNueva?: boolean) => {
@@ -320,6 +327,21 @@ export default function App() {
     } catch {
       setDiasRestantesDemo(30);
     }
+  }, [clienteActivoId]);
+
+  // ── Telemetría y Monitoreo del Medidor de Uso del Demo ──
+  useEffect(() => {
+    registrarSesionDemo(clienteActivoId, empresaActiva.nombre);
+  }, []);
+
+  useEffect(() => {
+    // Acumular tiempo activo cada 60s si la pestaña está en primer plano
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        acumularTiempoActivoDemo(clienteActivoId, 1);
+      }
+    }, 60000);
+    return () => clearInterval(interval);
   }, [clienteActivoId]);
 
   const demoExpirado = !licenciaDefinitiva && diasRestantesDemo <= 0;
@@ -497,6 +519,7 @@ export default function App() {
 
     const config = PERFILES_CLIENTES_CATALOGO[nuevoClienteId];
     const slug = obtenerSlugEmpresa(nuevoClienteId, nuevosDatos.empresa.id);
+    registrarActividadDemo('visita', `Cambio de centro a ${nuevosDatos.empresa.nombre}`, nuevoClienteId, nuevosDatos.empresa.nombre);
     mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} · Dirección: ?centro=${slug}`);
   };
 
@@ -1253,6 +1276,7 @@ export default function App() {
       nombreEvento: nombre
     }));
 
+    registrarActividadDemo('cotizacion', `Cotización guardada: "${nombre}" (${cotizacion.invitados} pax)`, clienteActivoId, empresaActiva.nombre);
     mostrarToast(`✓ Cotización "${nombre}" guardada con éxito en tu historial y calendario`);
   };
 
@@ -1614,13 +1638,20 @@ export default function App() {
         empresaActiva={empresaActiva}
         clienteActivoId={clienteActivoId}
         onCambiarCliente={handleCambiarCliente}
-        onAbrirFicha={() => setModalFichaOpen(true)}
+        onAbrirFicha={() => {
+          registrarActividadDemo('pdf', 'Visualización / Descarga de Ficha PDF', clienteActivoId, empresaActiva.nombre);
+          setModalFichaOpen(true);
+        }}
         onNuevaCotizacion={handleNuevaCotizacionLimpia}
         onGuardarCotizacion={handleGuardarCotizacionActual}
         onAbrirGestionEmpresas={() => setModalEmpresasOpen(true)}
         onAbrirComercial={() => setModalComercialOpen(true)}
         onAbrirRespaldo={() => setModalRespaldoOpen(true)}
-        onAbrirWhatsAppPropuesta={() => setModalWhatsAppOpen(true)}
+        onAbrirWhatsAppPropuesta={() => {
+          registrarActividadDemo('whatsapp', 'Generación de Propuesta WhatsApp', clienteActivoId, empresaActiva.nombre);
+          setModalWhatsAppOpen(true);
+        }}
+        onAbrirMedidorDemo={() => setModalMedidorDemoOpen(true)}
         modoAdmin={modoAdmin}
         onToggleModoAdmin={toggleModoAdmin}
         onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
@@ -2438,9 +2469,19 @@ export default function App() {
           onActivarDemoEmpresa={handleActivarDemoParaEmpresa}
           onLiberarLicenciaDefinitiva={handleLiberarLicenciaDefinitiva}
           onReiniciarDemo30Dias={handleReiniciarDemo30Dias}
+          onAbrirMedidorDemo={() => setModalMedidorDemoOpen(true)}
           diasRestantesDemo={diasRestantesDemo}
         />
       )}
+
+      {/* Modal Medidor de Uso del Demo (Exclusivo Administrador) */}
+      <MedidorUsoDemoModal
+        isOpen={modalMedidorDemoOpen}
+        onClose={() => setModalMedidorDemoOpen(false)}
+        clienteActivoId={clienteActivoId}
+        diasRestantesDemo={diasRestantesDemo}
+        onCambiarCliente={handleCambiarCliente}
+      />
 
       {/* Modal Formulario de Empresa y Contacto (Alta Cliente) */}
       {modalFormularioEmpresaOpen && (
