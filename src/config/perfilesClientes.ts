@@ -154,7 +154,9 @@ const crearDatosDominga = (): DatosPerfilCliente => {
       }
     },
     usarPrecioManual: false,
-    precioVentaManual: 0
+    precioVentaManual: 0,
+    costoMesaRecetaId: 'rec-costo-mesa-estandar',
+    incluirCostoMesa: true
   };
 
   const reservas: ReservaCalendario[] = [
@@ -432,7 +434,9 @@ const crearDatosDamaris = (): DatosPerfilCliente => {
     gastosFijosMensuales: 380000,
     eventosAlMes: 4,
     usarPrecioManual: false,
-    precioVentaManual: 0
+    precioVentaManual: 0,
+    costoMesaRecetaId: 'rec-costo-mesa-estandar',
+    incluirCostoMesa: true
   };
 
   const reservas: ReservaCalendario[] = [
@@ -588,7 +592,9 @@ const crearDatosIsidoraEventos = (): DatosPerfilCliente => {
     bebestibles: [
       { id: 'beb-isidora-1', nombre: 'Bebidas, Gaseosas y Aguas Minerales', cantidadPorPersona: 2, unidad: 'lata / vaso', costoUnitario: 900, categoria: 'bebestible' },
       { id: 'beb-isidora-2', nombre: 'Vinos Reserva & Espumante de Brindis', cantidadPorPersona: 1.5, unidad: 'copa', costoUnitario: 1800, categoria: 'bebestible' }
-    ]
+    ],
+    costoMesaRecetaId: 'rec-costo-mesa-estandar',
+    incluirCostoMesa: true
   };
 
   const reservas: ReservaCalendario[] = [
@@ -730,13 +736,26 @@ export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilClien
       if (!menusFinales.some(m => m.id === cotizacionLimpia.menuId)) {
         cotizacionLimpia.menuId = menusFinales[0].id;
       }
-      // Asegurar array de bebestibles
+      // Asegurar array de bebestibles y vinculación por defecto de Costo de Mesa
       if (!cotizacionLimpia.bebestibles) {
         cotizacionLimpia.bebestibles = def.cotizacion.bebestibles || [];
       }
+      if (cotizacionLimpia.costoMesaRecetaId === undefined) {
+        cotizacionLimpia.costoMesaRecetaId = 'rec-costo-mesa-estandar';
+      }
+      if (cotizacionLimpia.incluirCostoMesa === undefined) {
+        cotizacionLimpia.incluirCostoMesa = true;
+      }
 
-      // Asegurar que insumos creados en el maestro o BD se conserven siempre
-      let insumosFinales = parsed.insumos && parsed.insumos.length > 0 ? parsed.insumos : def.insumos;
+      // Asegurar que insumos base nuevos (como panera/servilletas) y creados en el maestro o BD se conserven siempre
+      const mapaInsumos = new Map<string, InsumoMaestro>();
+      def.insumos.forEach(i => mapaInsumos.set(i.id, i));
+      if (parsed.insumos && Array.isArray(parsed.insumos) && parsed.insumos.length > 0) {
+        parsed.insumos.forEach(i => {
+          if (i && i.id) mapaInsumos.set(i.id, i);
+        });
+      }
+      let insumosFinales = Array.from(mapaInsumos.values());
       try {
         const savedGlobal = localStorage.getItem('hlr_maestro_insumos');
         if (savedGlobal) {

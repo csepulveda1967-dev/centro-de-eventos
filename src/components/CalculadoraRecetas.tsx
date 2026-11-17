@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta, MenuItemRatio } from '../types';
+import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta, MenuItemRatio, Mesa } from '../types';
 import {
   calcularCostoReceta,
   calcularCostoIngrediente,
@@ -8,6 +8,7 @@ import {
   recetaPerteneceAMenu,
   formatearNombreCategoria,
   obtenerColorCategoria,
+  CATEGORIAS_INSUMOS_DEFAULT,
   TIEMPOS_MENU_DEFAULT,
   formatearNombreTiempoMenu
 } from '../config/insumosYRecetas';
@@ -38,7 +39,11 @@ import {
   X,
   Check,
   Save,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Boxes,
+  PackagePlus,
+  LayoutGrid,
+  Users
 } from 'lucide-react';
 import { Modulo2Personal } from './Modulo2Personal';
 import { StaffTarifas } from '../types';
@@ -49,6 +54,7 @@ interface CalculadoraRecetasProps {
   insumos: InsumoMaestro[];
   menus: MenuOption[];
   invitados?: number;
+  mesas?: Mesa[];
   onUpdateReceta: (recetaActualizada: RecetaFichaTecnica) => void;
   onAddReceta: (nuevaReceta: RecetaFichaTecnica) => void;
   onDeleteReceta: (id: string) => void;
@@ -57,6 +63,14 @@ interface CalculadoraRecetasProps {
   onAddMenu?: (nuevoMenu: MenuOption) => void;
   onDeleteMenu?: (menuId: string) => void;
   onUpdateMenu?: (menuActualizado: MenuOption) => void;
+  // Vinculación directa con Maestro de Insumos para crear productos libremente
+  onAddInsumo?: (nuevoInsumo: InsumoMaestro) => void;
+  onIrAMaestroInsumos?: () => void;
+  // Vinculación de Costo de Mesa al cotizador (escala con invitados/pax)
+  costoMesaVinculadoId?: string;
+  incluirCostoMesa?: boolean;
+  onVincularCostoMesa?: (receta: RecetaFichaTecnica) => void;
+  onToggleIncluirCostoMesa?: (incluir: boolean) => void;
   // Brigada de Servicio & Personal de Operaciones
   tarifasStaff?: StaffTarifas;
   personal?: {
@@ -160,6 +174,7 @@ const SECCIONES_FICHAS_ETIQUETAS: Record<string, string> = {
   postre: 'Postres',
   trasnoche: 'Trasnoche / Bajón',
   'coffee-break': 'Coffee Break / Coctelería',
+  'costo-mesa': 'Costo de Mesa (Montaje por Mesa)',
   general: 'Sin categoría'
 };
 
@@ -171,6 +186,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   insumos,
   menus,
   invitados = 100,
+  mesas = [],
   onUpdateReceta,
   onAddReceta,
   onDeleteReceta,
@@ -179,6 +195,12 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   onAddMenu,
   onDeleteMenu,
   onUpdateMenu,
+  onAddInsumo,
+  onIrAMaestroInsumos,
+  costoMesaVinculadoId,
+  incluirCostoMesa = true,
+  onVincularCostoMesa,
+  onToggleIncluirCostoMesa,
   tarifasStaff,
   personal,
   onChangePersonal,
@@ -224,6 +246,33 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
   const [nuevaCategoriaReceta, setNuevaCategoriaReceta] = useState<string>('Plato de Fondo Gourmet');
   const [esCategoriaRecetaLibre, setEsCategoriaRecetaLibre] = useState(false);
   const [categoriaRecetaLibreInput, setCategoriaRecetaLibreInput] = useState('');
+
+  // Edición rápida de categoría libre en la ficha activa
+  const [editandoCatLibreActiva, setEditandoCatLibreActiva] = useState(false);
+  const [catLibreActivaInput, setCatLibreActivaInput] = useState('');
+
+  // ── Creación libre de producto en Maestro de Insumos desde Recetas & Costeo ──
+  const STORAGE_CATS_INSUMOS_KEY = 'hlr_categorias_personalizadas_insumos';
+  const [categoriasInsumosPersonalizadas, setCategoriasInsumosPersonalizadas] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_CATS_INSUMOS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [panelNuevoProductoOpen, setPanelNuevoProductoOpen] = useState(false);
+  const [npNombre, setNpNombre] = useState('');
+  const [npCategoria, setNpCategoria] = useState('montaje_mesa');
+  const [npEsCategoriaLibre, setNpEsCategoriaLibre] = useState(false);
+  const [npCategoriaLibreInput, setNpCategoriaLibreInput] = useState('');
+  const [npUnidadCompra, setNpUnidadCompra] = useState<InsumoMaestro['unidadMedida']>('unidad');
+  const [npPrecioCompra, setNpPrecioCompra] = useState<number | string>('');
+  const [npMerma, setNpMerma] = useState<number | string>(0);
+  const [npProveedor, setNpProveedor] = useState('');
+  const [npCantidadReceta, setNpCantidadReceta] = useState<number | string>(10);
+  const [npIncluirEnFicha, setNpIncluirEnFicha] = useState(true);
+  const [npError, setNpError] = useState('');
 
   // Tiempos personalizados guardados en localStorage
   const STORAGE_TIEMPOS_KEY = 'hlr_tiempos_menu_personalizados';
@@ -298,6 +347,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       'Postre de Autor',
       'Bajonativo / Trasnoche',
       'Coffee Break & Coctelería',
+      'Montaje & Servicio de Mesa',
       'Guarniciones & Ensaladas',
       'Pastelería & Repostería',
       'Bebidas & Bar',
@@ -431,6 +481,27 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [insumos]);
 
+  // Consolidar TODAS las categorías del Maestro de Insumos (para crear productos libremente)
+  const todasLasCategoriasInsumos = useMemo(() => {
+    const lista: { id: string; label: string }[] = [];
+    const vistos = new Set<string>();
+
+    const agregar = (id: string, label: string) => {
+      const slug = id.trim().toLowerCase().replace(/\s+/g, '_');
+      if (!slug || vistos.has(slug)) return;
+      vistos.add(slug);
+      lista.push({ id: slug, label });
+    };
+
+    CATEGORIAS_INSUMOS_DEFAULT.forEach(c => agregar(c.id, c.label));
+    categoriasInsumosPersonalizadas.forEach(c => agregar(c, c.trim()));
+    insumos.forEach(i => {
+      if (i.categoria) agregar(i.categoria, formatearNombreCategoria(i.categoria));
+    });
+
+    return lista;
+  }, [insumos, categoriasInsumosPersonalizadas]);
+
   // Insumos filtrados por la categoría seleccionada para agregar a la receta
   const insumosParaAgregar = useMemo(() => {
     if (categoriaFiltroIngrediente === 'todas') {
@@ -501,6 +572,90 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     onUpdateReceta(recetaActualizada);
     syncSiEsCoffeeBreak(recetaActualizada);
     notificar(`✓ Ingrediente "${insumoElegido.nombre}" agregado (${cantidadFinal} ${unidadFinal})`);
+  };
+
+  // Crear producto libremente en Maestro de Insumos e incluirlo de inmediato en la ficha activa
+  const handleCrearProductoEnMaestro = () => {
+    if (!onAddInsumo) return;
+    if (!npNombre.trim()) {
+      setNpError('⚠️ Escribe el nombre del producto (ej: Pan Amasado Mini, Servilletas Tela...)');
+      return;
+    }
+    const precioNum = typeof npPrecioCompra === 'number'
+      ? npPrecioCompra
+      : parseFloat(String(npPrecioCompra).replace(/\./g, '').replace(',', '.')) || 0;
+    if (precioNum <= 0) {
+      setNpError('⚠️ Ingresa el precio de compra real (ej: 250 o 4500)');
+      return;
+    }
+
+    let categoriaFinal = npCategoria;
+    if (npEsCategoriaLibre && npCategoriaLibreInput.trim()) {
+      const catNombre = npCategoriaLibreInput.trim();
+      const slug = catNombre.toLowerCase().replace(/\s+/g, '_');
+      categoriaFinal = slug;
+      if (!categoriasInsumosPersonalizadas.some(c => c.toLowerCase() === catNombre.toLowerCase())) {
+        const actualizadas = [...categoriasInsumosPersonalizadas, catNombre];
+        setCategoriasInsumosPersonalizadas(actualizadas);
+        try {
+          localStorage.setItem(STORAGE_CATS_INSUMOS_KEY, JSON.stringify(actualizadas));
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    }
+
+    const mermaNum = typeof npMerma === 'number' ? npMerma : parseFloat(String(npMerma)) || 0;
+    const nuevoInsumo: InsumoMaestro = {
+      id: 'ins-' + Date.now(),
+      nombre: npNombre.trim(),
+      categoria: categoriaFinal,
+      unidadMedida: npUnidadCompra,
+      precioCompra: Math.max(0, precioNum),
+      mermaPorcentaje: Math.max(0, Math.min(99, mermaNum)),
+      proveedor: npProveedor.trim() || 'Proveedor Local',
+      ultimoCambio: new Date().toISOString().slice(0, 10)
+    };
+
+    onAddInsumo(nuevoInsumo);
+    setInsumoToAddId(nuevoInsumo.id);
+    setCategoriaFiltroIngrediente('todas');
+
+    // Incluir inmediatamente en la ficha activa si está marcado y la cantidad es > 0
+    if (npIncluirEnFicha && recetaActiva) {
+      const cantNum = typeof npCantidadReceta === 'number'
+        ? npCantidadReceta
+        : parseFloat(String(npCantidadReceta).replace(',', '.')) || 0;
+      if (cantNum > 0) {
+        const unidadIngrediente: IngredienteReceta['unidad'] =
+          npUnidadCompra === 'paquete'
+            ? 'unidad'
+            : (npUnidadCompra === 'kg' ? 'g' : npUnidadCompra);
+        const cantidadFinal = npUnidadCompra === 'kg' ? cantNum : cantNum;
+        const nuevoIng: IngredienteReceta = {
+          id: 'ing-' + (Date.now() + 1),
+          insumoId: nuevoInsumo.id,
+          cantidad: cantidadFinal,
+          unidad: unidadIngrediente
+        };
+        const recetaActualizada: RecetaFichaTecnica = {
+          ...recetaActiva,
+          ingredientes: [...recetaActiva.ingredientes, nuevoIng]
+        };
+        onUpdateReceta(recetaActualizada);
+        syncSiEsCoffeeBreak(recetaActualizada);
+      }
+    }
+
+    setNpError('');
+    setNpNombre('');
+    setNpPrecioCompra('');
+    setNpMerma(0);
+    setNpProveedor('');
+    setNpEsCategoriaLibre(false);
+    setNpCategoriaLibreInput('');
+    setPanelNuevoProductoOpen(false);
+    notificar(`✓ Producto "${nuevoInsumo.nombre}" creado en Maestro de Insumos e incluido en esta ficha`);
   };
 
   // Helper para mantener sincronizado Coffee Break en Tarifas Generales
@@ -583,12 +738,14 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     }
 
     const esCoffeeBreak = tiempoFinal === 'coffee-break';
-    const esRecetaLibre = !esCoffeeBreak && (modoMenuReceta === 'libre' || (modoMenuReceta === 'existente' && !nuevoMenuAsociadoId));
+    const esCostoMesa = tiempoFinal === 'costo-mesa';
+    const esServicioEspecial = esCoffeeBreak || esCostoMesa;
+    const esRecetaLibre = !esServicioEspecial && (modoMenuReceta === 'libre' || (modoMenuReceta === 'existente' && !nuevoMenuAsociadoId));
     let menuFinalId = nuevoMenuAsociadoId;
 
     // Si el usuario eligió crear un nuevo menú para esta receta
     let nuevoMenuCreado: MenuOption | null = null;
-    if (!esCoffeeBreak && modoMenuReceta === 'nuevo') {
+    if (!esServicioEspecial && modoMenuReceta === 'nuevo') {
       const nombreLimpio = nombreNuevoMenu.trim() || `Menú ${nuevoNombreReceta.trim()}`;
       const nuevoId = 'menu-' + Date.now();
       nuevoMenuCreado = {
@@ -611,10 +768,10 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       menuFinalId = nuevoId;
     }
 
-    // Para Coffee Break: si existen en insumos, precargamos los insumos base para cálculo inmediato
-    // de materia prima + merma en gramos
+    // Para Coffee Break o Costo de Mesa: precargamos los insumos base si existen en Maestro
     let ingredientesIniciales: IngredienteReceta[] = [];
     let costoElaboracion = 500;
+    let rendimientoPorcionesFinal = 1;
 
     if (esCoffeeBreak) {
       costoElaboracion = 824;
@@ -629,6 +786,24 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
         .filter(item => insumosMap.has(item.insumoId))
         .map((item, idx) => ({
           id: `ing-cb-${Date.now()}-${idx}`,
+          insumoId: item.insumoId,
+          cantidad: item.cantidad,
+          unidad: item.unidad
+        }));
+    } else if (esCostoMesa) {
+      costoElaboracion = 0;
+      rendimientoPorcionesFinal = 10; // Base 1 mesa de 10 comensales
+      const baseMesaInsumos = [
+        { insumoId: 'ins-pan-mesa', cantidad: 20, unidad: 'unidad' as const },
+        { insumoId: 'ins-pebre-casero', cantidad: 350, unidad: 'g' as const },
+        { insumoId: 'ins-mantequilla', cantidad: 150, unidad: 'g' as const },
+        { insumoId: 'ins-servilletas-mesa', cantidad: 15, unidad: 'unidad' as const }
+      ];
+
+      ingredientesIniciales = baseMesaInsumos
+        .filter(item => insumosMap.has(item.insumoId))
+        .map((item, idx) => ({
+          id: `ing-mesa-${Date.now()}-${idx}`,
           insumoId: item.insumoId,
           cantidad: item.cantidad,
           unidad: item.unidad
@@ -650,6 +825,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       }
     } else if (esCoffeeBreak && !esCategoriaRecetaLibre) {
       categoriaFinal = 'Servicio Alternativo';
+    } else if (esCostoMesa && !esCategoriaRecetaLibre) {
+      categoriaFinal = 'Montaje & Servicio de Mesa';
     }
 
     const nueva: RecetaFichaTecnica = {
@@ -657,15 +834,17 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
       nombre: nuevoNombreReceta.trim(),
       tiempoMenu: tiempoFinal,
       categoria: categoriaFinal,
-      rendimientoPorciones: 1,
+      rendimientoPorciones: rendimientoPorcionesFinal,
       margenSugerido: 33, // 33% estándar de la industria
       costoAdicionalElaboracion: costoElaboracion,
-      menuAsociadoId: (esCoffeeBreak || esRecetaLibre) ? undefined : (menuFinalId || undefined),
-      menusAsociadosIds: (esCoffeeBreak || esRecetaLibre) ? undefined : (menuFinalId ? [menuFinalId] : undefined),
-      servicioAsociadoId: esCoffeeBreak ? 'coffee-break-cocteleria' : undefined,
+      menuAsociadoId: (esServicioEspecial || esRecetaLibre) ? undefined : (menuFinalId || undefined),
+      menusAsociadosIds: (esServicioEspecial || esRecetaLibre) ? undefined : (menuFinalId ? [menuFinalId] : undefined),
+      servicioAsociadoId: esCoffeeBreak ? 'coffee-break-cocteleria' : (esCostoMesa ? 'costo-mesa' : undefined),
       ingredientes: ingredientesIniciales,
       descripcionProcedimiento: esCoffeeBreak
         ? 'Estación de Coffee Break / Coctelería con café en grano recién molido, bocados salados y pastelería fina.'
+        : esCostoMesa
+        ? 'Cálculo interno del costo de montaje por mesa (panera con pan, pebre, mantequilla y servilletas). Se actualiza con los pax cotizados.'
         : undefined
     };
 
@@ -686,6 +865,9 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
     onAddReceta(nueva);
     setRecetaSeleccionadaId(nueva.id);
+    if (esCostoMesa) {
+      abrirSeccionFicha('costo-mesa');
+    }
     setModalNuevaRecetaOpen(false);
     setNuevoNombreReceta('');
     setNombreNuevoMenu('');
@@ -700,6 +882,11 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     if (esCoffeeBreak && onVincularCoffeeBreak) {
       onVincularCoffeeBreak(nueva, calculo.costoPorPorcion, calculo.precioSugeridoVenta);
       notificar(`✓ Costo de ${formatMoneda(calculo.costoPorPorcion)}/pax inyectado directamente en Tarifas Generales`);
+    } else if (esCostoMesa) {
+      if (onVincularCostoMesa) {
+        onVincularCostoMesa(nueva);
+      }
+      notificar(`✓ Ficha Costo de Mesa "${nueva.nombre}" creada y vinculada (${formatMoneda(calculo.costoTotalReceta)}/mesa)`);
     } else if (esRecetaLibre) {
       notificar(`✓ Ficha libre creada sin menú asignado: "${nueva.nombre}"`);
     } else if (nuevoMenuCreado) {
@@ -740,9 +927,13 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
   // ── VINCULACIÓN FICHA → MENÚS (creados o por crear) ──
   const abrirModalAgregarMenu = (receta: RecetaFichaTecnica) => {
-    // Las fichas de Coffee Break tributan a Tarifas Generales, no a los menús de banquetes
+    // Las fichas de Coffee Break tributan a Tarifas Generales y las de Costo de Mesa al montaje de mesas
     if (receta.tiempoMenu === 'coffee-break') {
       notificar('ℹ️ Las fichas de Coffee Break se vinculan automáticamente a Tarifas Generales (no a los menús)');
+      return;
+    }
+    if (receta.tiempoMenu === 'costo-mesa') {
+      notificar('ℹ️ Las fichas de Costo de Mesa se vinculan directamente al cálculo interno de mesas y pax en el panel derecho');
       return;
     }
     setFichaParaMenus(receta);
@@ -880,11 +1071,31 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
     if (menuFiltroRecetas === 'coffee-break') {
       return recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break');
     }
+    if (menuFiltroRecetas === 'costo-mesa') {
+      return recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'costo-mesa');
+    }
     if (menuFiltroRecetas === 'libres') {
-      return recetas.filter(r => (!r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && (r.tiempoMenu || '').toLowerCase() !== 'coffee-break'));
+      return recetas.filter(r => {
+        const t = (r.tiempoMenu || '').toLowerCase();
+        return !r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && t !== 'coffee-break' && t !== 'costo-mesa';
+      });
     }
     return recetas.filter(r => recetaPerteneceAMenu(r, menuFiltroRecetas));
   }, [recetas, menuFiltroRecetas, menus]);
+
+  // Ficha Costo de Mesa activa para acceso rápido y cálculo en vivo por pax
+  const recetasCostoMesa = useMemo(
+    () => recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'costo-mesa'),
+    [recetas]
+  );
+  const fichaCostoMesaPrincipal = useMemo(
+    () => recetasCostoMesa.find(r => r.id === costoMesaVinculadoId) || recetasCostoMesa[0],
+    [recetasCostoMesa, costoMesaVinculadoId]
+  );
+  const calcCostoMesaPrincipal = useMemo(
+    () => (fichaCostoMesaPrincipal ? calcularCostoReceta(fichaCostoMesaPrincipal, insumos) : null),
+    [fichaCostoMesaPrincipal, insumos]
+  );
 
   const gruposFichas = useMemo(() => {
     const grupos = new Map<string, RecetaFichaTecnica[]>();
@@ -1018,6 +1229,73 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
           </div>
         )}
       </div>
+
+      {/* ── TARJETA RESUMEN EN VIVO: COSTO DE MESA (MONTAJE INTERNO ESCALADO POR PAX) ── */}
+      {fichaCostoMesaPrincipal && calcCostoMesaPrincipal && (
+        <div className="bg-gradient-to-r from-emerald-50/90 via-teal-50/60 to-white rounded-2xl border border-emerald-200 p-4 sm:p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white font-extrabold text-[10px] uppercase tracking-wider">
+                <LayoutGrid className="w-3 h-3" />
+                Costo de Mesa (Montaje Interno)
+              </span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                incluirCostoMesa
+                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                  : 'bg-slate-100 text-slate-600 border-slate-300'
+              }`}>
+                {incluirCostoMesa ? `✓ Vinculado a cotización (${invitados} Pax)` : 'Desactivado en cotización'}
+              </span>
+            </div>
+            <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+              {fichaCostoMesaPrincipal.nombre}
+            </h3>
+            <p className="text-xs text-slate-600">
+              Costo interno por 1 mesa ({fichaCostoMesaPrincipal.rendimientoPorciones || 10} pax):{' '}
+              <strong className="text-slate-900 tabular-nums">{formatMoneda(calcCostoMesaPrincipal.costoTotalReceta)}/mesa</strong>
+              {' · '}
+              Por comensal:{' '}
+              <strong className="text-emerald-800 tabular-nums">{formatMoneda(calcCostoMesaPrincipal.costoPorPorcion)}/pax</strong>
+              {' · '}
+              Total para <strong>{invitados} pax</strong>:{' '}
+              <strong className="text-emerald-950 font-black tabular-nums">
+                {formatMoneda(Math.round(calcCostoMesaPrincipal.costoPorPorcion * invitados))}
+              </strong>
+              {' '}
+              <span className="text-[11px] text-slate-500">
+                ({mesas.length > 0 ? `${mesas.length} mesas en salón` : `${Math.ceil(invitados / (fichaCostoMesaPrincipal.rendimientoPorciones || 10))} mesas estimadas`})
+              </span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setRecetaSeleccionadaId(fichaCostoMesaPrincipal.id);
+                abrirSeccionFicha('costo-mesa');
+              }}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-2xs transition-colors cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Editar Panera, Servilletas e Insumos</span>
+            </button>
+            {onToggleIncluirCostoMesa && (
+              <button
+                type="button"
+                onClick={() => onToggleIncluirCostoMesa(!incluirCostoMesa)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                  incluirCostoMesa
+                    ? 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                    : 'bg-slate-800 text-white border-slate-900 hover:bg-slate-700'
+                }`}
+              >
+                {incluirCostoMesa ? '✓ Activo en Costo Real' : 'Activar en Cotización'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── SECCIÓN DE MENÚS EN CARTA CON OPCIÓN DE CREACIÓN & ELIMINACIÓN ── */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
@@ -1248,8 +1526,14 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               <option value="coffee-break">
                 Coffee Break ({recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'coffee-break').length})
               </option>
+              <option value="costo-mesa">
+                🪑 Costo de Mesa / Montaje ({recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'costo-mesa').length})
+              </option>
               <option value="libres">
-                🍃 Libres / Sin Menú ({recetas.filter(r => !r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && (r.tiempoMenu || '').toLowerCase() !== 'coffee-break').length})
+                🍃 Libres / Sin Menú ({recetas.filter(r => {
+                  const t = (r.tiempoMenu || '').toLowerCase();
+                  return !r.menuAsociadoId && (!r.menusAsociadosIds || r.menusAsociadosIds.length === 0) && t !== 'coffee-break' && t !== 'costo-mesa';
+                }).length})
               </option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1313,6 +1597,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${abierta ? '' : '-rotate-90'}`}
                       />
                       {key === 'coffee-break' && <Coffee className="w-3.5 h-3.5 text-amber-700 shrink-0" />}
+                      {key === 'costo-mesa' && <LayoutGrid className="w-3.5 h-3.5 text-emerald-700 shrink-0" />}
                       <span className="truncate">{nombreSeccionFicha(key)}</span>
                       <span
                         className={`px-1.5 py-0.5 rounded-full text-[10px] font-extrabold tabular-nums shrink-0 ${
@@ -1333,6 +1618,8 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                         const isSelected = r.id === recetaSeleccionadaId;
                         const calculo = calcularCostoReceta(r, insumos);
                         const menusDeFicha = menus.filter(m => recetaPerteneceAMenu(r, m.id));
+                        const esFichaMesa = r.tiempoMenu === 'costo-mesa';
+                        const estaVinculadaMesa = esFichaMesa && (costoMesaVinculadoId === r.id || (!costoMesaVinculadoId && r.id === fichaCostoMesaPrincipal?.id));
 
                         return (
                           <div
@@ -1359,6 +1646,11 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                                     <Coffee className="w-3 h-3 text-amber-700" />
                                     Coffee Break / Coctelería
                                   </span>
+                                ) : esFichaMesa ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-800 font-extrabold">
+                                    <LayoutGrid className="w-3 h-3 text-emerald-700" />
+                                    Costo de Mesa ({r.rendimientoPorciones || 10} pax)
+                                  </span>
                                 ) : (
                                   formatearNombreTiempoMenu(r.tiempoMenu)
                                 )}
@@ -1369,18 +1661,41 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                             </div>
 
                             <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                              <span className="text-slate-400">Costo/pax:</span>
+                              <span className="text-slate-400">{esFichaMesa ? 'Por mesa / pax:' : 'Costo/pax:'}</span>
                               <span className="font-extrabold text-slate-800 tabular-nums">
-                                {formatMoneda(calculo.costoPorPorcion)}
+                                {esFichaMesa
+                                  ? `${formatMoneda(calculo.costoTotalReceta)} (${formatMoneda(calculo.costoPorPorcion)}/p)`
+                                  : formatMoneda(calculo.costoPorPorcion)}
                               </span>
                             </div>
 
-                            {/* VINCULACIÓN A MENÚS: agregar la ficha a los menús creados o crear uno nuevo */}
+                            {/* VINCULACIÓN A MENÚS O COSTO DE MESA */}
                             {r.tiempoMenu === 'coffee-break' ? (
                               <div className="mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg bg-amber-50 text-amber-900 border border-amber-200 flex items-center justify-center gap-1">
                                 <Coffee className="w-3 h-3" />
                                 <span>Vinculada a Tarifas Generales</span>
                               </div>
+                            ) : esFichaMesa ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRecetaSeleccionadaId(r.id);
+                                  if (onVincularCostoMesa) onVincularCostoMesa(r);
+                                }}
+                                className={`mt-1.5 w-full py-1 text-[10px] font-bold rounded-lg border flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                                  estaVinculadaMesa && incluirCostoMesa
+                                    ? 'bg-emerald-600 text-white border-emerald-700'
+                                    : 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
+                                }`}
+                              >
+                                <LayoutGrid className="w-3 h-3" />
+                                <span>
+                                  {estaVinculadaMesa && incluirCostoMesa
+                                    ? `✓ Activo (${invitados} Pax)`
+                                    : 'Vincular a Cotización'}
+                                </span>
+                              </button>
                             ) : (
                               <button
                                 type="button"
@@ -1448,33 +1763,111 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                     </select>
                   </div>
 
-                  {/* Selector y visualizador de Categoría de la Receta */}
-                  <div className="relative inline-flex items-center">
-                    <select
-                      value={recetaActiva.categoria || 'Receta de Autor'}
-                      onChange={(e) => {
-                        const nueva = e.target.value;
-                        onUpdateReceta({
-                          ...recetaActiva,
-                          categoria: nueva
-                        });
-                        notificar(`✓ Categoría actualizada a "${nueva}"`);
-                      }}
-                      className="px-2.5 py-1 rounded-md bg-blue-100 hover:bg-blue-200/80 text-blue-950 font-bold text-[11px] border border-blue-300 focus:outline-hidden cursor-pointer transition-colors"
-                      title="Cambiar categoría de esta receta"
-                    >
-                      {todasLasCategoriasRecetas.map(cat => (
-                        <option key={cat} value={cat}>
-                          Categoría: {cat}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Selector y visualizador de Categoría Libre de la Receta */}
+                  <div className="relative inline-flex items-center gap-1">
+                    {editandoCatLibreActiva ? (
+                      <div className="inline-flex items-center gap-1 bg-blue-50 border border-blue-400 rounded-md px-1.5 py-0.5">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={catLibreActivaInput}
+                          onChange={(e) => setCatLibreActivaInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && catLibreActivaInput.trim()) {
+                              e.preventDefault();
+                              const catLimpia = catLibreActivaInput.trim();
+                              if (!categoriasRecetasPersonalizadas.some(c => c.toLowerCase() === catLimpia.toLowerCase())) {
+                                const actualizadas = [...categoriasRecetasPersonalizadas, catLimpia];
+                                setCategoriasRecetasPersonalizadas(actualizadas);
+                                try {
+                                  localStorage.setItem(STORAGE_CATEGORIAS_RECETAS_KEY, JSON.stringify(actualizadas));
+                                } catch {}
+                              }
+                              onUpdateReceta({ ...recetaActiva, categoria: catLimpia });
+                              setEditandoCatLibreActiva(false);
+                              setCatLibreActivaInput('');
+                              notificar(`✓ Categoría libre "${catLimpia}" asignada a esta ficha`);
+                            }
+                            if (e.key === 'Escape') {
+                              setEditandoCatLibreActiva(false);
+                              setCatLibreActivaInput('');
+                            }
+                          }}
+                          placeholder="Escribe categoría libre..."
+                          className="text-[11px] font-bold text-blue-950 bg-white border border-blue-200 rounded px-2 py-0.5 w-40 focus:outline-hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const catLimpia = catLibreActivaInput.trim();
+                            if (!catLimpia) return;
+                            if (!categoriasRecetasPersonalizadas.some(c => c.toLowerCase() === catLimpia.toLowerCase())) {
+                              const actualizadas = [...categoriasRecetasPersonalizadas, catLimpia];
+                              setCategoriasRecetasPersonalizadas(actualizadas);
+                              try {
+                                localStorage.setItem(STORAGE_CATEGORIAS_RECETAS_KEY, JSON.stringify(actualizadas));
+                              } catch {}
+                            }
+                            onUpdateReceta({ ...recetaActiva, categoria: catLimpia });
+                            setEditandoCatLibreActiva(false);
+                            setCatLibreActivaInput('');
+                            notificar(`✓ Categoría libre "${catLimpia}" asignada a esta ficha`);
+                          }}
+                          className="text-emerald-700 hover:text-emerald-900 p-0.5 cursor-pointer"
+                          title="Guardar categoría libre"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditandoCatLibreActiva(false);
+                            setCatLibreActivaInput('');
+                          }}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                          title="Cancelar"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        value={recetaActiva.categoria || 'Receta de Autor'}
+                        onChange={(e) => {
+                          if (e.target.value === '__NUEVA_CAT_ACTIVA__') {
+                            setEditandoCatLibreActiva(true);
+                            setCatLibreActivaInput('');
+                            return;
+                          }
+                          const nueva = e.target.value;
+                          onUpdateReceta({
+                            ...recetaActiva,
+                            categoria: nueva
+                          });
+                          notificar(`✓ Categoría actualizada a "${nueva}"`);
+                        }}
+                        className="px-2.5 py-1 rounded-md bg-blue-100 hover:bg-blue-200/80 text-blue-950 font-bold text-[11px] border border-blue-300 focus:outline-hidden cursor-pointer transition-colors"
+                        title="Cambiar o crear una categoría libre para esta receta"
+                      >
+                        {todasLasCategoriasRecetas.map(cat => (
+                          <option key={cat} value={cat}>
+                            Categoría: {cat}
+                          </option>
+                        ))}
+                        <option value="__NUEVA_CAT_ACTIVA__">+ Escribir nueva categoría libre...</option>
+                      </select>
+                    )}
                   </div>
 
                   {recetaActiva.tiempoMenu === 'coffee-break' ? (
                     <span className="text-xs text-amber-900 flex items-center gap-1 font-bold bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-md">
                       <LinkIcon className="w-3.5 h-3.5 text-amber-700" />
                       Vinculado a: <strong>Tarifas Generales (Coffee Break / Coctelería)</strong>
+                    </span>
+                  ) : recetaActiva.tiempoMenu === 'costo-mesa' ? (
+                    <span className="text-xs text-emerald-900 flex items-center gap-1 font-bold bg-emerald-50 border border-emerald-300 px-2 py-0.5 rounded-md">
+                      <LayoutGrid className="w-3.5 h-3.5 text-emerald-700" />
+                      Vinculado a: <strong>Costo de Mesa ({invitados} Pax cotizados)</strong>
                     </span>
                   ) : (
                     menuVinculado && (
@@ -1515,7 +1908,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   title="Haz clic para editar la descripción del procedimiento"
                 />
 
-                {recetaActiva.tiempoMenu !== 'coffee-break' && (
+                {recetaActiva.tiempoMenu !== 'coffee-break' && recetaActiva.tiempoMenu !== 'costo-mesa' && (
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                       <LinkIcon className="w-3 h-3 text-blue-500" />
@@ -1601,13 +1994,30 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
 
             {/* Tabla de Ingredientes y Costos */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Ingredientes & Materia Prima ({recetaActiva.ingredientes.length})
                 </span>
-                <span className="text-[11px] text-slate-400">
-                  Porción costeada: {recetaActiva.rendimientoPorciones} comensal
-                </span>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                  <Users className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-medium">
+                    {recetaActiva.tiempoMenu === 'costo-mesa' ? 'Comensales por mesa:' : 'Porción costeada:'}
+                  </span>
+                  <InputNumeroCeldaRecetas
+                    valorInicial={recetaActiva.rendimientoPorciones || 1}
+                    onCambioConfirmado={(val) => {
+                      const limpio = Math.max(1, Math.round(val));
+                      onUpdateReceta({
+                        ...recetaActiva,
+                        rendimientoPorciones: limpio
+                      });
+                    }}
+                    min={1}
+                    step="1"
+                    className="w-12 text-center font-extrabold text-slate-900 bg-white border border-slate-300 rounded px-1 py-0.5 tabular-nums focus:outline-hidden focus:border-amber-500"
+                  />
+                  <span className="font-semibold">pax</span>
+                </div>
               </div>
 
               <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -1772,7 +2182,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             )}
 
-            {/* Agregar nuevo ingrediente con selector de categorías vinculadas */}
+            {/* Agregar nuevo ingrediente con selector de categorías vinculadas y creación libre en Maestro de Insumos */}
             <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
@@ -1780,24 +2190,247 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   Añadir Ingrediente desde el Maestro de Insumos:
                 </span>
 
-                {/* Filtro por Categoría de Insumo */}
-                <div className="flex items-center gap-1.5">
-                  <Filter className="w-3 h-3 text-slate-400 shrink-0" />
-                  <span className="text-[11px] text-slate-500 font-medium">Filtrar por categoría:</span>
-                  <select
-                    value={categoriaFiltroIngrediente}
-                    onChange={(e) => handleCambioCategoriaFiltro(e.target.value)}
-                    className="text-[11px] px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:outline-hidden focus:border-amber-500 cursor-pointer"
-                  >
-                    <option value="todas">Todas ({insumos.length})</option>
-                    {categoriasDisponibles.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.label} ({c.count})
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Filtro por Categoría de Insumo */}
+                  <div className="flex items-center gap-1.5">
+                    <Filter className="w-3 h-3 text-slate-400 shrink-0" />
+                    <select
+                      value={categoriaFiltroIngrediente}
+                      onChange={(e) => handleCambioCategoriaFiltro(e.target.value)}
+                      className="text-[11px] px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:outline-hidden focus:border-amber-500 cursor-pointer"
+                    >
+                      <option value="todas">Todas ({insumos.length})</option>
+                      {categoriasDisponibles.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.label} ({c.count})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Botón para crear producto libremente en Maestro de Insumos */}
+                  {onAddInsumo && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPanelNuevoProductoOpen(v => !v);
+                        setNpError('');
+                        if (recetaActiva.tiempoMenu === 'costo-mesa') {
+                          setNpCategoria('montaje_mesa');
+                        }
+                      }}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                        panelNuevoProductoOpen
+                          ? 'bg-blue-700 text-white border-blue-800'
+                          : 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100'
+                      }`}
+                      title="Crear un nuevo producto en el Maestro de Insumos e incluirlo en este servicio"
+                    >
+                      <PackagePlus className="w-3.5 h-3.5" />
+                      <span>+ Crear Producto en Maestro</span>
+                    </button>
+                  )}
+
+                  {onIrAMaestroInsumos && (
+                    <button
+                      type="button"
+                      onClick={onIrAMaestroInsumos}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition-colors cursor-pointer"
+                      title="Ir a la vista completa del Maestro de Insumos"
+                    >
+                      <Boxes className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Maestro ↗</span>
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* Panel Inline: Crear Producto Libremente en Maestro de Insumos e Incluirlo en esta Ficha */}
+              {panelNuevoProductoOpen && onAddInsumo && (
+                <div className="p-3.5 bg-blue-50/70 border border-blue-300 rounded-xl space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-extrabold text-blue-950 flex items-center gap-1.5">
+                        <PackagePlus className="w-4 h-4 text-blue-700" />
+                        Nuevo Producto en Maestro de Insumos (Categoría Libre)
+                      </span>
+                      <span className="text-[10px] text-blue-800 block">
+                        Se guarda directo en el Maestro de Insumos y se agrega al instante a "{recetaActiva.nombre}".
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPanelNuevoProductoOpen(false)}
+                      className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {npError && (
+                    <div className="p-2 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 text-[11px] font-bold">
+                      {npError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs">
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">
+                        Nombre del Producto *
+                      </label>
+                      <input
+                        type="text"
+                        value={npNombre}
+                        onChange={(e) => setNpNombre(e.target.value)}
+                        placeholder="Ej: Pan Amasado Mini, Servilleta Lino, Pocillo Pebre..."
+                        className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-semibold focus:outline-hidden focus:border-blue-600"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">
+                          Categoría (Libre)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setNpEsCategoriaLibre(v => !v)}
+                          className="text-[10px] font-bold text-blue-700 hover:underline cursor-pointer"
+                        >
+                          {npEsCategoriaLibre ? '← Lista' : '+ Nueva libre'}
+                        </button>
+                      </div>
+                      {npEsCategoriaLibre ? (
+                        <input
+                          type="text"
+                          value={npCategoriaLibreInput}
+                          onChange={(e) => setNpCategoriaLibreInput(e.target.value)}
+                          placeholder="Ej: Panadería de Mesa, Menaje VIP..."
+                          className="w-full px-2.5 py-1.5 bg-white border-2 border-blue-500 rounded-lg text-slate-900 font-bold focus:outline-hidden"
+                        />
+                      ) : (
+                        <select
+                          value={npCategoria}
+                          onChange={(e) => {
+                            if (e.target.value === '__NUEVA__') {
+                              setNpEsCategoriaLibre(true);
+                              setNpCategoriaLibreInput('');
+                            } else {
+                              setNpCategoria(e.target.value);
+                            }
+                          }}
+                          className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-slate-800 font-semibold focus:outline-hidden"
+                        >
+                          {todasLasCategoriasInsumos.map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                          ))}
+                          <option value="__NUEVA__">+ Crear nueva categoría libre...</option>
+                        </select>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">
+                        Proveedor (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={npProveedor}
+                        onChange={(e) => setNpProveedor(e.target.value)}
+                        placeholder="Ej: Panadería Local, La Vega..."
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 font-medium focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">
+                        Unidad de Compra
+                      </label>
+                      <select
+                        value={npUnidadCompra}
+                        onChange={(e) => setNpUnidadCompra(e.target.value as InsumoMaestro['unidadMedida'])}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 font-bold focus:outline-hidden"
+                      >
+                        <option value="unidad">unidad (c/u)</option>
+                        <option value="kg">kg (kilogramo)</option>
+                        <option value="g">g (gramo)</option>
+                        <option value="L">L (litro)</option>
+                        <option value="ml">ml (mililitro)</option>
+                        <option value="paquete">paquete</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">
+                        Precio Compra ($ CLP / {npUnidadCompra}) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        step="any"
+                        value={npPrecioCompra}
+                        onChange={(e) => setNpPrecioCompra(e.target.value)}
+                        placeholder="Ej: 250 o 4200"
+                        className="w-full px-2.5 py-1.5 bg-white border border-blue-300 rounded-lg text-slate-900 font-extrabold tabular-nums focus:outline-hidden focus:border-blue-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 uppercase mb-0.5">
+                        Merma (%)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={99}
+                        step="any"
+                        value={npMerma}
+                        onChange={(e) => setNpMerma(e.target.value)}
+                        placeholder="0"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-bold tabular-nums focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2 flex-wrap text-xs">
+                      <label className="inline-flex items-center gap-1.5 font-bold text-blue-950 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={npIncluirEnFicha}
+                          onChange={(e) => setNpIncluirEnFicha(e.target.checked)}
+                          className="rounded accent-blue-700"
+                        />
+                        <span>Incluir en esta ficha con cantidad:</span>
+                      </label>
+                      {npIncluirEnFicha && (
+                        <div className="inline-flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={0.01}
+                            step="any"
+                            value={npCantidadReceta}
+                            onChange={(e) => setNpCantidadReceta(e.target.value)}
+                            className="w-20 px-2 py-1 bg-white border border-blue-300 rounded-lg text-slate-900 font-extrabold text-right tabular-nums"
+                          />
+                          <span className="font-mono font-bold text-blue-900 text-[11px]">
+                            {npUnidadCompra === 'kg' ? 'g' : (npUnidadCompra === 'paquete' ? 'unidad' : npUnidadCompra)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleCrearProductoEnMaestro}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Guardar en Maestro e Incluir</span>
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                 {/* Selector de insumo filtrado */}
@@ -2011,7 +2644,7 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
               </div>
             </div>
 
-            {/* VINCULACIÓN: SI ES COFFEE BREAK SE VINCULA A TARIFAS GENERALES, SI NO AL MENÚ DE BANQUETE */}
+            {/* VINCULACIÓN: COFFEE BREAK -> TARIFAS, COSTO DE MESA -> COTIZACIÓN POR PAX, PLATOS -> MENÚ */}
             {recetaActiva.tiempoMenu === 'coffee-break' ? (
               <div className="bg-gradient-to-b from-amber-50/80 via-white to-amber-50/40 rounded-2xl border border-amber-300 p-5 shadow-xs space-y-3.5">
                 <div className="flex items-center gap-2 pb-2 border-b border-amber-200">
@@ -2053,6 +2686,104 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                   <span>Sincronizar Costo a Tarifas Generales</span>
                 </button>
               </div>
+            ) : recetaActiva.tiempoMenu === 'costo-mesa' ? (
+              (() => {
+                const paxPorMesa = Math.max(1, recetaActiva.rendimientoPorciones || 10);
+                const mesasCalculadas = mesas.length > 0 ? mesas.length : Math.ceil(invitados / paxPorMesa);
+                const totalPorPax = Math.round(calculosReceta.costoPorPorcion * invitados);
+                const totalPorMesas = Math.round(calculosReceta.costoTotalReceta * mesasCalculadas);
+                const esActivaEnCotizacion =
+                  incluirCostoMesa &&
+                  (costoMesaVinculadoId === recetaActiva.id ||
+                    (!costoMesaVinculadoId && fichaCostoMesaPrincipal?.id === recetaActiva.id));
+
+                return (
+                  <div className="bg-gradient-to-b from-emerald-50/90 via-white to-teal-50/40 rounded-2xl border border-emerald-300 p-5 shadow-xs space-y-3.5">
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <LayoutGrid className="w-4 h-4 text-emerald-700" />
+                        Costo de Mesa · Escala por Pax
+                      </span>
+                      {esActivaEnCotizacion && (
+                        <span className="text-[10px] font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                          Activo
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Cálculo interno de lo que le cuesta al local montar 1 mesa ({paxPorMesa} pax). Se actualiza automáticamente con los <strong>{invitados} pax</strong> que estás cotizando.
+                    </p>
+
+                    <div className="text-xs text-slate-700 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span>Costo por 1 Mesa ({paxPorMesa} pax):</span>
+                        <strong className="text-slate-900 font-extrabold tabular-nums">
+                          {formatMoneda(calculosReceta.costoTotalReceta)}/mesa
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span>Costo por Comensal (p.p.):</span>
+                        <span className="font-extrabold text-emerald-800 text-sm tabular-nums">
+                          {formatMoneda(calculosReceta.costoPorPorcion)}/pax
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-slate-500">
+                        <span>Pax cotizados activos:</span>
+                        <span className="font-bold text-slate-800 font-mono">{invitados} pax</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px] text-slate-500">
+                        <span>{mesas.length > 0 ? 'Mesas configuradas en salón:' : 'Mesas estimadas:'}</span>
+                        <span className="font-bold text-slate-800 font-mono">{mesasCalculadas} mesas</span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-emerald-200">
+                        <span className="font-bold text-slate-800">Total Costo Mesas ({invitados} Pax):</span>
+                        <span className="font-black text-emerald-950 text-base tabular-nums">
+                          {formatMoneda(totalPorPax)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-slate-500">
+                        <span>Equivalente {mesasCalculadas} mesas completas:</span>
+                        <span className="font-semibold tabular-nums">{formatMoneda(totalPorMesas)}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 pt-1">
+                      {onVincularCostoMesa && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onVincularCostoMesa(recetaActiva);
+                            notificar(`✓ Costo de Mesa "${recetaActiva.nombre}" vinculado al cotizador (${formatMoneda(totalPorPax)} para ${invitados} pax)`);
+                          }}
+                          className={`w-full py-2.5 px-3 active:scale-98 font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            esActivaEnCotizacion
+                              ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                              : 'bg-slate-900 hover:bg-slate-800 text-white'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>
+                            {esActivaEnCotizacion
+                              ? `✓ Vinculado y Actualizado (${invitados} Pax)`
+                              : 'Vincular este Costo de Mesa al Cotizador'}
+                          </span>
+                        </button>
+                      )}
+
+                      {onToggleIncluirCostoMesa && (
+                        <button
+                          type="button"
+                          onClick={() => onToggleIncluirCostoMesa(!incluirCostoMesa)}
+                          className="w-full py-1.5 text-[11px] font-bold text-slate-700 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                        >
+                          {incluirCostoMesa ? 'Excluir temporalmente del Costo Real ($0)' : 'Incluir nuevamente en Costo Real'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()
             ) : (
               <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
@@ -2472,6 +3203,28 @@ export const CalculadoraRecetas: React.FC<CalculadoraRecetasProps> = ({
                     </div>
                     <span className="text-[10px] font-black uppercase bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
                       Automático
+                    </span>
+                  </div>
+                </div>
+              ) : nuevoTiempoReceta === 'costo-mesa' ? (
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Destino de Vinculación</label>
+                  <div className="p-3 bg-gradient-to-r from-emerald-50 to-teal-50/60 border border-emerald-300 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-800 shrink-0">
+                        <LayoutGrid className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-emerald-950 block text-xs">
+                          Costo de Mesa · Montaje Interno (Base 10 Pax)
+                        </span>
+                        <span className="text-[11px] text-emerald-800">
+                          Precarga panera (pan, pebre, mantequilla) y servilletas, y escala automáticamente con los {invitados} pax cotizados
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black uppercase bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full shrink-0">
+                      Escala Pax
                     </span>
                   </div>
                 </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mesa } from '../types';
+import { formatMoneda } from '../utils/formatters';
 import {
   LayoutGrid,
   Plus,
@@ -13,19 +14,34 @@ import {
   Armchair,
   Sparkles,
   Users,
-  Truck
+  Truck,
+  ChefHat,
+  DollarSign
 } from 'lucide-react';
 
 interface Modulo4MesasProps {
   mesas: Mesa[];
   onChangeMesas: (mesas: Mesa[]) => void;
   invitadosTotales: number;
+  costoMesaInfo?: {
+    recetaNombre: string;
+    costoPorMesa: number;
+    costoPorInvitado: number;
+    costoTotal: number;
+    paxPorMesa: number;
+    incluido: boolean;
+  };
+  onToggleIncluirCostoMesa?: (incluir: boolean) => void;
+  onIrARecetasCostoMesa?: () => void;
 }
 
 export const Modulo4Mesas: React.FC<Modulo4MesasProps> = ({
   mesas,
   onChangeMesas,
-  invitadosTotales
+  invitadosTotales,
+  costoMesaInfo,
+  onToggleIncluirCostoMesa,
+  onIrARecetasCostoMesa
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [tempNombre, setTempNombre] = useState<string>('');
@@ -222,6 +238,62 @@ export const Modulo4Mesas: React.FC<Modulo4MesasProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── COSTO INTERNO DE MONTAJE POR MESA (VINCULADO DESDE RECETAS & COSTEO) ── */}
+      {costoMesaInfo && (
+        <div className={`mt-4 p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
+          costoMesaInfo.incluido
+            ? 'bg-amber-50/60 border-amber-200'
+            : 'bg-slate-50 border-slate-200 opacity-85'
+        }`}>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-extrabold uppercase tracking-wider">
+                <DollarSign className="w-3 h-3" />
+                Costo Interno de Mesa
+              </span>
+              <span className="text-xs font-bold text-slate-900">
+                {costoMesaInfo.recetaNombre}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600">
+              Cálculo interno por mesa ({costoMesaInfo.paxPorMesa} pax):{' '}
+              <strong className="text-slate-900 tabular-nums">{formatMoneda(costoMesaInfo.costoPorMesa)}/mesa</strong>
+              {' · '}
+              <strong className="text-amber-900 tabular-nums">{formatMoneda(costoMesaInfo.costoPorInvitado)}/pax</strong>
+              {' · '}
+              Total para {invitadosTotales} pax:{' '}
+              <strong className="text-emerald-800 tabular-nums">{formatMoneda(costoMesaInfo.costoTotal)}</strong>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {onToggleIncluirCostoMesa && (
+              <button
+                type="button"
+                onClick={() => onToggleIncluirCostoMesa(!costoMesaInfo.incluido)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                  costoMesaInfo.incluido
+                    ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {costoMesaInfo.incluido ? '✓ Incluido en Costo' : 'No incluido ($0)'}
+              </button>
+            )}
+            {onIrARecetasCostoMesa && (
+              <button
+                type="button"
+                onClick={onIrARecetasCostoMesa}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-amber-50 text-amber-900 border border-amber-300 transition-colors cursor-pointer"
+              >
+                <ChefHat className="w-3.5 h-3.5 text-amber-700" />
+                <span>Editar en Recetas</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── SECCIÓN CLAVE: ESTIMACIÓN SUGERIDA DE MESAS PARA EL EMPRENDEDOR ── */}
       <div className="my-5 p-4 rounded-xl bg-gradient-to-r from-emerald-50/70 via-teal-50/50 to-slate-50 border border-emerald-200">

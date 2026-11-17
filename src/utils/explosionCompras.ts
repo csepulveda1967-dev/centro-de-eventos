@@ -70,9 +70,18 @@ export function calcularExplosionInsumos(
     const idsSet = new Set(menuActual.recetasIds);
     recetasDelMenu = recetas.filter(r => idsSet.has(r.id));
   }
-  // Si aún no hay recetas directamente mapeadas, usamos todas las recetas activas para dar una estimación representativa
+  // Si aún no hay recetas directamente mapeadas, usamos todas las recetas activas de platos para dar una estimación representativa
   if (recetasDelMenu.length === 0) {
-    recetasDelMenu = recetas.slice(0, 5);
+    recetasDelMenu = recetas.filter(r => r.tiempoMenu !== 'coffee-break' && r.tiempoMenu !== 'costo-mesa').slice(0, 5);
+  }
+
+  // Incluir Costo de Mesa activo (panera, pebre, mantequilla, servilletas y extras) escalado a los pax cotizados
+  if (cotizacion.incluirCostoMesa !== false) {
+    const recetasMesa = recetas.filter(r => r.tiempoMenu === 'costo-mesa');
+    const recetaMesaActiva = recetasMesa.find(r => r.id === cotizacion.costoMesaRecetaId) || recetasMesa[0];
+    if (recetaMesaActiva && !recetasDelMenu.some(r => r.id === recetaMesaActiva.id)) {
+      recetasDelMenu = [...recetasDelMenu, recetaMesaActiva];
+    }
   }
 
   const acumulador = new Map<string, {

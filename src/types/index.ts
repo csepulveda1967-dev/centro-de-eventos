@@ -198,6 +198,9 @@ export interface CotizacionState {
   precioVentaManual?: number; // Valor final fijado a criterio libre del cliente
   // Servicio de Bebestibles y Barra por persona (p.p.)
   bebestibles?: MenuItemRatio[];
+  // Costo interno de montaje por mesa (Panera, pebre, mantequilla, servilletas y extras)
+  costoMesaRecetaId?: string;
+  incluirCostoMesa?: boolean;
 }
 
 export interface ItemGastoFijo {
@@ -233,7 +236,11 @@ export interface ResumenFinanciero {
   eventosAlMes: number;
   mesActivoCostosFijos?: string;
   historialCostosFijosMensuales?: Record<string, RegistroCostoFijoMensual>;
-  costoVariablesTotal: number; // Suma de Menú + Personal + Proveedores + Decoración
+  costoVariablesTotal: number; // Suma de Menú + Bebestibles + Costo de Mesa + Personal + Proveedores + Decoración
+  costoMesaTotal?: number; // Costo interno total de montaje de mesas para los invitados cotizados
+  costoPorMesa?: number; // Costo interno por 1 mesa (según rendimiento de la ficha)
+  costoMesaPorInvitado?: number; // Costo de montaje de mesa por comensal (p.p.)
+  cantidadMesasCosto?: number; // Cantidad de mesas configuradas o estimadas
   costoTotalReal: number; // Costos Variables + Costo Fijo Prorrateado
   costoPorInvitado: number;
   margenPorcentaje: number; // Margen referencial sugerido por la plataforma

@@ -15,7 +15,8 @@ export const CATEGORIAS_INSUMOS_DEFAULT: CategoriaInsumoInfo[] = [
   { id: 'licores_bebidas', label: 'Licores y Vinos' },
   { id: 'panaderia_pasteleria', label: 'Panadería y Pastelería' },
   { id: 'condimentos_especias', label: 'Condimentos y Especias' },
-  { id: 'menaje_desechables', label: 'Menaje y Desechables' }
+  { id: 'menaje_desechables', label: 'Menaje y Desechables' },
+  { id: 'montaje_mesa', label: 'Montaje y Servicio de Mesa' }
 ];
 export interface TiempoMenuInfo {
   id: string;
@@ -29,7 +30,8 @@ export const TIEMPOS_MENU_DEFAULT: TiempoMenuInfo[] = [
   { id: 'fondo', label: 'Plato de Fondo' },
   { id: 'postre', label: 'Postre' },
   { id: 'trasnoche', label: 'Trasnoche / Bajón' },
-  { id: 'coffee-break', label: 'Coffee Break / Coctelería' }
+  { id: 'coffee-break', label: 'Coffee Break / Coctelería' },
+  { id: 'costo-mesa', label: 'Costo de Mesa (Montaje)' }
 ];
 
 export function formatearNombreTiempoMenu(tiempoId: string): string {
@@ -80,6 +82,9 @@ export function obtenerColorCategoria(categoriaId: string): { bg: string; text: 
   }
   if (cat.includes('menaje') || cat.includes('desechable') || cat.includes('embalaje')) {
     return { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', badge: 'bg-slate-100 text-slate-800 border-slate-300' };
+  }
+  if (cat.includes('montaje') || cat.includes('mesa')) {
+    return { bg: 'bg-teal-50', text: 'text-teal-800', border: 'border-teal-200', badge: 'bg-teal-100 text-teal-900 border-teal-300' };
   }
   return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800 border-blue-300' };
 }
@@ -484,6 +489,38 @@ export const INSUMOS_MAESTRO_INICIALES: InsumoMaestro[] = [
     precioCompra: 350, // $350 por sobre piramidal de seda
     mermaPorcentaje: 0,
     proveedor: 'Tea Selection Chile'
+  },
+
+  // ── Montaje de Mesa: Panera (Pan, Pebre, Mantequilla) y Servilletas ──
+  {
+    id: 'ins-pan-mesa',
+    nombre: 'Pan Artesanal de Mesa / Panera (Mini Hallulla / Baguette)',
+    categoria: 'panaderia_pasteleria',
+    unidadMedida: 'unidad',
+    precioCompra: 220, // $220 por unidad de pan de mesa
+    mermaPorcentaje: 2,
+    proveedor: 'Banquetería & Masas del Maipo',
+    ultimoCambio: '2026-10-20'
+  },
+  {
+    id: 'ins-pebre-casero',
+    nombre: 'Pebre Campestre Fresco (Tomate, Cilantro, Cebolla, Ají)',
+    categoria: 'verduras_frutas',
+    unidadMedida: 'kg',
+    precioCompra: 4200, // $4.200 / kg ($4,2 / g)
+    mermaPorcentaje: 8,
+    proveedor: 'La Vega Central',
+    ultimoCambio: '2026-10-20'
+  },
+  {
+    id: 'ins-servilletas-mesa',
+    nombre: 'Servilletas de Mesa (Doble Hoja Tisú / Servicio)',
+    categoria: 'menaje_desechables',
+    unidadMedida: 'unidad',
+    precioCompra: 85, // $85 por servilleta de servicio
+    mermaPorcentaje: 3,
+    proveedor: 'Menaje & Desechables Express',
+    ultimoCambio: '2026-10-20'
   }
 ];
 
@@ -703,6 +740,25 @@ export const RECETAS_INICIALES: RecetaFichaTecnica[] = [
       { id: 'ing-gt-3', insumoId: 'ins-limon-sutil', cantidad: 20, unidad: 'g' },
       { id: 'ing-gt-4', insumoId: 'ins-hielo-cubos', cantidad: 100, unidad: 'g' }
     ]
+  },
+
+  // ── 11. Costo de Mesa: Cálculo interno de montaje por mesa (Panera + Servilletas) ──
+  {
+    id: 'rec-costo-mesa-estandar',
+    nombre: 'Costo de Mesa Estándar (Panera, Pebre, Mantequilla y Servilletas)',
+    tiempoMenu: 'costo-mesa',
+    categoria: 'Montaje & Servicio de Mesa',
+    rendimientoPorciones: 10, // Costeada para 1 mesa estándar de 10 comensales (escala automático con los pax cotizados)
+    margenSugerido: 33,
+    costoAdicionalElaboracion: 0,
+    servicioAsociadoId: 'costo-mesa',
+    descripcionProcedimiento: 'Cálculo interno de cuánto le cuesta al local montar una mesa (base 10 pax): panera completa (pan artesanal, pebre campestre y mantequilla) y servilletas. Se actualiza automáticamente según la cantidad de pax cotizados.',
+    ingredientes: [
+      { id: 'ing-mesa-1', insumoId: 'ins-pan-mesa', cantidad: 20, unidad: 'unidad' }, // 2 panes por comensal x 10 pax
+      { id: 'ing-mesa-2', insumoId: 'ins-pebre-casero', cantidad: 350, unidad: 'g' }, // 350g de pebre por mesa
+      { id: 'ing-mesa-3', insumoId: 'ins-mantequilla', cantidad: 150, unidad: 'g' }, // 150g de mantequilla por mesa
+      { id: 'ing-mesa-4', insumoId: 'ins-servilletas-mesa', cantidad: 15, unidad: 'unidad' } // 15 servilletas por mesa (incluye reposición)
+    ]
   }
 ];
 
@@ -798,10 +854,10 @@ export function calcularCostoReceta(
 
 // ¿Pertenece esta ficha técnica al menú indicado?
 // Soporta vinculación múltiple (menusAsociadosIds) y el vínculo clásico (menuAsociadoId).
-// Las fichas de Coffee Break tributan a Tarifas Generales, por lo que nunca cuentan como plato de menú.
+// Las fichas de Coffee Break tributan a Tarifas Generales y las de Costo de Mesa tributan al montaje interno de mesas, por lo que nunca cuentan como plato de menú.
 export function recetaPerteneceAMenu(receta: RecetaFichaTecnica, menuId: string): boolean {
   if (!receta || !menuId) return false;
-  if (receta.tiempoMenu === 'coffee-break') return false;
+  if (receta.tiempoMenu === 'coffee-break' || receta.tiempoMenu === 'costo-mesa') return false;
   if (receta.menuAsociadoId === menuId) return true;
   return Array.isArray(receta.menusAsociadosIds) && receta.menusAsociadosIds.includes(menuId);
 }

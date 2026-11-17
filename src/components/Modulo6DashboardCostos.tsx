@@ -148,10 +148,13 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
     costoPersonal,
     costoProveedores,
     costoDecoracion,
+    costoMesaTotal = 0,
+    costoMesaPorInvitado = 0,
+    cantidadMesasCosto = 0,
     costosFijosEvento = 0,
     costoFijoPorPersona = 0,
     gastosFijosMensuales = 0,
-    costoVariablesTotal = (costoMenu + costoPersonal + costoProveedores + costoDecoracion),
+    costoVariablesTotal = (costoMenu + costoMesaTotal + costoPersonal + costoProveedores + costoDecoracion),
     costoTotalReal,
     costoPorInvitado,
     utilidadProyectada,
@@ -250,6 +253,7 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
 
   // Porcentajes para la barra de distribución compuesta
   const pctMenu = costoTotalReal > 0 ? (costoMenu / costoTotalReal) * 100 : 0;
+  const pctCostoMesa = costoTotalReal > 0 ? (costoMesaTotal / costoTotalReal) * 100 : 0;
   const pctPersonal = costoTotalReal > 0 ? (costoPersonal / costoTotalReal) * 100 : 0;
   const pctProveedores = costoTotalReal > 0 ? (costoProveedores / costoTotalReal) * 100 : 0;
   const pctDecoracion = costoTotalReal > 0 ? (costoDecoracion / costoTotalReal) * 100 : 0;
@@ -775,13 +779,20 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
           <span className="text-slate-400 font-normal">100%</span>
         </div>
 
-        {/* Barra visual horizontal compuesta con 5 segmentos */}
+        {/* Barra visual horizontal compuesta con 6 segmentos */}
         <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
           <div
             style={{ width: `${pctMenu}%` }}
             className="bg-amber-600 transition-all duration-300"
             title={`Menú: ${formatPorcentaje(pctMenu)}`}
           />
+          {costoMesaTotal > 0 && (
+            <div
+              style={{ width: `${pctCostoMesa}%` }}
+              className="bg-emerald-500 transition-all duration-300"
+              title={`Costo de Mesa: ${formatPorcentaje(pctCostoMesa)}`}
+            />
+          )}
           <div
             style={{ width: `${pctPersonal}%` }}
             className="bg-blue-600 transition-all duration-300"
@@ -815,6 +826,25 @@ export const Modulo6DashboardCostos: React.FC<Modulo6DashboardCostosProps> = ({
             <div className="text-right">
               <span className="font-bold text-slate-900 tabular-nums">{formatMoneda(costoMenu)}</span>
               <span className="text-[10px] text-slate-400 ml-1.5">({formatPorcentaje(pctMenu)})</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between py-1 border-b border-slate-100">
+            <span className="flex items-center gap-2 text-slate-600 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>
+                Costo de Mesa (Panera & Servilletas)
+                {costoMesaTotal > 0 && (
+                  <span className="block text-[10px] text-slate-400 font-normal">
+                    {cantidadMesasCosto} mesas · {formatMoneda(costoMesaPorInvitado)}/pax × {invitados} pax
+                  </span>
+                )}
+              </span>
+            </span>
+            <div className="text-right">
+              <span className="font-bold text-slate-900 tabular-nums">{formatMoneda(costoMesaTotal)}</span>
+              <span className="text-[10px] text-slate-400 ml-1.5">({formatPorcentaje(pctCostoMesa)})</span>
             </div>
           </div>
 

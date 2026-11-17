@@ -621,8 +621,24 @@ export default function App() {
       ? Math.round(costosFijosEvento / cotizacion.invitados)
       : 0;
 
+    // 4.5 Costo de Mesa (Montaje Interno: Panera, Pebre, Mantequilla, Servilletas y extras) escalado por pax cotizados
+    const recetasCostoMesa = recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'costo-mesa');
+    const recetaCostoMesaActiva = cotizacion.incluirCostoMesa !== false
+      ? (recetasCostoMesa.find(r => r.id === cotizacion.costoMesaRecetaId) || recetasCostoMesa[0])
+      : undefined;
+    const paxPorMesaCosto = recetaCostoMesaActiva && recetaCostoMesaActiva.rendimientoPorciones > 0
+      ? recetaCostoMesaActiva.rendimientoPorciones
+      : 10;
+    const calcMesa = recetaCostoMesaActiva ? calcularCostoReceta(recetaCostoMesaActiva, insumos) : null;
+    const costoPorMesa = calcMesa ? calcMesa.costoTotalReceta : 0;
+    const costoMesaPorInvitado = calcMesa ? calcMesa.costoPorPorcion : 0;
+    const cantidadMesasCosto = cotizacion.mesas.length > 0
+      ? cotizacion.mesas.length
+      : Math.ceil(Math.max(1, cotizacion.invitados) / paxPorMesaCosto);
+    const costoMesaTotal = calcMesa ? Math.round(costoMesaPorInvitado * cotizacion.invitados) : 0;
+
     // Costo Variables Total y Costo Total Real de Operación (Tu Gasto Base)
-    const costoVariablesTotal = costoMenu + costoBebestibles + costoPersonal + costoProveedores + costoDecoracion;
+    const costoVariablesTotal = costoMenu + costoBebestibles + costoMesaTotal + costoPersonal + costoProveedores + costoDecoracion;
     const costoTotalReal = costoVariablesTotal + costosFijosEvento;
     const costoPorInvitado = cotizacion.invitados > 0 ? costoTotalReal / cotizacion.invitados : 0;
 
@@ -656,6 +672,10 @@ export default function App() {
       costoPersonal,
       costoProveedores,
       costoDecoracion,
+      costoMesaTotal,
+      costoPorMesa,
+      costoMesaPorInvitado,
+      cantidadMesasCosto,
       costosFijosEvento,
       costoFijoPorPersona,
       gastosFijosMensuales,
@@ -678,7 +698,23 @@ export default function App() {
       margenRealObtenido,
       utilidadRealObtenida
     };
-  }, [cotizacion, menus, tarifasStaff, proveedores, estilosDecoracion]);
+  }, [cotizacion, menus, tarifasStaff, proveedores, estilosDecoracion, recetas, insumos]);
+
+  const costoMesaInfoModulo4 = useMemo(() => {
+    const recetasCostoMesa = recetas.filter(r => (r.tiempoMenu || '').toLowerCase() === 'costo-mesa');
+    const ficha = recetasCostoMesa.find(r => r.id === cotizacion.costoMesaRecetaId) || recetasCostoMesa[0];
+    if (!ficha) return undefined;
+    const calc = calcularCostoReceta(ficha, insumos);
+    const paxPorMesa = ficha.rendimientoPorciones > 0 ? ficha.rendimientoPorciones : 10;
+    return {
+      recetaNombre: ficha.nombre,
+      costoPorMesa: calc.costoTotalReceta,
+      costoPorInvitado: calc.costoPorPorcion,
+      costoTotal: cotizacion.incluirCostoMesa !== false ? Math.round(calc.costoPorPorcion * cotizacion.invitados) : 0,
+      paxPorMesa,
+      incluido: cotizacion.incluirCostoMesa !== false
+    };
+  }, [recetas, insumos, cotizacion.costoMesaRecetaId, cotizacion.incluirCostoMesa, cotizacion.invitados]);
 
   // ── Handlers de actualización de insumos con propagación automática a menús y Base de Datos ──
   const handleUpdateInsumo = (
@@ -867,6 +903,24 @@ export default function App() {
     }
 
     mostrarToast(`✓ Coffee Break vinculado: ${formatMoneda(costoPorPorcion)}/pax inyectados en Tarifas Generales y Cotizador`);
+  };
+
+  const handleVincularCostoMesa = (receta: RecetaFichaTecnica) => {
+    setCotizacion(prev => ({
+      ...prev,
+      costoMesaRecetaId: receta.id,
+      incluirCostoMesa: true
+    }));
+    const calc = calcularCostoReceta(receta, insumos);
+    mostrarToast(`✓ Costo de Mesa "${receta.nombre}" vinculado (${formatMoneda(calc.costoPorPorcion)}/pax · ${formatMoneda(Math.round(calc.costoPorPorcion * cotizacion.invitados))} para ${cotizacion.invitados} pax)`);
+  };
+
+  const handleToggleIncluirCostoMesa = (incluir: boolean) => {
+    setCotizacion(prev => ({
+      ...prev,
+      incluirCostoMesa: incluir
+    }));
+    mostrarToast(incluir ? '✓ Costo de Mesa incluido en el cálculo de la cotización' : 'Costo de Mesa excluido temporalmente del cálculo ($0)');
   };
 
   // ── Handlers de actualización de recetas con propagación automática a menús y tarifas ──
@@ -2076,6 +2130,9 @@ export default function App() {
                     mesas={cotizacion.mesas}
                     onChangeMesas={handleChangeMesas}
                     invitadosTotales={cotizacion.invitados}
+                    costoMesaInfo={costoMesaInfoModulo4}
+                    onToggleIncluirCostoMesa={handleToggleIncluirCostoMesa}
+                    onIrARecetasCostoMesa={() => setVistaActual('recetas')}
                   />
                 )}
 
@@ -2294,6 +2351,7 @@ export default function App() {
             insumos={insumos}
             menus={menus}
             invitados={cotizacion.invitados}
+            mesas={cotizacion.mesas}
             onUpdateReceta={handleUpdateReceta}
             onAddReceta={handleAddReceta}
             onDeleteReceta={handleDeleteReceta}
@@ -2302,6 +2360,12 @@ export default function App() {
             onAddMenu={handleAddMenu}
             onUpdateMenu={handleUpdateMenu}
             onDeleteMenu={handleDeleteMenu}
+            onAddInsumo={handleAddInsumo}
+            onIrAMaestroInsumos={() => setVistaActual('insumos')}
+            costoMesaVinculadoId={cotizacion.costoMesaRecetaId}
+            incluirCostoMesa={cotizacion.incluirCostoMesa !== false}
+            onVincularCostoMesa={handleVincularCostoMesa}
+            onToggleIncluirCostoMesa={handleToggleIncluirCostoMesa}
             tarifasStaff={tarifasStaff}
             personal={cotizacion.personal}
             onChangePersonal={handleChangePersonal}
