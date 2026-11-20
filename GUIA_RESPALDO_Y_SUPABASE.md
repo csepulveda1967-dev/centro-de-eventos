@@ -69,6 +69,14 @@ Para que tu cotizador esté **100% activo, cargue en menos de 1 segundo y nunca 
 
 ---
 
+### C) Checklist de Seguridad en Producción (Obligatorio para Clientes)
+1. **Nunca expongas `service_role` en el frontend:** Usa únicamente `VITE_SUPABASE_ANON_KEY`. El sistema bloquea automáticamente si alguien intenta pegar una llave `service_role` en el navegador.
+2. **Activa Supabase Auth y RLS Estricto:** Tanto `supabase/schema.sql` como `supabase/politicas_rls.sql` vienen endurecidos por defecto para que solo personal autenticado (`authenticated`) lea o modifique costos, insumos, reservas y datos de clientes. Crea tu usuario administrador en *Supabase > Authentication > Users* e inicia sesión desde el panel **Respaldo & BD → Base de Datos Supabase**.
+3. **Cambia el PIN de Administrador:** Desde el botón **Seguridad** en la barra superior, reemplaza el PIN inicial (`1967`) por uno propio (se almacena cifrado con hash SHA-256 + salt y bloqueo anti fuerza bruta).
+4. **Respaldos en equipos compartidos:** Si usas el cotizador en un computador ajeno, utiliza el botón **Limpieza Segura de Sesión** dentro del Centro de Seguridad para borrar credenciales y caché local.
+
+---
+
 ## 4. Estructura de Tablas en Supabase
 
 | Tabla | Descripción |

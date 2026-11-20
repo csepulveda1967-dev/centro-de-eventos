@@ -19,7 +19,8 @@ import {
   FilePlus,
   Save,
   Martini,
-  Gauge
+  Gauge,
+  ShieldCheck
 } from 'lucide-react';
 import { formatMoneda } from '../utils/formatters';
 
@@ -42,7 +43,9 @@ interface HeaderProps {
   onAbrirFormularioEmpresa?: () => void;
   onAbrirWhatsAppPropuesta?: () => void;
   onAbrirMedidorDemo?: () => void;
+  onAbrirSeguridad?: () => void;
   diasRestantesDemo?: number;
+  empresasDisponibles?: EmpresaCliente[];
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -60,38 +63,49 @@ export const Header: React.FC<HeaderProps> = ({
   onAbrirRespaldo,
   onAbrirWhatsAppPropuesta,
   onAbrirMedidorDemo,
+  onAbrirSeguridad,
   modoAdmin = false,
   onToggleModoAdmin,
   onGuardarCotizacion,
   onAbrirFormularioEmpresa,
-  diasRestantesDemo = 30
+  diasRestantesDemo = 30,
+  empresasDisponibles = []
 }) => {
+  const tagPersonalizado =
+    empresaActiva.id === 'emp-damaris'
+      ? 'DAMARIS'
+      : empresaActiva.id === 'emp-dominga'
+      ? 'DOMINGA'
+      : empresaActiva.id === 'emp-isidora'
+      ? 'ISIDORA'
+      : (empresaActiva.letraLogo || 'CONTRATADO');
+
   const brandingStyle = (() => {
     switch (empresaActiva.colorTema) {
       case 'amber':
         return {
           bg: 'bg-gradient-to-tr from-stone-900 via-amber-600 to-amber-400 text-white shadow-amber-600/30 ring-1 ring-amber-400/40',
           pill: 'bg-amber-50 text-amber-900 border-amber-300',
-          tag: 'DOMINGA'
+          tag: tagPersonalizado
         };
       case 'emerald':
         return {
           bg: 'bg-gradient-to-tr from-emerald-950 via-emerald-700 to-emerald-400 text-white shadow-emerald-700/30 ring-1 ring-emerald-400/40',
           pill: 'bg-emerald-50 text-emerald-900 border-emerald-300',
-          tag: 'DAMARIS'
+          tag: tagPersonalizado
         };
       case 'rose':
         return {
           bg: 'bg-gradient-to-tr from-stone-900 via-rose-700 to-rose-400 text-white shadow-rose-700/30 ring-1 ring-rose-400/40',
           pill: 'bg-rose-50 text-rose-900 border-rose-300',
-          tag: 'ISIDORA'
+          tag: tagPersonalizado
         };
       case 'blue':
       default:
         return {
           bg: 'bg-gradient-to-tr from-indigo-950 via-indigo-700 to-sky-500 text-white shadow-indigo-700/30 ring-1 ring-sky-400/40',
           pill: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-          tag: 'CORPORATIVO'
+          tag: tagPersonalizado
         };
     }
   })();
@@ -165,6 +179,13 @@ export const Header: React.FC<HeaderProps> = ({
                     <option value="modelo-base" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Doña Isidora Eventos (Banquetería & Matrimonios - Sin recinto fijo)</option>
                     <option value="dominga-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Dominga Eventos by Mauge (Finca La Toscana - Linderos)</option>
                     <option value="damaris-eventos" style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>Centro de Eventos Damaris (Calera de Tango - Parque 10.000 m²)</option>
+                    {empresasDisponibles
+                      .filter((e) => !['emp-isidora', 'emp-dominga', 'emp-damaris', 'emp-solvi'].includes(e.id))
+                      .map((emp) => (
+                        <option key={emp.id} value={emp.id} style={{ backgroundColor: '#064e3b', color: '#ffffff' }}>
+                          {emp.nombre} ({emp.recintoPrincipal || emp.ciudad})
+                        </option>
+                      ))}
                   </select>
                   <ChevronDown className="w-4 h-4 text-emerald-200 pointer-events-none absolute right-1.5" />
                 </div>
@@ -176,9 +197,13 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Lock className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                   <span className="truncate max-w-[200px] sm:max-w-[320px]">
-                    {clienteActivoId === 'dominga-eventos' && 'Dominga Eventos (Finca La Toscana)'}
-                    {clienteActivoId === 'damaris-eventos' && 'Centro Damaris (Calera de Tango)'}
-                    {clienteActivoId === 'modelo-base' && 'Doña Isidora Eventos (Banquetería)'}
+                    {clienteActivoId === 'dominga-eventos'
+                      ? 'Dominga Eventos (Finca La Toscana)'
+                      : clienteActivoId === 'damaris-eventos'
+                      ? 'Centro Damaris (Calera de Tango)'
+                      : clienteActivoId === 'modelo-base'
+                      ? 'Doña Isidora Eventos (Banquetería)'
+                      : empresaActiva.nombre}
                   </span>
                 </div>
               )}
@@ -421,6 +446,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden md:inline">Medidor Demo</span>
                 <span className="md:hidden">Medidor</span>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </button>
+            )}
+
+            {/* Centro de Seguridad y Privacidad */}
+            {onAbrirSeguridad && (
+              <button
+                type="button"
+                onClick={onAbrirSeguridad}
+                className="inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-bold text-emerald-950 bg-emerald-50 hover:bg-emerald-100 active:scale-95 rounded-lg border border-emerald-300 transition-all shadow-xs cursor-pointer"
+                title="Centro de Seguridad, PIN Administrador SHA-256 y Limpieza de Sesión"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden lg:inline">Seguridad</span>
               </button>
             )}
 

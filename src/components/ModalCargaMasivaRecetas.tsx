@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { RecetaFichaTecnica, InsumoMaestro, MenuOption, IngredienteReceta } from '../types';
 import { formatMoneda } from '../utils/formatters';
 import { calcularCostoReceta } from '../config/insumosYRecetas';
+import { escaparCeldaCSV, sanitizarNumero, sanitizarTexto, validarTamanoArchivo } from '../utils/security';
 import {
   X,
   FileSpreadsheet,
@@ -179,7 +180,7 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
   const handleDescargarPlantillaCSV = () => {
     const encabezados = 'Nombre Ficha;Tiempo Menu;Categoria;Rendimiento;Margen;Costo Adicional;Menu Asociado;Descripcion;Ingredientes\n';
     const filas = RECETAS_PLANTILLA_EJEMPLO.map(r =>
-      `"${r.nombre}";"${r.tiempoMenu}";"${r.categoria}";${r.rendimientoPorciones};${r.margenSugerido};${r.costoAdicionalElaboracion};"${r.menuAsociadoNombre}";"${r.descripcionProcedimiento.replace(/"/g, '""')}";"${r.ingredientesTexto.replace(/"/g, '""')}"`
+      `${escaparCeldaCSV(r.nombre)};${escaparCeldaCSV(r.tiempoMenu)};${escaparCeldaCSV(r.categoria)};${r.rendimientoPorciones};${r.margenSugerido};${r.costoAdicionalElaboracion};${escaparCeldaCSV(r.menuAsociadoNombre)};${escaparCeldaCSV(r.descripcionProcedimiento)};${escaparCeldaCSV(r.ingredientesTexto)}`
     ).join('\n');
 
     const csvContent = '\uFEFF' + encabezados + filas;
@@ -191,7 +192,7 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const limpiarNumero = (val: any): number => {
@@ -323,37 +324,40 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
     }
 
     const resultado: RecetaFichaTecnica[] = [];
+    const maxFilas = Math.min(filas.length, 501);
 
-    for (let i = 1; i < filas.length; i++) {
+    for (let i = 1; i < maxFilas; i++) {
       const fila = filas[i];
       if (!fila || fila.length === 0) continue;
 
-      const nombre = String(fila[idxNombre] || '').trim();
+      const nombre = sanitizarTexto(fila[idxNombre], 180);
       if (!nombre) continue;
 
-      const tiempoRaw = idxTiempo !== -1 ? String(fila[idxTiempo] || '').trim().toLowerCase() : 'fondo';
+      const tiempoRaw = idxTiempo !== -1 ? sanitizarTexto(fila[idxTiempo], 60).toLowerCase() : 'fondo';
       let tiempoMenu = 'fondo';
       if (tiempoRaw.includes('coctel') || tiempoRaw.includes('cóctel') || tiempoRaw.includes('bocado')) tiempoMenu = 'coctel';
       else if (tiempoRaw.includes('entrada')) tiempoMenu = 'entrada';
       else if (tiempoRaw.includes('postre') || tiempoRaw.includes('dulce')) tiempoMenu = 'postre';
       else if (tiempoRaw.includes('trasnoche') || tiempoRaw.includes('bajon')) tiempoMenu = 'trasnoche';
       else if (tiempoRaw.includes('coffee') || tiempoRaw.includes('cafe')) tiempoMenu = 'coffee-break';
-      else if (tiempoRaw) tiempoMenu = tiempoRaw.replace(/\s+/g, '_');
+      else if (tiempoRaw) tiempoMenu = tiempoRaw.replace(/[^a-z0-9_-]/g, '_');
 
-      const categoria = idxCat !== -1 && fila[idxCat] ? String(fila[idxCat]).trim() : 'Plato Gourmet';
-      const rendimiento = idxRend !== -1 ? Math.max(1, Math.round(limpiarNumero(fila[idxRend]))) : 1;
-      const margen = idxMargen !== -1 ? Math.max(5, Math.min(80, Math.round(limpiarNumero(fila[idxMargen])))) || 33 : 33;
-      const costoAdicional = idxCostoAdic !== -1 ? Math.round(limpiarNumero(fila[idxCostoAdic])) : 400;
+      const categoria = idxCat !== -1 && fila[idxCat] ? sanitizarTexto(fila[idxCat], 80) : 'Plato Gourmet';
+      const rendimiento = idxRend !== -1 ? sanitizarNumero(limpiarNumero(fila[idxRend]), 1, 10000, 1) : 1;
+      const margen = idxMargen !== -1 ? sanitizarNumero(limpiarNumero(fila[idxMargen]), 5, 80, 33) : 33;
+      const costoAdicional = idxCostoAdic !== -1 ? sanitizarNumero(Math.round(limpiarNumero(fila[idxCostoAdic])), 0, 50_000_000, 0) : 400;
 
-      const menuNombre = idxMenu !== -1 ? String(fila[idxMenu] || '').trim().toLowerCase() : '';
+      const menuNombre = idxMenu !== -1 ? sanitizarTexto(fila[idxMenu], 120).toLowerCase() : '';
       let menuAsociadoId = menusDisponibles[0]?.id;
       if (menuNombre) {
         const matchMenu = menusDisponibles.find(m => m.nombre.toLowerCase().includes(menuNombre));
         if (matchMenu) menuAsociadoId = matchMenu.id;
       }
 
-      const descripcion = idxDesc !== -1 && fila[idxDesc] ? String(fila[idxDesc]).trim() : `Ficha técnica de ${nombre}. Preparación gourmet para banquetería de bodas.`;
-      const ingTexto = idxIng !== -1 ? String(fila[idxIng] || '') : '';
+      const descripcion = idxDesc !== -1 && fila[idxDesc]
+        ? sanitizarTexto(fila[idxDesc], 600, true)
+        : `Ficha técnica de ${nombre}. Preparación gourmet para banquetería de bodas.`;
+      const ingTexto = idxIng !== -1 ? sanitizarTexto(fila[idxIng], 1500) : '';
       const ingredientes = parsearIngredientesTexto(ingTexto);
 
       const id = `rec-isidora-${Date.now()}-${i}`;
@@ -363,8 +367,8 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
         nombre,
         tiempoMenu,
         categoria,
-        rendimientoPorciones: rendimiento,
-        margenSugerido: margen,
+        rendimientoPorciones: Math.round(rendimiento),
+        margenSugerido: Math.round(margen),
         costoAdicionalElaboracion: costoAdicional,
         menuAsociadoId,
         descripcionProcedimiento: descripcion,
@@ -382,6 +386,11 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
   // ── MANEJO DE ARCHIVO EXCEL / CSV ──
   const procesarArchivo = (file: File) => {
     setErrorParseo(null);
+    const checkSize = validarTamanoArchivo(file, 5);
+    if (!checkSize.ok) {
+      setErrorParseo(checkSize.error || 'Archivo demasiado grande.');
+      return;
+    }
     setArchivoNombre(file.name);
 
     const reader = new FileReader();
@@ -390,13 +399,14 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
         const data = e.target?.result;
         let filas: any[][] = [];
 
-        if (file.name.endsWith('.csv')) {
+        if (file.name.toLowerCase().endsWith('.csv')) {
           const texto = new TextDecoder('utf-8').decode(data as ArrayBuffer);
           const primeraLinea = texto.split('\n')[0] || '';
           const delimitador = primeraLinea.includes(';') ? ';' : primeraLinea.includes('\t') ? '\t' : ',';
           filas = texto
             .split(/\r?\n/)
             .filter(l => l.trim().length > 0)
+            .slice(0, 505)
             .map(linea => {
               const regex = new RegExp(`(?:^|${delimitador})(?:"([^"]*(?:""[^"]*)*)"|([^"${delimitador}]*))`, 'g');
               const celdas: string[] = [];
@@ -411,7 +421,7 @@ export const ModalCargaMasivaRecetas: React.FC<ModalCargaMasivaRecetasProps> = (
           const wb = XLSX.read(data, { type: 'array' });
           const firstSheetName = wb.SheetNames[0];
           const ws = wb.Sheets[firstSheetName];
-          filas = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+          filas = (XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][]).slice(0, 505);
         }
 
         const parsed = procesarMatrizARecetas(filas);

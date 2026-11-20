@@ -37,8 +37,12 @@ import {
 import {
   getSupabaseCredentials,
   saveSupabaseCredentials,
+  clearSupabaseCredentials,
   isSupabaseConfigured,
-  probarConexionSupabase
+  probarConexionSupabase,
+  iniciarSesionSupabase,
+  cerrarSesionSupabase,
+  obtenerSesionSupabase
 } from '../lib/supabase';
 import {
   EmpresaCliente,
@@ -97,6 +101,16 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
   const [supabaseKey, setSupabaseKey] = useState(credsIniciales.anonKey);
   const [probando, setProbando] = useState(false);
   const [resultadoPrueba, setResultadoPrueba] = useState<{ ok: boolean; mensaje: string } | null>(null);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [sesionActivaEmail, setSesionActivaEmail] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      obtenerSesionSupabase().then((s) => setSesionActivaEmail(s?.user?.email || null));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -149,17 +163,58 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
   };
 
   const handleGuardarCredencialesSupabase = () => {
-    saveSupabaseCredentials(supabaseUrl, supabaseKey);
+    const res = saveSupabaseCredentials(supabaseUrl, supabaseKey);
+    if (!res.ok) {
+      setResultadoPrueba({ ok: false, mensaje: res.error || 'Credenciales inválidas.' });
+      return;
+    }
+    setResultadoPrueba({ ok: true, mensaje: 'Credenciales validadas y guardadas localmente (sin llave secreta).' });
     onNotificar('Credenciales de Supabase guardadas localmente.');
   };
 
   const handleProbarConexion = async () => {
     setProbando(true);
     setResultadoPrueba(null);
-    saveSupabaseCredentials(supabaseUrl, supabaseKey);
+    const saved = saveSupabaseCredentials(supabaseUrl, supabaseKey);
+    if (!saved.ok) {
+      setResultadoPrueba({ ok: false, mensaje: saved.error || 'Credenciales inválidas.' });
+      setProbando(false);
+      return;
+    }
     const res = await probarConexionSupabase();
     setResultadoPrueba(res);
     setProbando(false);
+  };
+
+  const handleBorrarCredencialesSupabase = async () => {
+    await cerrarSesionSupabase();
+    clearSupabaseCredentials();
+    setSupabaseUrl('');
+    setSupabaseKey('');
+    setSesionActivaEmail(null);
+    setResultadoPrueba({ ok: true, mensaje: 'Credenciales borradas del navegador de forma segura.' });
+    onNotificar('Credenciales de Supabase eliminadas del navegador.');
+  };
+
+  const handleLoginSupabase = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setResultadoPrueba(null);
+    const res = await iniciarSesionSupabase(authEmail, authPassword);
+    setAuthLoading(false);
+    setResultadoPrueba({ ok: res.ok, mensaje: res.mensaje });
+    if (res.ok) {
+      setSesionActivaEmail(res.session?.user?.email || authEmail);
+      setAuthPassword('');
+      onNotificar('✓ Sesión autenticada en Supabase');
+    }
+  };
+
+  const handleLogoutSupabase = async () => {
+    await cerrarSesionSupabase();
+    setSesionActivaEmail(null);
+    setResultadoPrueba({ ok: true, mensaje: 'Sesión Supabase cerrada.' });
+    onNotificar('Sesión de Supabase cerrada.');
   };
 
   const copiarTexto = (texto: string, clave: string) => {
@@ -661,15 +716,19 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
                     </label>
                     <input
                       type="password"
+                      autoComplete="off"
                       placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                       value={supabaseKey}
                       onChange={(e) => setSupabaseKey(e.target.value)}
                       className="w-full text-xs font-mono p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                     />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Por seguridad, solo se permite la llave pública <code>anon</code>. Cualquier llave <code>service_role</code> es bloqueada automáticamente.
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 pt-2">
+                <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     type="button"
                     onClick={handleGuardarCredencialesSupabase}
@@ -691,6 +750,16 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
                     )}
                     Probar Conexión
                   </button>
+
+                  {isSupabaseConfigured() && (
+                    <button
+                      type="button"
+                      onClick={handleBorrarCredencialesSupabase}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs py-2 px-3.5 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Desconectar y Borrar Llaves
+                    </button>
+                  )}
                 </div>
 
                 {resultadoPrueba && (
@@ -699,8 +768,68 @@ export const ModalRespaldoSupabase: React.FC<ModalRespaldoSupabaseProps> = ({
                       ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                       : 'bg-rose-50 text-rose-800 border border-rose-200'
                   }`}>
-                    {resultadoPrueba.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertTriangle className="w-4 h-4 text-rose-600" />}
+                    {resultadoPrueba.ok ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
                     <span>{resultadoPrueba.mensaje}</span>
+                  </div>
+                )}
+
+                {/* Autenticación Staff (Supabase Auth) para RLS Estricto */}
+                {isSupabaseConfigured() && (
+                  <div className="pt-4 mt-4 border-t border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                        Autenticación Staff (Supabase Auth para RLS Estricto)
+                      </h5>
+                      {sesionActivaEmail && (
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Conectado: {sesionActivaEmail}
+                        </span>
+                      )}
+                    </div>
+
+                    {sesionActivaEmail ? (
+                      <div className="flex items-center justify-between p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs">
+                        <span className="text-emerald-900">
+                          Sesión autenticada activa. Las políticas RLS permiten lectura/escritura protegida.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleLogoutSupabase}
+                          className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 font-bold rounded-lg border border-slate-300 cursor-pointer shrink-0"
+                        >
+                          Cerrar Sesión
+                        </button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleLoginSupabase} className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <input
+                          type="email"
+                          required
+                          autoComplete="email"
+                          value={authEmail}
+                          onChange={(e) => setAuthEmail(e.target.value)}
+                          placeholder="Email usuario Supabase"
+                          className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                        />
+                        <input
+                          type="password"
+                          required
+                          autoComplete="current-password"
+                          value={authPassword}
+                          onChange={(e) => setAuthPassword(e.target.value)}
+                          placeholder="Contraseña"
+                          className="text-xs px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+                        />
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs py-2 px-4 rounded-lg cursor-pointer"
+                        >
+                          {authLoading ? 'Ingresando...' : 'Iniciar Sesión Staff'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 )}
               </div>

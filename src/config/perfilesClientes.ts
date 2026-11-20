@@ -672,51 +672,108 @@ export const LISTA_PERFILES_CLIENTES = [
 
 /* Helper para guardar con aislamiento seguro en localStorage */
 export const obtenerClaveStorageCliente = (clienteId: PerfilClienteId): string => {
-  return `propuesta_datos_v3_${clienteId}`;
+  const idSeguro = String(clienteId || 'modelo-base').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'modelo-base';
+  return `propuesta_datos_v3_${idSeguro}`;
 };
 
-export const cargarDatosCliente = (clienteId: PerfilClienteId): DatosPerfilCliente => {
+function buscarEmpresaGuardadaEnCatalogo(clienteId: string): EmpresaCliente | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const raw = localStorage.getItem('hlr_empresas_clientes');
+    if (raw) {
+      const lista = JSON.parse(raw) as EmpresaCliente[];
+      if (Array.isArray(lista)) {
+        const match = lista.find((e) => e && e.id === clienteId);
+        if (match) return match;
+      }
+    }
+  } catch {}
+  return EMPRESAS_INICIALES.find((e) => e.id === clienteId);
+}
+
+export const obtenerConfigPerfilCliente = (clienteId: PerfilClienteId, empresaCustom?: EmpresaCliente): PerfilClienteConfig => {
+  const estatico = (PERFILES_CLIENTES_CATALOGO as Record<string, PerfilClienteConfig>)[clienteId];
+  if (estatico) return estatico;
+
+  const baseConfig = PERFILES_CLIENTES_CATALOGO['modelo-base'];
+  const emp = empresaCustom || buscarEmpresaGuardadaEnCatalogo(clienteId);
+  if (!emp) return baseConfig;
+
+  return {
+    id: clienteId,
+    nombreOpcion: emp.nombre,
+    detalleOpcion: `${emp.recintoPrincipal || emp.ciudad || 'Centro Contratado'}`,
+    tituloCabecera: emp.tituloCabecera || `${emp.nombre} · ${emp.subtitulo || 'Sistema de Gestión & Banquetes'}`,
+    infraestructura: emp.infraestructura || `${emp.recintoPrincipal || emp.nombre} (${emp.ciudad || 'Chile'})`,
+    tarifaBaseArriendo: emp.tarifaBaseArriendo,
+    crearDatosIniciales: () => {
+      const plantilla = baseConfig.crearDatosIniciales();
+      return {
+        ...plantilla,
+        empresa: emp,
+        cotizacion: {
+          ...plantilla.cotizacion,
+          nombreEvento: `Evento Corporativo / Boda - ${emp.nombre}`,
+          observaciones: `Propuesta generada desde plataforma ${emp.nombre}.`
+        }
+      };
+    }
+  };
+};
+
+export const cargarDatosCliente = (clienteId: PerfilClienteId, empresaCustom?: EmpresaCliente): DatosPerfilCliente => {
   const clave = obtenerClaveStorageCliente(clienteId);
   const guardado = localStorage.getItem(clave);
-  const config = PERFILES_CLIENTES_CATALOGO[clienteId] || PERFILES_CLIENTES_CATALOGO['modelo-base'];
+  const esPerfilEstatico = Boolean((PERFILES_CLIENTES_CATALOGO as Record<string, PerfilClienteConfig>)[clienteId]);
+  const config = obtenerConfigPerfilCliente(clienteId, empresaCustom);
   const def = config.crearDatosIniciales();
   
   if (guardado) {
     try {
       const parsed = JSON.parse(guardado) as Partial<DatosPerfilCliente>;
       
-      // La empresa SIEMPRE adopta la estructura oficial del perfil seleccionado y hereda la imagen corporativa completa
+      // Para los 3 perfiles oficiales conserva su identidad corporativa; para nuevos centros contratados respeta los datos propios editados
       const empresaBase = def.empresa;
       const empresaGuardada: Partial<EmpresaCliente> = (parsed.empresa || {});
-      const empresaFinal: EmpresaCliente = {
-        ...empresaBase,
-        ...empresaGuardada,
-        id: empresaBase.id,
-        nombre: empresaBase.nombre,
-        subtitulo: empresaBase.subtitulo,
-        recintoPrincipal: empresaBase.recintoPrincipal,
-        letraLogo: empresaBase.letraLogo,
-        colorTema: empresaBase.colorTema,
-        tituloCabecera: empresaBase.tituloCabecera,
-        infraestructura: empresaBase.infraestructura,
-        razonSocialLegal: (empresaGuardada.razonSocialLegal && empresaGuardada.razonSocialLegal.trim().length > 0) ? empresaGuardada.razonSocialLegal : empresaBase.razonSocialLegal,
-        rutEmpresa: (empresaGuardada.rutEmpresa && empresaGuardada.rutEmpresa.trim().length > 0) ? empresaGuardada.rutEmpresa : empresaBase.rutEmpresa,
-        giroComercial: (empresaGuardada.giroComercial && empresaGuardada.giroComercial.trim().length > 0) ? empresaGuardada.giroComercial : empresaBase.giroComercial,
-        contactoResponsable: (empresaGuardada.contactoResponsable && empresaGuardada.contactoResponsable.trim().length > 0) ? empresaGuardada.contactoResponsable : empresaBase.contactoResponsable,
-        cargoResponsable: (empresaGuardada.cargoResponsable && empresaGuardada.cargoResponsable.trim().length > 0) ? empresaGuardada.cargoResponsable : empresaBase.cargoResponsable,
-        instagram: (empresaGuardada.instagram && empresaGuardada.instagram.trim().length > 0) ? empresaGuardada.instagram : empresaBase.instagram,
-        sitioWeb: (empresaGuardada.sitioWeb && empresaGuardada.sitioWeb.trim().length > 0) ? empresaGuardada.sitioWeb : empresaBase.sitioWeb,
-        email: (empresaGuardada.email && empresaGuardada.email.trim().length > 0) ? empresaGuardada.email : empresaBase.email,
-        telefono: (empresaBase.id === 'emp-damaris' && (!empresaGuardada.telefono || empresaGuardada.telefono.includes('7123') || empresaGuardada.telefono.includes('3118')))
-          ? '+56 9 6841 1419'
-          : ((empresaGuardada.telefono && empresaGuardada.telefono.trim().length > 0) ? empresaGuardada.telefono : empresaBase.telefono),
-        direccion: (empresaGuardada.direccion && empresaGuardada.direccion.trim().length > 0) ? empresaGuardada.direccion : empresaBase.direccion,
-        ciudad: (empresaGuardada.ciudad && empresaGuardada.ciudad.trim().length > 0) ? empresaGuardada.ciudad : empresaBase.ciudad,
-        datosBancarios: {
-          ...empresaBase.datosBancarios,
-          ...(empresaGuardada.datosBancarios || {})
-        }
-      };
+      const empresaFinal: EmpresaCliente = esPerfilEstatico
+        ? {
+            ...empresaBase,
+            ...empresaGuardada,
+            id: empresaBase.id,
+            nombre: empresaBase.nombre,
+            subtitulo: empresaBase.subtitulo,
+            recintoPrincipal: empresaBase.recintoPrincipal,
+            letraLogo: empresaBase.letraLogo,
+            colorTema: empresaBase.colorTema,
+            tituloCabecera: empresaBase.tituloCabecera,
+            infraestructura: empresaBase.infraestructura,
+            razonSocialLegal: (empresaGuardada.razonSocialLegal && empresaGuardada.razonSocialLegal.trim().length > 0) ? empresaGuardada.razonSocialLegal : empresaBase.razonSocialLegal,
+            rutEmpresa: (empresaGuardada.rutEmpresa && empresaGuardada.rutEmpresa.trim().length > 0) ? empresaGuardada.rutEmpresa : empresaBase.rutEmpresa,
+            giroComercial: (empresaGuardada.giroComercial && empresaGuardada.giroComercial.trim().length > 0) ? empresaGuardada.giroComercial : empresaBase.giroComercial,
+            contactoResponsable: (empresaGuardada.contactoResponsable && empresaGuardada.contactoResponsable.trim().length > 0) ? empresaGuardada.contactoResponsable : empresaBase.contactoResponsable,
+            cargoResponsable: (empresaGuardada.cargoResponsable && empresaGuardada.cargoResponsable.trim().length > 0) ? empresaGuardada.cargoResponsable : empresaBase.cargoResponsable,
+            instagram: (empresaGuardada.instagram && empresaGuardada.instagram.trim().length > 0) ? empresaGuardada.instagram : empresaBase.instagram,
+            sitioWeb: (empresaGuardada.sitioWeb && empresaGuardada.sitioWeb.trim().length > 0) ? empresaGuardada.sitioWeb : empresaBase.sitioWeb,
+            email: (empresaGuardada.email && empresaGuardada.email.trim().length > 0) ? empresaGuardada.email : empresaBase.email,
+            telefono: (empresaBase.id === 'emp-damaris' && (!empresaGuardada.telefono || empresaGuardada.telefono.includes('7123') || empresaGuardada.telefono.includes('3118')))
+              ? '+56 9 6841 1419'
+              : ((empresaGuardada.telefono && empresaGuardada.telefono.trim().length > 0) ? empresaGuardada.telefono : empresaBase.telefono),
+            direccion: (empresaGuardada.direccion && empresaGuardada.direccion.trim().length > 0) ? empresaGuardada.direccion : empresaBase.direccion,
+            ciudad: (empresaGuardada.ciudad && empresaGuardada.ciudad.trim().length > 0) ? empresaGuardada.ciudad : empresaBase.ciudad,
+            datosBancarios: {
+              ...empresaBase.datosBancarios,
+              ...(empresaGuardada.datosBancarios || {})
+            }
+          }
+        : {
+            ...empresaBase,
+            ...empresaGuardada,
+            id: empresaCustom?.id || empresaGuardada.id || empresaBase.id,
+            datosBancarios: {
+              ...(empresaBase.datosBancarios || {}),
+              ...(empresaGuardada.datosBancarios || {})
+            }
+          };
 
       const rawProveedores = parsed.proveedores && parsed.proveedores.length > 0 ? parsed.proveedores : def.proveedores;
       const proveedoresLimpios = rawProveedores.filter(p => p.id !== 'arriendo-locacion-damaris' && !p.id.includes('gasto-fijo'));

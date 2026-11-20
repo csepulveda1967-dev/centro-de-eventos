@@ -5,6 +5,12 @@
  * cuántos PDFs genera y cuándo fue su última interacción.
  */
 
+import {
+  EventoTelemetriaRemota,
+  isSupabaseConfigured,
+  registrarEventoDemoEnSupabase
+} from '../lib/supabase';
+
 export interface EventoActividadDemo {
   id: string;
   tipo: 'visita' | 'cotizacion' | 'invitados' | 'menu' | 'pdf' | 'whatsapp' | 'recetas' | 'proveedores' | 'calendario';
@@ -12,6 +18,7 @@ export interface EventoActividadDemo {
   centroId: string;
   centroNombre: string;
   timestamp: number;
+  origen?: 'local' | 'nube';
 }
 
 export interface MetricasCentroDemo {
@@ -38,6 +45,21 @@ export interface RegistroMetricasDemo {
 
 const STORAGE_KEY = 'solvi_demo_telemetria_v1';
 const ULTIMO_EVENTO_TIMESTAMP_KEY = 'solvi_demo_last_event_ts';
+const SESION_ID_KEY = 'solvi_demo_sesion_uuid_v1';
+
+function obtenerSesionIdLocal(): string {
+  if (typeof window === 'undefined') return 'web';
+  try {
+    let sid = sessionStorage.getItem(SESION_ID_KEY);
+    if (!sid) {
+      sid = `ses-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+      sessionStorage.setItem(SESION_ID_KEY, sid);
+    }
+    return sid;
+  } catch {
+    return `ses-${Date.now().toString(36)}`;
+  }
+}
 
 export const METRICAS_VACIAS: RegistroMetricasDemo = {
   primeraVisita: Date.now(),
@@ -84,6 +106,88 @@ export const METRICAS_VACIAS: RegistroMetricasDemo = {
 };
 
 /**
+ * Construye métricas estructuradas desde eventos remotos guardados en Supabase `demo_telemetria`
+ */
+export function construirMetricasDesdeEventosRemotos(eventosRemotos: EventoTelemetriaRemota[]): RegistroMetricasDemo {
+  const base: RegistroMetricasDemo = {
+    primeraVisita: Date.now(),
+    ultimaActividad: 0,
+    totalInteracciones: eventosRemotos.length,
+    sesionesIniciadas: 0,
+    tiempoTotalMinutos: 0,
+    porCentro: {
+      'damaris-eventos': { ...METRICAS_VACIAS.porCentro['damaris-eventos'] },
+      'dominga-eventos': { ...METRICAS_VACIAS.porCentro['dominga-eventos'] },
+      'modelo-base': { ...METRICAS_VACIAS.porCentro['modelo-base'] }
+    },
+    historialEventos: []
+  };
+
+  if (eventosRemotos.length === 0) {
+    return { ...base, ultimaActividad: 0, totalInteracciones: 0 };
+  }
+
+  const sesionesUnicas = new Set<string>();
+  let minTs = Number.MAX_SAFE_INTEGER;
+  let maxTs = 0;
+
+  const historial: EventoActividadDemo[] = eventosRemotos.map((ev) => {
+    const ts = new Date(ev.created_at).getTime() || Date.now();
+    if (ts < minTs) minTs = ts;
+    if (ts > maxTs) maxTs = ts;
+    if (ev.sesion_id) sesionesUnicas.add(ev.sesion_id);
+
+    if (!base.porCentro[ev.centro_id]) {
+      base.porCentro[ev.centro_id] = {
+        centroId: ev.centro_id,
+        centroNombre: ev.centro_nombre || ev.centro_id,
+        totalAcciones: 0,
+        cotizacionesCalculadas: 0,
+        fichasPdfVistas: 0,
+        propuestasWhatsApp: 0,
+        recetasConsultadas: 0,
+        ultimaActividad: null,
+        minutosUsoEstimados: 0
+      };
+    }
+
+    const c = base.porCentro[ev.centro_id];
+    c.totalAcciones += 1;
+    if (!c.ultimaActividad || ts > c.ultimaActividad) {
+      c.ultimaActividad = ts;
+    }
+
+    if (ev.tipo === 'cotizacion' || ev.tipo === 'invitados' || ev.tipo === 'menu') {
+      c.cotizacionesCalculadas += 1;
+    } else if (ev.tipo === 'pdf') {
+      c.fichasPdfVistas += 1;
+    } else if (ev.tipo === 'whatsapp') {
+      c.propuestasWhatsApp += 1;
+    } else if (ev.tipo === 'recetas') {
+      c.recetasConsultadas += 1;
+    }
+
+    return {
+      id: ev.id,
+      tipo: ev.tipo,
+      detalle: ev.detalle || ev.tipo,
+      centroId: ev.centro_id,
+      centroNombre: ev.centro_nombre || ev.centro_id,
+      timestamp: ts,
+      origen: 'nube'
+    };
+  });
+
+  base.primeraVisita = minTs === Number.MAX_SAFE_INTEGER ? Date.now() : minTs;
+  base.ultimaActividad = maxTs;
+  base.sesionesIniciadas = Math.max(1, sesionesUnicas.size);
+  base.tiempoTotalMinutos = Math.max(1, Math.round(eventosRemotos.length * 1.5));
+  base.historialEventos = historial;
+
+  return base;
+}
+
+/**
  * Obtiene las métricas actuales del demo desde localStorage
  */
 export function obtenerMetricasDemo(): RegistroMetricasDemo {
@@ -98,7 +202,7 @@ export function obtenerMetricasDemo(): RegistroMetricasDemo {
     }
     const parsed: RegistroMetricasDemo = JSON.parse(raw);
     
-    // Garantizar que todos los centros existan
+    // Garantizar que todos los centros base existan
     if (!parsed.porCentro) parsed.porCentro = {};
     for (const [key, val] of Object.entries(METRICAS_VACIAS.porCentro)) {
       if (!parsed.porCentro[key]) {
@@ -116,7 +220,7 @@ export function obtenerMetricasDemo(): RegistroMetricasDemo {
 }
 
 /**
- * Registra una acción o evento de uso en el demo
+ * Registra una acción o evento de uso en el demo (Local + Nube Supabase si está configurado)
  */
 export function registrarActividadDemo(
   tipo: EventoActividadDemo['tipo'],
@@ -168,19 +272,33 @@ export function registrarActividadDemo(
       centro.recetasConsultadas += 1;
     }
 
-    // Agregar al historial de eventos (guardar los últimos 60)
+    const eventoId = `ev-${ahora}-${Math.random().toString(36).slice(2, 6)}`;
     const nuevoEvento: EventoActividadDemo = {
-      id: `ev-${ahora}-${Math.random().toString(36).slice(2, 6)}`,
+      id: eventoId,
       tipo,
       detalle,
       centroId,
       centroNombre,
-      timestamp: ahora
+      timestamp: ahora,
+      origen: 'local'
     };
 
     datos.historialEventos = [nuevoEvento, ...datos.historialEventos.slice(0, 59)];
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(datos));
+
+    // Envío silencioso y seguro a Supabase si está configurado (permite ver uso real de Dominga/Damaris desde otro PC/celular)
+    if (isSupabaseConfigured()) {
+      void registrarEventoDemoEnSupabase({
+        id: eventoId,
+        centroId,
+        centroNombre,
+        tipo,
+        detalle,
+        sesionId: obtenerSesionIdLocal()
+      });
+    }
+
     return datos;
   } catch (e) {
     console.error('Error registrando actividad demo:', e);

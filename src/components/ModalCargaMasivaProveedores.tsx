@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { ProveedorServicio } from '../types';
 import { formatMoneda } from '../utils/formatters';
+import { escaparCeldaCSV, sanitizarNumero, sanitizarTexto, validarTamanoArchivo } from '../utils/security';
 import {
   X,
   FileSpreadsheet,
@@ -194,7 +195,7 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
   const handleDescargarPlantillaCSV = () => {
     const encabezados = 'Nombre;Tipo Cobro;Costo Real;Precio Venta Sugerido;Categoria;Contacto;Telefono;Email;Plazo;Descripcion\n';
     const filas = PROVEEDORES_PLANTILLA_EJEMPLO.map(p =>
-      `"${p.nombre}";"${p.tipoCobro}";${p.costo};${p.precioVentaSugerido};"${p.categoria}";"${p.contactoNombre}";"${p.telefonoPedidos}";"${p.emailPedidos}";"${p.plazoAnticipacion}";"${p.descripcion.replace(/"/g, '""')}"`
+      `${escaparCeldaCSV(p.nombre)};${escaparCeldaCSV(p.tipoCobro)};${p.costo};${p.precioVentaSugerido};${escaparCeldaCSV(p.categoria)};${escaparCeldaCSV(p.contactoNombre)};${escaparCeldaCSV(p.telefonoPedidos)};${escaparCeldaCSV(p.emailPedidos)};${escaparCeldaCSV(p.plazoAnticipacion)};${escaparCeldaCSV(p.descripcion)}`
     ).join('\n');
 
     const csvContent = '\uFEFF' + encabezados + filas;
@@ -206,7 +207,7 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   // ── LIMPIEZA Y PARSEO DE NUMEROS ──
@@ -262,25 +263,25 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
     }
 
     const resultado: ProveedorServicio[] = [];
+    const maxFilas = Math.min(filas.length, 501);
 
-    for (let i = 1; i < filas.length; i++) {
+    for (let i = 1; i < maxFilas; i++) {
       const fila = filas[i];
       if (!fila || fila.length === 0) continue;
 
-      const nombre = String(fila[idxNombre] || '').trim();
+      const nombre = sanitizarTexto(fila[idxNombre], 180);
       if (!nombre) continue; // Saltar filas vacías
 
-      const tipoRaw = idxTipo !== -1 ? String(fila[idxTipo] || '').trim().toLowerCase() : '';
+      const tipoRaw = idxTipo !== -1 ? sanitizarTexto(fila[idxTipo], 60).toLowerCase() : '';
       const esPorPersona = tipoRaw.includes('persona') || tipoRaw.includes('pax') || tipoRaw.includes('comensal') || tipoRaw === 'por_persona';
 
-      const costo = idxCosto !== -1 ? limpiarNumero(fila[idxCosto]) : 0;
-      let precioVenta = idxPrecioVenta !== -1 ? limpiarNumero(fila[idxPrecioVenta]) : 0;
+      const costo = idxCosto !== -1 ? sanitizarNumero(limpiarNumero(fila[idxCosto]), 0, 100_000_000, 0) : 0;
+      let precioVenta = idxPrecioVenta !== -1 ? sanitizarNumero(limpiarNumero(fila[idxPrecioVenta]), 0, 100_000_000, 0) : 0;
       if (precioVenta <= 0 && costo > 0) {
-        // Margen por defecto ~35%
         precioVenta = Math.round(costo / 0.65);
       }
 
-      const catRaw = idxCat !== -1 ? String(fila[idxCat] || '').trim().toLowerCase() : 'tecnica';
+      const catRaw = idxCat !== -1 ? sanitizarTexto(fila[idxCat], 60).toLowerCase() : 'tecnica';
       let categoria: ProveedorServicio['categoria'] = 'tecnica';
       if (catRaw.includes('bar')) categoria = 'bar';
       else if (catRaw.includes('vajilla')) categoria = 'vajilla';
@@ -288,11 +289,11 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
       else if (catRaw.includes('cobertura') || catRaw.includes('foto')) categoria = 'cobertura';
       else if (catRaw.includes('coctel') || catRaw.includes('cafe')) categoria = 'cocteleria';
 
-      const contactoNombre = idxContacto !== -1 ? String(fila[idxContacto] || '').trim() : '';
-      const telefonoPedidos = idxTelefono !== -1 ? String(fila[idxTelefono] || '').trim() : '';
-      const emailPedidos = idxEmail !== -1 ? String(fila[idxEmail] || '').trim() : '';
-      const plazoAnticipacion = idxPlazo !== -1 ? String(fila[idxPlazo] || '').trim() : '';
-      const descripcion = (idxDesc !== -1 && idxDesc !== idxNombre ? String(fila[idxDesc] || '').trim() : '') ||
+      const contactoNombre = idxContacto !== -1 ? sanitizarTexto(fila[idxContacto], 120) : '';
+      const telefonoPedidos = idxTelefono !== -1 ? sanitizarTexto(fila[idxTelefono], 40) : '';
+      const emailPedidos = idxEmail !== -1 ? sanitizarTexto(fila[idxEmail], 140) : '';
+      const plazoAnticipacion = idxPlazo !== -1 ? sanitizarTexto(fila[idxPlazo], 80) : '';
+      const descripcion = (idxDesc !== -1 && idxDesc !== idxNombre ? sanitizarTexto(fila[idxDesc], 500, true) : '') ||
         `Servicio externalizado de ${nombre}. Coordinación y logística para bodas.`;
 
       const id = `prov-isidora-${Date.now()}-${i}`;
@@ -324,6 +325,11 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
   // ── MANEJO DE ARCHIVO EXCEL / CSV ──
   const procesarArchivo = (file: File) => {
     setErrorParseo(null);
+    const checkSize = validarTamanoArchivo(file, 5);
+    if (!checkSize.ok) {
+      setErrorParseo(checkSize.error || 'Archivo demasiado grande.');
+      return;
+    }
     setArchivoNombre(file.name);
 
     const reader = new FileReader();
@@ -332,16 +338,15 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
         const data = e.target?.result;
         let filas: any[][] = [];
 
-        if (file.name.endsWith('.csv')) {
+        if (file.name.toLowerCase().endsWith('.csv')) {
           const texto = new TextDecoder('utf-8').decode(data as ArrayBuffer);
-          // Detectar delimitador (';', ',', '\t')
           const primeraLinea = texto.split('\n')[0] || '';
           const delimitador = primeraLinea.includes(';') ? ';' : primeraLinea.includes('\t') ? '\t' : ',';
           filas = texto
             .split(/\r?\n/)
             .filter(l => l.trim().length > 0)
+            .slice(0, 505)
             .map(linea => {
-              // Regex para respetar comillas
               const regex = new RegExp(`(?:^|${delimitador})(?:"([^"]*(?:""[^"]*)*)"|([^"${delimitador}]*))`, 'g');
               const celdas: string[] = [];
               let match;
@@ -352,11 +357,10 @@ export const ModalCargaMasivaProveedores: React.FC<ModalCargaMasivaProveedoresPr
               return celdas;
             });
         } else {
-          // Archivo XLSX o XLS nativo
           const wb = XLSX.read(data, { type: 'array' });
           const firstSheetName = wb.SheetNames[0];
           const ws = wb.Sheets[firstSheetName];
-          filas = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+          filas = (XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][]).slice(0, 505);
         }
 
         const proveedoresParseados = procesarMatrizAProveedores(filas);

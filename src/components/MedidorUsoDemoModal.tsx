@@ -1,29 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Activity,
   Gauge,
   TrendingUp,
   Clock,
-  FileText,
-  MessageCircle,
   Calculator,
   Building2,
   RefreshCw,
   Trash2,
   Copy,
   Check,
-  AlertCircle,
-  Calendar,
-  Sparkles
+  Cloud,
+  Laptop,
+  ShieldAlert
 } from 'lucide-react';
 import {
   RegistroMetricasDemo,
   obtenerMetricasDemo,
   calcularNivelUso,
   reiniciarMetricasDemo,
-  formatearTiempoRelativo
+  formatearTiempoRelativo,
+  construirMetricasDesdeEventosRemotos
 } from '../utils/medidorDemoHelper';
+import {
+  cargarTelemetriaDemoDesdeSupabase,
+  isSupabaseConfigured,
+  limpiarTelemetriaDemoEnSupabase
+} from '../lib/supabase';
 import { PerfilClienteId } from '../types';
 
 interface MedidorUsoDemoModalProps {
@@ -32,42 +36,92 @@ interface MedidorUsoDemoModalProps {
   clienteActivoId: PerfilClienteId;
   diasRestantesDemo?: number;
   onCambiarCliente?: (id: PerfilClienteId) => void;
+  onAbrirRespaldo?: () => void;
 }
 
 export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
   isOpen,
   onClose,
-  clienteActivoId,
   diasRestantesDemo = 30,
-  onCambiarCliente
+  onAbrirRespaldo
 }) => {
-  const [metricas, setMetricas] = useState<RegistroMetricasDemo>(obtenerMetricasDemo);
+  const [metricasLocales, setMetricasLocales] = useState<RegistroMetricasDemo>(obtenerMetricasDemo);
+  const [metricasNube, setMetricasNube] = useState<RegistroMetricasDemo | null>(null);
+  const [fuente, setFuente] = useState<'nube' | 'local'>(() => (isSupabaseConfigured() ? 'nube' : 'local'));
+  const [cargandoNube, setCargandoNube] = useState(false);
+  const [estadoNubeMsg, setEstadoNubeMsg] = useState<string | null>(null);
+  const [requiereAuthNube, setRequiereAuthNube] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [filtroCentro, setFiltroCentro] = useState<string>('todos');
+
+  const supabaseActivo = isSupabaseConfigured();
+
+  const sincronizarNube = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setMetricasNube(null);
+      setRequiereAuthNube(false);
+      setEstadoNubeMsg(
+        'Modo Local: Supabase aún no está conectado en esta compilación. Para saber si Dominga o Damaris abren el demo desde sus dispositivos, configura VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.'
+      );
+      return;
+    }
+
+    setCargandoNube(true);
+    const res = await cargarTelemetriaDemoDesdeSupabase(250);
+    setCargandoNube(false);
+
+    if (res.ok && res.eventos) {
+      setMetricasNube(construirMetricasDesdeEventosRemotos(res.eventos));
+      setRequiereAuthNube(false);
+      setEstadoNubeMsg(
+        res.eventos.length > 0
+          ? `Telemetría en vivo desde Supabase (${res.eventos.length} eventos registrados desde cualquier dispositivo).`
+          : 'Conectado a Supabase correctamente, aún sin eventos remotos registrados.'
+      );
+    } else {
+      setMetricasNube(null);
+      setRequiereAuthNube(Boolean(res.requiereAuth));
+      setEstadoNubeMsg(res.error || 'No se pudo consultar la telemetría remota.');
+    }
+  }, []);
 
   // Actualizar métricas cada 5 segundos si el modal está abierto
   useEffect(() => {
     if (!isOpen) return;
-    setMetricas(obtenerMetricasDemo());
+    setMetricasLocales(obtenerMetricasDemo());
+    void sincronizarNube();
+
     const interval = setInterval(() => {
-      setMetricas(obtenerMetricasDemo());
+      setMetricasLocales(obtenerMetricasDemo());
     }, 5000);
     return () => clearInterval(interval);
-  }, [isOpen]);
+  }, [isOpen, sincronizarNube]);
 
   if (!isOpen) return null;
 
+  const metricas = fuente === 'nube' && metricasNube ? metricasNube : metricasLocales;
   const evaluacion = calcularNivelUso(metricas);
 
-  const handleReiniciar = () => {
-    if (window.confirm('¿Deseas reiniciar a cero las métricas y el historial de uso del demo?\n\nHaz esto únicamente cuando entregues el demo a un nuevo cliente.')) {
+  const handleReiniciar = async () => {
+    if (
+      window.confirm(
+        '¿Deseas reiniciar a cero las métricas y el historial de uso del demo?\n\nHaz esto únicamente cuando entregues el demo a un nuevo cliente.'
+      )
+    ) {
       const nuevo = reiniciarMetricasDemo();
-      setMetricas(nuevo);
+      setMetricasLocales(nuevo);
+      if (fuente === 'nube' && supabaseActivo && !requiereAuthNube) {
+        const res = await limpiarTelemetriaDemoEnSupabase();
+        if (res.ok) {
+          await sincronizarNube();
+        }
+      }
     }
   };
 
   const handleCopiarReporte = async () => {
-    const texto = `📊 *REPORTE DE ACTIVIDAD Y USO DEL DEMO (SOLVI FLOW)*\n` +
+    const origenTxt = fuente === 'nube' && metricasNube ? 'Nube Supabase (Remoto)' : 'Navegador Local';
+    const texto = `📊 *REPORTE DE ACTIVIDAD Y USO DEL DEMO (SOLVI FLOW - ${origenTxt})*\n` +
       `• *Nivel de Uso:* ${evaluacion.porcentaje}% (${evaluacion.nivelTexto})\n` +
       `• *Estado:* ${evaluacion.estadoTexto}\n` +
       `• *Última interacción:* ${formatearTiempoRelativo(metricas.ultimaActividad)}\n` +
@@ -97,7 +151,6 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
   const totalCotizaciones = Object.values(metricas.porCentro).reduce((acc, c) => acc + c.cotizacionesCalculadas, 0);
   const totalPdfs = Object.values(metricas.porCentro).reduce((acc, c) => acc + c.fichasPdfVistas, 0);
   const totalWhatsApps = Object.values(metricas.porCentro).reduce((acc, c) => acc + c.propuestasWhatsApp, 0);
-  const totalRecetas = Object.values(metricas.porCentro).reduce((acc, c) => acc + c.recetasConsultadas, 0);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5">
@@ -110,7 +163,7 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
               <Gauge className="w-5 h-5 text-indigo-300" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base sm:text-lg font-black tracking-tight">
                   Medidor de Uso del Demo
                 </h3>
@@ -119,7 +172,7 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-300">
-                Monitorea en tiempo real si el cliente está usando el demo, qué centros cotiza y cuándo fue su última acción
+                Monitorea si Dominga, Damaris o nuevos centros contratados están usando su enlace y qué módulos prueban
               </p>
             </div>
           </div>
@@ -133,8 +186,86 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
           </button>
         </div>
 
+        {/* Selector de Fuente: Nube Supabase vs Navegador Local */}
+        <div className="px-5 py-3 bg-slate-100 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 w-fit">
+            <button
+              type="button"
+              onClick={() => setFuente('nube')}
+              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                fuente === 'nube'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Nube Remota (Clientes)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFuente('local')}
+              className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                fuente === 'local'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Laptop className="w-3.5 h-3.5" />
+              <span>Este Navegador</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {supabaseActivo && (
+              <button
+                type="button"
+                onClick={sincronizarNube}
+                disabled={cargandoNube}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 rounded-xl font-bold transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${cargandoNube ? 'animate-spin' : ''}`} />
+                <span>{cargandoNube ? 'Consultando...' : 'Actualizar Nube'}</span>
+              </button>
+            )}
+            {onAbrirRespaldo && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onAbrirRespaldo();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-xl font-bold transition-colors cursor-pointer"
+              >
+                <span>Configurar Supabase / Auth</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Contenido scrolleable */}
         <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-6 bg-slate-50/60">
+
+          {/* Banner Diagnóstico Nube / Demos Entregados */}
+          {fuente === 'nube' && (!supabaseActivo || requiereAuthNube || !metricasNube) && (
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-extrabold">
+                  {!supabaseActivo
+                    ? 'Aún estás viendo métricas locales (no conectadas entre PCs distintos)'
+                    : requiereAuthNube
+                    ? 'Sesión de Administrador requerida en Supabase Auth para leer telemetría remota'
+                    : 'Estado de conexión con telemetría remota'}
+                </p>
+                <p className="text-[11px] leading-relaxed text-amber-900">
+                  {estadoNubeMsg}
+                </p>
+                <p className="text-[11px] leading-relaxed text-amber-800">
+                  <strong>Importante sobre Dominga y Damaris:</strong> Los enlaces que ya entregaste (<code>?centro=dominga</code> y <code>?centro=damaris</code>) siguen funcionando normalmente. Al agregar tus llaves <code>VITE_SUPABASE_URL</code> y <code>VITE_SUPABASE_ANON_KEY</code> en los Secrets de GitHub y ejecutar el SQL de <code>demo_telemetria</code> en Supabase, esos mismos enlaces comenzarán a enviarte la actividad aquí sin tener que reenviar URLs nuevas.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* TARJETA PRINCIPAL: VELOCÍMETRO / MEDIDOR DE INTENSIDAD */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
@@ -293,7 +424,7 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
           <div>
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-amber-600" />
-              ¿Qué Centros de Eventos ha Probado el Cliente?
+              ¿Qué Centros de Eventos han Sido Probados?
             </h4>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -366,9 +497,11 @@ export const MedidorUsoDemoModal: React.FC<MedidorUsoDemoModalProps> = ({
                   className="text-xs font-bold bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-hidden"
                 >
                   <option value="todos">Todos los centros</option>
-                  <option value="damaris-eventos">Damaris</option>
-                  <option value="dominga-eventos">Dominga</option>
-                  <option value="modelo-base">Demo Base</option>
+                  {Object.values(metricas.porCentro).map((c) => (
+                    <option key={c.centroId} value={c.centroId}>
+                      {c.centroNombre}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

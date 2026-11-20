@@ -257,7 +257,7 @@ export interface ResumenFinanciero {
   utilidadRealObtenida: number; // Ganancia líquida real en CLP según el precio cobrado
 }
 
-export type PerfilClienteId = 'modelo-base' | 'dominga-eventos' | 'damaris-eventos';
+export type PerfilClienteId = 'modelo-base' | 'dominga-eventos' | 'damaris-eventos' | (string & {});
 
 export interface EmpresaCliente {
   id: string;

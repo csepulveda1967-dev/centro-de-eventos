@@ -38,6 +38,7 @@ import {
 } from './config/insumosYRecetas';
 import {
   PERFILES_CLIENTES_CATALOGO,
+  obtenerConfigPerfilCliente,
   cargarDatosCliente,
   guardarDatosCliente,
   DatosPerfilCliente
@@ -64,6 +65,7 @@ import { ModalPropuestaWhatsApp } from './components/ModalPropuestaWhatsApp';
 import { ModalFormularioEmpresaContacto } from './components/ModalFormularioEmpresaContacto';
 import { ModalDireccionesWeb } from './components/ModalDireccionesWeb';
 import { MedidorUsoDemoModal } from './components/MedidorUsoDemoModal';
+import { ModalSeguridadDatos, ModalLoginAdminSeguro } from './components/ModalSeguridadDatos';
 import {
   registrarActividadDemo,
   registrarSesionDemo,
@@ -79,6 +81,10 @@ import {
   guardarInsumoEnSupabase,
   eliminarInsumoEnSupabase,
   cargarInsumosDesdeSupabase,
+  guardarEmpresaEnSupabase,
+  cargarEmpresasDesdeSupabase,
+  guardarCotizacionEnSupabase,
+  guardarReservaEnSupabase,
   isSupabaseConfigured
 } from './lib/supabase';
 import { PaqueteRespaldoCompleto, descargarRespaldoJSON, descargarRespaldoSQL } from './utils/respaldoDiscoDuro';
@@ -127,7 +133,7 @@ export default function App() {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('hlr_perfil_cliente_activo') as PerfilClienteId;
-        if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos')) {
+        if (saved && (saved === 'modelo-base' || saved === 'dominga-eventos' || saved === 'damaris-eventos' || saved.startsWith('emp-'))) {
           return saved;
         }
       } catch {}
@@ -201,26 +207,42 @@ export default function App() {
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState(false);
   const [modalDireccionesOpen, setModalDireccionesOpen] = useState(false);
   const [modalMedidorDemoOpen, setModalMedidorDemoOpen] = useState(false);
+  const [modalSeguridadOpen, setModalSeguridadOpen] = useState(false);
+  const [modalLoginAdminOpen, setModalLoginAdminOpen] = useState(false);
+  const [accionPostLoginAdmin, setAccionPostLoginAdmin] = useState<'toggle-admin' | 'liberar-demo'>('toggle-admin');
   const [toastMensaje, setToastMensaje] = useState<string | null>(null);
 
   const handleGuardarEmpresaContacto = (empresaActualizada: EmpresaCliente, crearComoNueva?: boolean) => {
+    const listaActualizada = crearComoNueva
+      ? [...empresas.filter(e => e.id !== empresaActualizada.id), empresaActualizada]
+      : empresas.some(e => e.id === empresaActualizada.id)
+      ? empresas.map(e => e.id === empresaActualizada.id ? empresaActualizada : e)
+      : [...empresas, empresaActualizada];
+
+    setEmpresas(listaActualizada);
+    setEmpresaActiva(empresaActualizada);
+
+    const destinoId: PerfilClienteId = crearComoNueva
+      ? empresaActualizada.id
+      : clienteActivoId;
+
     if (crearComoNueva) {
-      setEmpresas(prev => [...prev, empresaActualizada]);
-      setEmpresaActiva(empresaActualizada);
+      const datosNuevoEspacio = cargarDatosCliente(empresaActualizada.id, empresaActualizada);
+      setClienteActivoId(empresaActualizada.id);
+      setCotizacion(datosNuevoEspacio.cotizacion);
+      setInsumos(datosNuevoEspacio.insumos);
+      setRecetas(datosNuevoEspacio.recetas);
+      setMenus(datosNuevoEspacio.menus);
+      setTarifasStaff(datosNuevoEspacio.tarifasStaff);
+      setProveedores(datosNuevoEspacio.proveedores);
+      setEstilosDecoracion(datosNuevoEspacio.estilosDecoracion);
+      setReservas(datosNuevoEspacio.reservas);
       mostrarToast(`✓ Nueva empresa "${empresaActualizada.nombre}" creada y activada`);
     } else {
-      setEmpresaActiva(empresaActualizada);
-      setEmpresas(prev => {
-        const existe = prev.some(e => e.id === empresaActualizada.id);
-        if (existe) {
-          return prev.map(e => e.id === empresaActualizada.id ? empresaActualizada : e);
-        }
-        return [...prev, empresaActualizada];
-      });
       mostrarToast(`✓ Ficha de "${empresaActualizada.nombre}" guardada y actualizada`);
     }
 
-    // Persistir en el perfil de cliente activo
+    // Persistir en el perfil de cliente activo / nuevo + protocolo BD Supabase
     try {
       const datosActuales: DatosPerfilCliente = {
         cotizacion,
@@ -233,10 +255,20 @@ export default function App() {
         reservas,
         empresa: empresaActualizada
       };
-      guardarDatosCliente(clienteActivoId, datosActuales);
-      localStorage.setItem('hlr_empresas_clientes', JSON.stringify(empresas));
+      if (!crearComoNueva) {
+        guardarDatosCliente(destinoId, datosActuales);
+      }
+      localStorage.setItem('hlr_empresas_clientes', JSON.stringify(listaActualizada));
     } catch (e) {
       console.error('Error guardando empresa en localStorage:', e);
+    }
+
+    if (isSupabaseConfigured()) {
+      void guardarEmpresaEnSupabase(empresaActualizada).then((res) => {
+        if (res.ok) {
+          mostrarToast(`☁️ "${empresaActualizada.nombre}" sincronizada con la BD Supabase`);
+        }
+      });
     }
   };
 
@@ -260,25 +292,29 @@ export default function App() {
     }
   });
 
+  const activarModoAdminDirecto = () => {
+    setModoAdmin(true);
+    try {
+      localStorage.setItem('solvi_flow_modo_admin', 'true');
+    } catch {}
+    mostrarToast('🔓 Modo Administrador Activado (Sesión verificada con PIN SHA-256)');
+  };
+
+  const cerrarModoAdminDirecto = () => {
+    setModoAdmin(false);
+    try {
+      localStorage.setItem('solvi_flow_modo_admin', 'false');
+    } catch {}
+    mostrarToast('🔒 Modo Demo Activado (Centro de eventos fijado y protegido)');
+  };
+
   const toggleModoAdmin = () => {
     if (!modoAdmin) {
-      const claveMaestra = localStorage.getItem('solvi_admin_master_pin') || '1967';
-      const clave = window.prompt('🔒 Modo Administrador:\nIngresa tu clave maestra para desbloquear el cambio de centros de eventos y configuración:\n(Clave inicial por defecto: 1967)');
-      if (clave === null) return; // Cancelado por el usuario
-      const claveLimpia = clave.trim();
-      if (claveLimpia !== claveMaestra && claveLimpia.toLowerCase() !== 'admin') {
-        alert('❌ Clave incorrecta. El centro de eventos continúa protegido en Modo Demo.');
-        return;
-      }
+      setAccionPostLoginAdmin('toggle-admin');
+      setModalLoginAdminOpen(true);
+      return;
     }
-    setModoAdmin(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem('solvi_flow_modo_admin', String(next));
-      } catch {}
-      mostrarToast(next ? '🔓 Modo Administrador Activado (Centros de eventos desbloqueados)' : '🔒 Modo Demo Activado (Centro de eventos fijado y protegido)');
-      return next;
-    });
+    cerrarModoAdminDirecto();
   };
 
   // ── Licencia Definitiva (Ilimitada sin caducidad) & Control de Demo de 30 Días ──
@@ -390,16 +426,42 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [modoAdmin]);
 
   const mostrarToast = (msg: string) => {
     setToastMensaje(msg);
     setTimeout(() => setToastMensaje(null), 3500);
   };
 
-  // Sincronización automática de insumos con Supabase si está conectado
+  // Sincronización automática de empresas e insumos con Supabase si está conectado
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
+
+    cargarEmpresasDesdeSupabase().then(resEmp => {
+      if (resEmp.ok && resEmp.empresas && resEmp.empresas.length > 0) {
+        setEmpresas(prev => {
+          const mapa = new Map<string, EmpresaCliente>();
+          prev.forEach(e => mapa.set(e.id, e));
+          resEmp.empresas!.forEach(e => {
+            const actual = mapa.get(e.id);
+            mapa.set(e.id, actual ? { ...actual, ...e } : e);
+          });
+          const combinadas = Array.from(mapa.values());
+          try {
+            localStorage.setItem('hlr_empresas_clientes', JSON.stringify(combinadas));
+          } catch {}
+          return combinadas;
+        });
+
+        const matchActiva = resEmp.empresas.find(
+          e => e.id === clienteActivoId || e.id === empresaActiva.id
+        );
+        if (matchActiva && !['emp-damaris', 'emp-dominga', 'emp-isidora'].includes(matchActiva.id)) {
+          setEmpresaActiva(prev => ({ ...prev, ...matchActiva }));
+        }
+      }
+    });
+
     cargarInsumosDesdeSupabase(empresaActiva.id).then(resultado => {
       if (resultado.ok && resultado.insumos && resultado.insumos.length > 0) {
         const insumosRemotos = resultado.insumos;
@@ -467,7 +529,7 @@ export default function App() {
   }, [clienteActivoId, empresaActiva.id, empresaActiva.nombre, modoAdmin]);
 
   // ── CAMBIO DE PERFIL / CLIENTE CON AISLAMIENTO TOTAL Y REACCIÓN INSTANTÁNEA ──
-  const handleCambiarCliente = (nuevoClienteId: PerfilClienteId, forzar = false) => {
+  const handleCambiarCliente = (nuevoClienteId: PerfilClienteId, forzar = false, empresaCustom?: EmpresaCliente) => {
     if (!modoAdmin && !forzar) {
       mostrarToast('🔒 El centro de eventos está protegido en Modo Demo. Abre el candado de Administrador para cambiar.');
       return;
@@ -489,7 +551,8 @@ export default function App() {
     guardarDatosCliente(clienteActivoId, datosActuales);
 
     // 2. Cargar de inmediato los datos del nuevo cliente seleccionado desde propuesta_datos_${nuevoClienteId}
-    const nuevosDatos = cargarDatosCliente(nuevoClienteId);
+    const empMatch = empresaCustom || empresas.find(e => e.id === nuevoClienteId);
+    const nuevosDatos = cargarDatosCliente(nuevoClienteId, empMatch);
 
     // 3. Actualizar el ID del cliente activo y persistir
     setClienteActivoId(nuevoClienteId);
@@ -517,7 +580,7 @@ export default function App() {
     sincronizarUrlNavegador(nuevoClienteId, nuevosDatos.empresa.id, !modoAdmin);
     document.title = `${nuevosDatos.empresa.nombre} · Sistema de Gestión & Cotizaciones`;
 
-    const config = PERFILES_CLIENTES_CATALOGO[nuevoClienteId];
+    const config = obtenerConfigPerfilCliente(nuevoClienteId, nuevosDatos.empresa);
     const slug = obtenerSlugEmpresa(nuevoClienteId, nuevosDatos.empresa.id);
     registrarActividadDemo('visita', `Cambio de centro a ${nuevosDatos.empresa.nombre}`, nuevoClienteId, nuevosDatos.empresa.nombre);
     mostrarToast(`✓ Perfil activado: ${config.nombreOpcion} · Dirección: ?centro=${slug}`);
@@ -1330,6 +1393,15 @@ export default function App() {
       nombreEvento: nombre
     }));
 
+    if (isSupabaseConfigured()) {
+      void guardarCotizacionEnSupabase(
+        { ...cotizacion, id: idReserva, nombreEvento: nombre, fechaEvento: fecha },
+        resumenFinanciero,
+        empresaActiva.id
+      );
+      void guardarReservaEnSupabase(nuevaReserva, empresaActiva.id);
+    }
+
     registrarActividadDemo('cotizacion', `Cotización guardada: "${nombre}" (${cotizacion.invitados} pax)`, clienteActivoId, empresaActiva.nombre);
     mostrarToast(`✓ Cotización "${nombre}" guardada con éxito en tu historial y calendario`);
   };
@@ -1341,6 +1413,7 @@ export default function App() {
   const handleCrearReservaDesdeActual = (fecha: string, estado: 'confirmado' | 'cotizado' | 'bloqueado') => {
     const nuevaReserva: ReservaCalendario = {
       id: 'res-' + Date.now(),
+      empresaId: empresaActiva.id,
       titulo: cotizacion.nombreEvento || `Evento ${cotizacion.cliente}`,
       cliente: cotizacion.cliente || 'Cliente Particular',
       tipoEvento: cotizacion.tipoEvento,
@@ -1353,6 +1426,9 @@ export default function App() {
 
     setReservas(prev => [nuevaReserva, ...prev]);
     setCotizacion(prev => ({ ...prev, fechaEvento: fecha }));
+    if (isSupabaseConfigured()) {
+      void guardarReservaEnSupabase(nuevaReserva, empresaActiva.id);
+    }
     mostrarToast(`✓ Evento agendado en el calendario para el ${fecha}`);
   };
 
@@ -1365,7 +1441,7 @@ export default function App() {
 
   // ── Iniciar Nueva Cotización Limpia (Todos los Cotizadores en Blanco) ──
   const handleNuevaCotizacionLimpia = () => {
-    const config = PERFILES_CLIENTES_CATALOGO[clienteActivoId];
+    const config = obtenerConfigPerfilCliente(clienteActivoId, empresaActiva);
     const def = config.crearDatosIniciales();
     const hoy = new Date().toISOString().slice(0, 10);
 
@@ -1471,7 +1547,7 @@ export default function App() {
   };
 
   const handleRestablecerDefecto = () => {
-    const config = PERFILES_CLIENTES_CATALOGO[clienteActivoId];
+    const config = obtenerConfigPerfilCliente(clienteActivoId, empresaActiva);
     if (
       window.confirm(
         `⚠️ ¿Deseas restablecer las tarifas base del perfil "${config.nombreOpcion}" a sus valores de fábrica?\n\n` +
@@ -1557,7 +1633,7 @@ export default function App() {
   const estiloActual = cotizacion.decoracionId === 'sin-decoracion'
     ? undefined
     : (estilosDecoracion.find(e => e.id === cotizacion.decoracionId) || estilosDecoracion[0]);
-  const perfilActualConfig = PERFILES_CLIENTES_CATALOGO[clienteActivoId] || PERFILES_CLIENTES_CATALOGO['dominga-eventos'];
+  const perfilActualConfig = obtenerConfigPerfilCliente(clienteActivoId, empresaActiva);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-amber-100 selection:text-amber-900">
@@ -1652,18 +1728,8 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
-                    const claveMaestra = localStorage.getItem('solvi_admin_master_pin') || '1967';
-                    const clave = window.prompt('🔒 Clave Maestra de Administrador:\nIngresa tu clave para desbloquear el sistema (Por defecto: 1967):');
-                    if (clave && (clave.trim() === claveMaestra || clave.trim().toLowerCase() === 'admin')) {
-                      const opcion = window.confirm(`✨ ¿Deseas LIBERAR LA LICENCIA DEFINITIVA para "${empresaActiva.nombre}"?\n\n- Presiona [Aceptar] para ACTIVAR LICENCIA DEFINITIVA (Ilimitada de por vida sin caducidad).\n- Presiona [Cancelar] para renovar 30 días adicionales de prueba.`);
-                      if (opcion) {
-                        handleLiberarLicenciaDefinitiva();
-                      } else {
-                        handleReiniciarDemo30Dias();
-                      }
-                    } else if (clave !== null) {
-                      alert('❌ Clave incorrecta.');
-                    }
+                    setAccionPostLoginAdmin('liberar-demo');
+                    setModalLoginAdminOpen(true);
                   }}
                   className="w-full py-2.5 px-3 text-xs font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors cursor-pointer"
                 >
@@ -1706,10 +1772,12 @@ export default function App() {
           setModalWhatsAppOpen(true);
         }}
         onAbrirMedidorDemo={() => setModalMedidorDemoOpen(true)}
+        onAbrirSeguridad={() => setModalSeguridadOpen(true)}
         modoAdmin={modoAdmin}
         onToggleModoAdmin={toggleModoAdmin}
         onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
         diasRestantesDemo={diasRestantesDemo}
+        empresasDisponibles={empresas}
       />
 
       {/* Contenido Principal */}
@@ -2514,15 +2582,26 @@ export default function App() {
             }
             const emp = empresas.find(e => e.id === id);
             if (emp) {
-              setEmpresaActiva(emp);
-              if (id === 'emp-dominga') handleCambiarCliente('dominga-eventos');
-              else if (id === 'emp-damaris') handleCambiarCliente('damaris-eventos');
-              else if (id === 'emp-solvi') handleCambiarCliente('modelo-base');
+              if (id === 'emp-dominga') handleCambiarCliente('dominga-eventos', false, emp);
+              else if (id === 'emp-damaris') handleCambiarCliente('damaris-eventos', false, emp);
+              else if (id === 'emp-solvi' || id === 'emp-isidora') handleCambiarCliente('modelo-base', false, emp);
+              else handleCambiarCliente(emp.id, false, emp);
               mostrarToast(`✓ Cambiado a ${emp.nombre} (${emp.recintoPrincipal})`);
             }
           }}
           onAddEmpresa={(nueva) => {
-            setEmpresas(prev => [...prev, nueva]);
+            const listaNueva = [...empresas.filter(e => e.id !== nueva.id), nueva];
+            setEmpresas(listaNueva);
+            try {
+              localStorage.setItem('hlr_empresas_clientes', JSON.stringify(listaNueva));
+            } catch {}
+            if (isSupabaseConfigured()) {
+              void guardarEmpresaEnSupabase(nueva).then((res) => {
+                if (res.ok) {
+                  mostrarToast(`☁️ Nuevo centro "${nueva.nombre}" guardado en Supabase BD`);
+                }
+              });
+            }
             mostrarToast(`✓ Nuevo centro de eventos "${nueva.nombre}" registrado`);
           }}
           onClose={() => setModalEmpresasOpen(false)}
@@ -2530,6 +2609,7 @@ export default function App() {
           onToggleModoAdmin={toggleModoAdmin}
           onAbrirRespaldo={() => setModalRespaldoOpen(true)}
           onAbrirFormularioEmpresa={() => setModalFormularioEmpresaOpen(true)}
+          onAbrirSeguridad={() => setModalSeguridadOpen(true)}
           onActivarDemoEmpresa={handleActivarDemoParaEmpresa}
           onLiberarLicenciaDefinitiva={handleLiberarLicenciaDefinitiva}
           onReiniciarDemo30Dias={handleReiniciarDemo30Dias}
@@ -2545,6 +2625,42 @@ export default function App() {
         clienteActivoId={clienteActivoId}
         diasRestantesDemo={diasRestantesDemo}
         onCambiarCliente={handleCambiarCliente}
+        onAbrirRespaldo={() => setModalRespaldoOpen(true)}
+      />
+
+      {/* Modal Seguro de Acceso Administrador (SHA-256 + Anti Fuerza Bruta) */}
+      <ModalLoginAdminSeguro
+        isOpen={modalLoginAdminOpen}
+        onClose={() => setModalLoginAdminOpen(false)}
+        onAutenticado={() => {
+          if (accionPostLoginAdmin === 'liberar-demo') {
+            const opcion = window.confirm(
+              `✨ ¿Deseas LIBERAR LA LICENCIA DEFINITIVA para "${empresaActiva.nombre}"?\n\n` +
+              `- Presiona [Aceptar] para ACTIVAR LICENCIA DEFINITIVA (Ilimitada de por vida).\n` +
+              `- Presiona [Cancelar] para renovar 30 días adicionales de prueba.`
+            );
+            if (opcion) {
+              handleLiberarLicenciaDefinitiva();
+            } else {
+              handleReiniciarDemo30Dias();
+            }
+          } else {
+            activarModoAdminDirecto();
+          }
+        }}
+      />
+
+      {/* Centro de Seguridad y Privacidad */}
+      <ModalSeguridadDatos
+        isOpen={modalSeguridadOpen}
+        onClose={() => setModalSeguridadOpen(false)}
+        modoAdmin={modoAdmin}
+        onCerrarModoAdmin={cerrarModoAdminDirecto}
+        onNotificar={mostrarToast}
+        onAbrirPanelSupabase={() => {
+          setModalSeguridadOpen(false);
+          setModalRespaldoOpen(true);
+        }}
       />
 
       {/* Modal Formulario de Empresa y Contacto (Alta Cliente) */}

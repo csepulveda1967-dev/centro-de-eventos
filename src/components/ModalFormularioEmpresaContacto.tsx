@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EmpresaCliente } from '../types';
+import { escaparHTML } from '../utils/security';
 import {
   Building2,
   User,
@@ -197,15 +198,16 @@ _Generado desde SOLVI Flow por CS Consultoría_`;
     const texto = construirTextoFicha();
     const numeroSoporte = '56931181304'; // CS Consultoría oficial
     const url = `https://wa.me/${numeroSoporte}?text=${encodeURIComponent(texto)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleDescargarHTML = () => {
+    const h = escaparHTML;
     const htmlContenido = `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Ficha de Empresa - ${nombre}</title>
+  <title>Ficha de Empresa - ${h(nombre)}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #0f172a; padding: 40px; margin: 0; }
     .card { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; padding: 36px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
@@ -225,53 +227,53 @@ _Generado desde SOLVI Flow por CS Consultoría_`;
   <div class="card">
     <div class="header">
       <div>
-        <h1 class="title">${nombre || 'Empresa Gastronómica'}</h1>
-        <div class="subtitle">${subtitulo || 'Servicios Gastronómicos y Banquetería'}</div>
+        <h1 class="title">${h(nombre || 'Empresa Gastronómica')}</h1>
+        <div class="subtitle">${h(subtitulo || 'Servicios Gastronómicos y Banquetería')}</div>
       </div>
       <div class="badge">SOLVI FLOW · ALTA CLIENTE</div>
     </div>
 
     <div class="section-title">1. Identidad Legal y Comercial</div>
     <div class="grid">
-      <div class="item"><div class="label">Razón Social Legal</div><div class="val">${razonSocialLegal || 'No especificada'}</div></div>
-      <div class="item"><div class="label">RUT Empresa</div><div class="val">${rutEmpresa || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Giro Comercial</div><div class="val">${giroComercial || 'Banquetería y Eventos'}</div></div>
+      <div class="item"><div class="label">Razón Social Legal</div><div class="val">${h(razonSocialLegal || 'No especificada')}</div></div>
+      <div class="item"><div class="label">RUT Empresa</div><div class="val">${h(rutEmpresa || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Giro Comercial</div><div class="val">${h(giroComercial || 'Banquetería y Eventos')}</div></div>
       <div class="item"><div class="label">Modalidad</div><div class="val">${modalidadOperacion === 'domicilio' ? 'A Domicilio / Itinerante' : modalidadOperacion === 'recinto_fijo' ? 'Recinto Fijo Propio' : 'Mixto'}</div></div>
     </div>
 
-    <div class="section-title">2. Contacto & Representante</div>
+    <div class="section-title">2. Contacto &amp; Representante</div>
     <div class="grid">
-      <div class="item"><div class="label">Responsable</div><div class="val">${contactoResponsable || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Cargo</div><div class="val">${cargoResponsable || 'Administrador'}</div></div>
-      <div class="item"><div class="label">Teléfono / WhatsApp</div><div class="val">${telefono || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Email Comercial</div><div class="val">${email || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Instagram</div><div class="val">${instagram || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Sitio Web</div><div class="val">${sitioWeb || 'No especificado'}</div></div>
+      <div class="item"><div class="label">Responsable</div><div class="val">${h(contactoResponsable || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Cargo</div><div class="val">${h(cargoResponsable || 'Administrador')}</div></div>
+      <div class="item"><div class="label">Teléfono / WhatsApp</div><div class="val">${h(telefono || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Email Comercial</div><div class="val">${h(email || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Instagram</div><div class="val">${h(instagram || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Sitio Web</div><div class="val">${h(sitioWeb || 'No especificado')}</div></div>
     </div>
 
-    <div class="section-title">3. Recinto & Ubicación</div>
+    <div class="section-title">3. Recinto &amp; Ubicación</div>
     <div class="grid">
-      <div class="item"><div class="label">Recinto Principal / Cocina</div><div class="val">${recintoPrincipal || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Dirección</div><div class="val">${direccion || 'No especificada'}</div></div>
-      <div class="item"><div class="label">Ciudad / Comuna</div><div class="val">${ciudad || 'Santiago'}</div></div>
-      <div class="item"><div class="label">Capacidad Máxima</div><div class="val">${capacidadMaxPax} comensales</div></div>
+      <div class="item"><div class="label">Recinto Principal / Cocina</div><div class="val">${h(recintoPrincipal || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Dirección</div><div class="val">${h(direccion || 'No especificada')}</div></div>
+      <div class="item"><div class="label">Ciudad / Comuna</div><div class="val">${h(ciudad || 'Santiago')}</div></div>
+      <div class="item"><div class="label">Capacidad Máxima</div><div class="val">${h(capacidadMaxPax)} comensales</div></div>
     </div>
 
     <div class="section-title">4. Datos Bancarios para Cotizaciones</div>
     <div class="grid">
-      <div class="item"><div class="label">Banco</div><div class="val">${banco}</div></div>
-      <div class="item"><div class="label">Tipo de Cuenta</div><div class="val">${tipoCuenta}</div></div>
-      <div class="item"><div class="label">Número de Cuenta</div><div class="val">${numeroCuenta || 'No especificado'}</div></div>
-      <div class="item"><div class="label">RUT Titular</div><div class="val">${rutTitular || rutEmpresa || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Nombre Titular</div><div class="val">${titularCuenta || 'No especificado'}</div></div>
-      <div class="item"><div class="label">Email Comprobantes</div><div class="val">${emailTransferencia || email || 'No especificado'}</div></div>
+      <div class="item"><div class="label">Banco</div><div class="val">${h(banco)}</div></div>
+      <div class="item"><div class="label">Tipo de Cuenta</div><div class="val">${h(tipoCuenta)}</div></div>
+      <div class="item"><div class="label">Número de Cuenta</div><div class="val">${h(numeroCuenta || 'No especificado')}</div></div>
+      <div class="item"><div class="label">RUT Titular</div><div class="val">${h(rutTitular || rutEmpresa || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Nombre Titular</div><div class="val">${h(titularCuenta || 'No especificado')}</div></div>
+      <div class="item"><div class="label">Email Comprobantes</div><div class="val">${h(emailTransferencia || email || 'No especificado')}</div></div>
     </div>
 
     <div class="section-title">5. Condiciones Comerciales</div>
     <div class="grid">
-      <div class="item"><div class="label">Anticipo Sugerido</div><div class="val">${porcentajeAnticipo}%</div></div>
-      <div class="item"><div class="label">Validez de Oferta</div><div class="val">${validezDias} días corridos</div></div>
-      <div class="item" style="grid-column: span 2;"><div class="label">Esquema de Pago</div><div class="val">${condicionesPago}</div></div>
+      <div class="item"><div class="label">Anticipo Sugerido</div><div class="val">${h(porcentajeAnticipo)}%</div></div>
+      <div class="item"><div class="label">Validez de Oferta</div><div class="val">${h(validezDias)} días corridos</div></div>
+      <div class="item" style="grid-column: span 2;"><div class="label">Esquema de Pago</div><div class="val">${h(condicionesPago)}</div></div>
     </div>
 
     <div class="footer">
@@ -285,9 +287,9 @@ _Generado desde SOLVI Flow por CS Consultoría_`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `ficha-empresa-${(nombre || 'cliente').toLowerCase().replace(/\s+/g, '-')}.html`;
+    link.download = `ficha-empresa-${(nombre || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.html`;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (

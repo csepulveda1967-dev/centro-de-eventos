@@ -1,5 +1,6 @@
 import { CotizacionState, MenuOption, RecetaFichaTecnica, InsumoMaestro } from '../types';
 import { recetaPerteneceAMenu } from '../config/insumosYRecetas';
+import { escaparCeldaCSV } from './security';
 
 export interface ItemExplosionCompra {
   insumoId: string;
@@ -290,18 +291,18 @@ export function generarCSVExplosionCompras(
   const header = ['Insumo', 'Categoría', 'Proveedor', 'Cantidad Neta', 'Merma (%)', 'Cantidad a Comprar (Bruto)', 'Unidad', 'Precio Unitario (CLP)', 'Subtotal Compra (CLP)', 'Recetas'].join(';');
   
   const filas = items.map(it => [
-    `"${it.insumoNombre.replace(/"/g, '""')}"`,
-    `"${it.categoria}"`,
-    `"${it.proveedor.replace(/"/g, '""')}"`,
+    escaparCeldaCSV(it.insumoNombre),
+    escaparCeldaCSV(it.categoria),
+    escaparCeldaCSV(it.proveedor),
     it.cantidadNetaTotal,
     `${it.mermaPromedio}%`,
     it.cantidadBrutaAComprar,
-    it.unidadMedida,
+    escaparCeldaCSV(it.unidadMedida),
     it.precioUnitarioCompra,
     it.costoTotalCompra,
-    `"${it.recetasDondeAparece.join(', ').replace(/"/g, '""')}"`
+    escaparCeldaCSV(it.recetasDondeAparece.join(', '))
   ].join(';'));
 
-  return `RESUMEN DE COMPRAS E INSUMOS - ${nombreEvento.toUpperCase()} (${invitados} INVITADOS)\n\n` +
+  return `\uFEFF${escaparCeldaCSV(`RESUMEN DE COMPRAS E INSUMOS - ${nombreEvento.toUpperCase()} (${invitados} INVITADOS)`)}\n\n` +
     [header, ...filas].join('\n');
 }

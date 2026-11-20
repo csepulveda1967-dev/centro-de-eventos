@@ -21,13 +21,17 @@ import {
   Key,
   Activity,
   Gauge,
-  TrendingUp
+  TrendingUp,
+  KeyRound
 } from 'lucide-react';
 import {
   obtenerMetricasDemo,
   calcularNivelUso,
   formatearTiempoRelativo
 } from '../utils/medidorDemoHelper';
+import { tienePinAdminPersonalizado } from '../utils/security';
+import { obtenerSlugEmpresa } from '../utils/empresaUrlHelper';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 interface GestionEmpresasModalProps {
   empresas: EmpresaCliente[];
@@ -39,12 +43,20 @@ interface GestionEmpresasModalProps {
   onToggleModoAdmin?: () => void;
   onAbrirRespaldo?: () => void;
   onAbrirFormularioEmpresa?: () => void;
+  onAbrirSeguridad?: () => void;
   onActivarDemoEmpresa?: (perfilId: PerfilClienteId) => void;
   onLiberarLicenciaDefinitiva?: (perfilId: PerfilClienteId) => void;
   onReiniciarDemo30Dias?: (perfilId: PerfilClienteId) => void;
   onAbrirMedidorDemo?: () => void;
   diasRestantesDemo?: number;
 }
+
+const resolverPerfilDesdeEmpresaId = (empresaId: string): PerfilClienteId => {
+  if (empresaId === 'emp-dominga') return 'dominga-eventos';
+  if (empresaId === 'emp-damaris') return 'damaris-eventos';
+  if (empresaId === 'emp-isidora' || empresaId === 'emp-solvi') return 'modelo-base';
+  return empresaId;
+};
 
 export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   empresas,
@@ -56,6 +68,7 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   onToggleModoAdmin,
   onAbrirRespaldo,
   onAbrirFormularioEmpresa,
+  onAbrirSeguridad,
   onActivarDemoEmpresa,
   onLiberarLicenciaDefinitiva,
   onReiniciarDemo30Dias,
@@ -63,17 +76,8 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
   diasRestantesDemo = 30
 }) => {
   const [tab, setTab] = useState<'empresas' | 'nueva'>('empresas');
-
-  // Clave maestra de administrador
-  const [claveAdmin, setClaveAdmin] = useState<string>(() => {
-    try {
-      return localStorage.getItem('solvi_admin_master_pin') || '1967';
-    } catch {
-      return '1967';
-    }
-  });
-  const [editandoClave, setEditandoClave] = useState(false);
-  const [nuevaClave, setNuevaClave] = useState('');
+  const pinPersonalizado = tienePinAdminPersonalizado();
+  const supabaseActivo = isSupabaseConfigured();
 
   // Formulario nueva empresa
   const [nombre, setNombre] = useState('');
@@ -90,9 +94,9 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
     e.preventDefault();
     if (!nombre.trim()) return;
 
-    const inicial = nombre.trim().charAt(0).toUpperCase();
+    const inicial = nombre.trim().slice(0, 2).toUpperCase();
     const nuevaEmpresa: EmpresaCliente = {
-      id: 'emp-' + Date.now(),
+      id: 'emp-' + Date.now().toString(36),
       nombre: nombre.trim(),
       subtitulo: subtitulo.trim() || 'Centro de Eventos & Banquetería',
       recintoPrincipal: recinto.trim() || nombre.trim(),
@@ -237,71 +241,46 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
               )}
             </div>
 
-            {/* Configuración y cambio de Clave Maestra de Administrador */}
+            {/* Estado cifrado de PIN Maestro de Administrador (Sin exposición en texto plano) */}
             <div className="w-full mt-2 pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px]">
-              <div className="flex items-center gap-1.5 text-slate-700">
-                <Key className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="font-extrabold">Clave Maestra Administrador:</span>
-                <span className="font-mono bg-white border border-slate-300 px-2 py-0.5 rounded-md text-slate-900 font-black tracking-wider shadow-2xs">
-                  {editandoClave ? nuevaClave || 'Escribe tu nueva clave...' : claveAdmin}
+              <div className="flex items-center gap-1.5 text-slate-700 flex-wrap">
+                <KeyRound className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="font-extrabold">Seguridad de Acceso Admin:</span>
+                <span
+                  className={`px-2 py-0.5 rounded-md font-bold border text-[10px] ${
+                    pinPersonalizado
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-amber-50 border-amber-300 text-amber-900'
+                  }`}
+                >
+                  {pinPersonalizado
+                    ? '✓ PIN Cifrado Personalizado (SHA-256)'
+                    : '⚠️ PIN Inicial Activo (Cifrado SHA-256 · Cambiar recomendado)'}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
-                  (Sirve para abrir candado y liberar licencias)
+                <span
+                  className={`px-2 py-0.5 rounded-md font-bold border text-[10px] ${
+                    supabaseActivo
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-800'
+                      : 'bg-slate-100 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  {supabaseActivo ? '☁️ Protocolo BD Supabase Listo' : '💻 Modo Local'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                {!editandoClave ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNuevaClave(claveAdmin);
-                      setEditandoClave(true);
-                    }}
-                    className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg font-bold text-[10px] transition-colors cursor-pointer"
-                  >
-                    🔑 Cambiar Clave
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      value={nuevaClave}
-                      onChange={(e) => setNuevaClave(e.target.value)}
-                      placeholder="Nueva clave..."
-                      className="px-2 py-0.5 border-2 border-amber-500 rounded-lg bg-white text-xs font-bold w-32 focus:outline-hidden"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!nuevaClave.trim()) {
-                          alert('Por favor escribe una clave válida.');
-                          return;
-                        }
-                        try {
-                          localStorage.setItem('solvi_admin_master_pin', nuevaClave.trim());
-                          setClaveAdmin(nuevaClave.trim());
-                          setEditandoClave(false);
-                          alert(`✓ Clave de Administrador guardada exitosamente:\n\n"${nuevaClave.trim()}"\n\nGuárdala bien: con esta clave podrás abrir el candado de cualquier demo y liberar licencias.`);
-                        } catch (e) {
-                          console.error(e);
-                        }
-                      }}
-                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[10px] cursor-pointer shadow-xs"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditandoClave(false)}
-                      className="px-2 py-1 text-slate-500 hover:text-slate-800 text-[10px] cursor-pointer"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                )}
-              </div>
+              {onAbrirSeguridad && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onAbrirSeguridad();
+                  }}
+                  className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-[10px] transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>Cambiar PIN / Centro Seguridad</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -464,7 +443,7 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const perfilKey: PerfilClienteId = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                                  const perfilKey = resolverPerfilDesdeEmpresaId(emp.id);
                                   onActivarDemoEmpresa(perfilKey);
                                   onClose();
                                 }}
@@ -486,7 +465,8 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const slug = emp.id === 'emp-dominga' ? 'dominga' : emp.id === 'emp-damaris' ? 'damaris' : 'demo';
+                                const perfilKey = resolverPerfilDesdeEmpresaId(emp.id);
+                                const slug = obtenerSlugEmpresa(perfilKey, emp.id);
                                 const url = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}?centro=${slug}&demo=true` : '';
                                 if (navigator.clipboard) {
                                   navigator.clipboard.writeText(url);
@@ -505,7 +485,7 @@ export const GestionEmpresasModal: React.FC<GestionEmpresasModalProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  const perfilKey = emp.id === 'emp-dominga' ? 'dominga-eventos' : emp.id === 'emp-damaris' ? 'damaris-eventos' : 'modelo-base';
+                                  const perfilKey = resolverPerfilDesdeEmpresaId(emp.id);
                                   onLiberarLicenciaDefinitiva(perfilKey);
                                 }}
                                 className="inline-flex items-center gap-1 text-[10px] font-black text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2 py-1 rounded-lg transition-colors cursor-pointer"

@@ -58,7 +58,20 @@ export const ModalDireccionesWeb: React.FC<ModalDireccionesWebProps> = ({
     }
   };
 
-  // Mapeo de perfiles predeterminados
+  // Mapeo de perfiles predeterminados + nuevos centros contratados registrados en el sistema
+  const idsBase = new Set(['emp-damaris', 'emp-dominga', 'emp-isidora', 'emp-solvi']);
+  const centrosDinamicos = (empresasDisponibles || [])
+    .filter((e) => e && !idsBase.has(e.id))
+    .map((e) => ({
+      perfilId: e.id as PerfilClienteId,
+      empresaId: e.id,
+      nombre: e.nombre,
+      subtitulo: `${e.recintoPrincipal || e.subtitulo || 'Centro Contratado'} (${e.ciudad || 'Chile'})`,
+      slug: obtenerSlugEmpresa(e.id, e.id),
+      color: e.colorTema === 'emerald' ? 'emerald' : e.colorTema === 'rose' ? 'rose' : 'amber',
+      letra: e.letraLogo || e.nombre.slice(0, 2).toUpperCase()
+    }));
+
   const centrosEspeciales = [
     {
       perfilId: 'damaris-eventos' as PerfilClienteId,
@@ -86,7 +99,8 @@ export const ModalDireccionesWeb: React.FC<ModalDireccionesWebProps> = ({
       slug: 'demo',
       color: 'rose',
       letra: 'DI'
-    }
+    },
+    ...centrosDinamicos
   ];
 
   return (

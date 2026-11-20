@@ -1,9 +1,10 @@
 import { PerfilClienteId, EmpresaCliente } from '../types';
+import { validarSlugIdSeguro } from './security';
 
 /**
  * Mapeo oficial de slugs limpios para direcciones web propias de cada empresa
  */
-export const SLUG_POR_PERFIL: Record<PerfilClienteId, string> = {
+export const SLUG_POR_PERFIL: Record<string, string> = {
   'damaris-eventos': 'damaris',
   'dominga-eventos': 'dominga',
   'modelo-base': 'demo'
@@ -33,16 +34,18 @@ export const PERFIL_POR_SLUG: Record<string, PerfilClienteId> = {
 };
 
 /**
- * Obtiene el slug limpio de una empresa (ej: 'damaris', 'dominga', 'demo')
+ * Obtiene el slug limpio de una empresa (ej: 'damaris', 'dominga', 'demo', o ID seguro para nuevos centros)
  */
 export function obtenerSlugEmpresa(clienteId: string, empresaId?: string): string {
   if (clienteId === 'damaris-eventos' || empresaId === 'emp-damaris') return 'damaris';
   if (clienteId === 'dominga-eventos' || empresaId === 'emp-dominga') return 'dominga';
   if (clienteId === 'modelo-base' || empresaId === 'emp-isidora') return 'demo';
-  if (empresaId === 'emp-nogales') return 'nogales';
-  if (empresaId === 'emp-sanfrancisco') return 'sanfrancisco';
-  
+
   if (PERFIL_POR_SLUG[clienteId]) return SLUG_POR_PERFIL[PERFIL_POR_SLUG[clienteId]] || clienteId;
+
+  const seguro = validarSlugIdSeguro(clienteId) || validarSlugIdSeguro(empresaId);
+  if (seguro) return seguro;
+
   return clienteId.replace(/^emp-/, '').replace(/-eventos$/, '');
 }
 
@@ -68,10 +71,33 @@ export function obtenerUrlDirectaEmpresa(
   return `${origin}${pathname}?centro=${slug}${demoParam}`;
 }
 
+function buscarEmpresaDinamicaPorSlug(slug: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const slugSeguro = validarSlugIdSeguro(slug);
+  if (!slugSeguro) return null;
+
+  try {
+    const raw = localStorage.getItem('hlr_empresas_clientes');
+    if (!raw) return null;
+    const lista = JSON.parse(raw) as EmpresaCliente[];
+    if (!Array.isArray(lista)) return null;
+    const lower = slugSeguro.toLowerCase();
+    const match = lista.find(
+      (e) =>
+        e &&
+        typeof e.id === 'string' &&
+        (e.id.toLowerCase() === lower || e.id.toLowerCase().replace(/^emp-/, '') === lower)
+    );
+    return match?.id || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resuelve qué perfil de empresa corresponde a la URL actual
  * Busca en:
- * 1. Query params: ?centro=damaris, ?empresa=damaris, ?cliente=damaris, ?perfil=damaris
+ * 1. Query params: ?centro=damaris, ?empresa=damaris, ?cliente=damaris, ?perfil=damaris (y IDs dinámicos ?centro=emp-...)
  * 2. Query param directo: ?damaris, ?dominga, ?demo, ?isidora
  * 3. Pathname: /damaris, /dominga, /demo, /isidora
  * 4. Hash: #damaris, #/damaris, #centro=damaris, #demo
@@ -97,6 +123,16 @@ export function resolverPerfilDesdeUrl(): { perfilId: PerfilClienteId; esDemo: b
       if (v.includes('damaris')) return { perfilId: 'damaris-eventos', esDemo, slug: 'damaris' };
       if (v.includes('dominga') || v.includes('toscana')) return { perfilId: 'dominga-eventos', esDemo, slug: 'dominga' };
       if (v.includes('demo') || v.includes('isidora')) return { perfilId: 'modelo-base', esDemo, slug: 'demo' };
+
+      // Centros contratados dinámicos (ej. ?centro=emp-losnogales o ?centro=emp-1731...)
+      const empresaLocal = buscarEmpresaDinamicaPorSlug(valorParam.trim());
+      if (empresaLocal) {
+        return { perfilId: empresaLocal, esDemo, slug: empresaLocal };
+      }
+      const idSeguro = validarSlugIdSeguro(valorParam.trim());
+      if (idSeguro && idSeguro.startsWith('emp-')) {
+        return { perfilId: idSeguro, esDemo, slug: idSeguro };
+      }
     }
 
     // 2. Query string directo (ej: ?damaris o ?dominga o ?demo)
