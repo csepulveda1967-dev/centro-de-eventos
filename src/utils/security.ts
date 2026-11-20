@@ -247,7 +247,7 @@ export async function guardarNuevoPinAdmin(nuevoPin: string): Promise<{ ok: bool
     return { ok: false, error: 'El PIN debe tener entre 4 y 32 caracteres.' };
   }
   if (limpio === DEFAULT_ADMIN_PIN || limpio.toLowerCase() === 'admin' || limpio === '1234' || limpio === '0000') {
-    return { ok: false, error: 'Por seguridad, elige un PIN distinto a "1967", "1234", "0000" o "admin".' };
+    return { ok: false, error: 'Por seguridad, elige un PIN distinto al PIN inicial de fábrica o claves triviales (1234, 0000, admin).' };
   }
 
   const salt = generarSalt();

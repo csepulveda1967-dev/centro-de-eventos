@@ -134,7 +134,7 @@ export const ModalLoginAdminSeguro: React.FC<ModalLoginAdminProps> = ({
                 disabled={segundosBloqueo > 0}
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}
-                placeholder="Ingresa tu PIN (por defecto inicial: 1967)"
+                placeholder="Ingresa tu PIN maestro de administrador"
                 className="w-full pr-10 pl-3.5 py-2.5 text-sm font-mono border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:outline-hidden disabled:bg-slate-100"
               />
               <button
@@ -149,7 +149,7 @@ export const ModalLoginAdminSeguro: React.FC<ModalLoginAdminProps> = ({
             {!tienePinAdminPersonalizado() && (
               <p className="text-[11px] text-amber-700 mt-1.5 flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Recomendación: cambia el PIN inicial (1967) en el Centro de Seguridad.</span>
+                <span>Recomendación: personaliza tu PIN maestro desde el Centro de Seguridad al ingresar.</span>
               </p>
             )}
           </div>
@@ -343,7 +343,7 @@ export const ModalSeguridadDatos: React.FC<ModalSeguridadDatosProps> = ({
                   <div className="text-[11px] text-slate-600">
                     {pinPersonalizado
                       ? 'PIN personalizado activo con bloqueo anti fuerza bruta (5 intentos).'
-                      : 'Aún usas el PIN inicial (1967). Cámbialo abajo antes de entregar a clientes.'}
+                      : 'Aún usas el PIN inicial de fábrica. Personalízalo abajo antes de entregar a clientes.'}
                   </div>
                 </div>
               </div>
